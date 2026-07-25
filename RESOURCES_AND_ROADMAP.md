@@ -1,6 +1,6 @@
 # MathModelAgent — 资源库与开发路线图
 
-> 最后更新: 2026-07-23 (补充沙箱环境/路线图实现细节/技术备查)
+> 最后更新: 2026-07-25 (方案模式质量大修 + 路线图同步已完成项)
 > 状态: 活跃开发中
 
 ---
@@ -204,15 +204,18 @@ MEMORY_CONTEXT_GUIDE.md 提供了 Agent Xi 项目的实战经验，以下模式�
 - [x] P2: 文件上传 + 图表内联显示 + 沙箱文件引用
 - [x] P3: Web 搜索 (DuckDuckGo)
 - [x] UI 修复: 白屏/三点常驻/滚动/工具调用排序/进度条冗余
+- [x] RAG 升级: 多路召回 + RRF 融合 + LLM 精排 + 时间衰减 + 查询扩展
+- [x] 安全审查修复: XSS(DOMPurify) / 路径穿越 / 事件循环阻塞(asyncio.to_thread) / JWT 7天过期 / runningMode 持久化
+- [x] 上传加固: 20MB 大小限制 + 扩展名白名单 + 流式校验
+- [x] SSE 取消: AbortController + chat/teach 停止按钮
+- [x] 对话导出: Markdown 下载 + printAsPdf
+- [x] DOCX 导出: `POST /api/export/docx` (python-docx)
+- [x] Retriever 缓存: 模块级单例，BM25 索引只建一次
+- [x] 启动自动建索引: 检测 chroma.sqlite3 不存在则后台 rebuild
+- [x] 端口可配置: vite loadEnv 读 .env.local，WS 走代理（多人开发兼容）
+- [x] 方案模式质量大修: writing max_tokens 65536 + 续写兜底 / 求解发 tool_call 事件(代码+图表) / 摘要 280→800
 
 ### 近期 (P4)
-
-**对话导出 (Markdown / PDF)**
-
-- 前端: ChatArea 顶栏加"导出"按钮，收集当前会话 messages 数组，格式化为 Markdown（role 标记 + 代码块 + 图片链接）
-- PDF: 复用浏览器 `window.print()` + `@media print` 样式（零依赖），或引入 `html2pdf.js` 生成文件下载
-- 涉及文件: `ChatArea.vue`（按钮）、新建 `composables/useExport.ts`（格式化逻辑）
-- 注意: 图片 URL 是临时路径（`/api/images/{run_id}/...`），导出时需内联 base64 或提示用户图片可能过期
 
 **论文模板选择 (LaTeX)**
 
@@ -222,19 +225,19 @@ MEMORY_CONTEXT_GUIDE.md 提供了 Agent Xi 项目的实战经验，以下模式�
 - 依赖: `jinja2`（已有）；LaTeX 编译由用户本地完成，系统不装 TeX Live
 - 涉及文件: 新建 `backend/app/api/export_routes.py`、`backend/templates/latex/`
 
-**DOCX 导出**
-
-- 后端: `POST /api/export/docx`，用 `python-docx` 将 Markdown 论文转为 Word（标题/段落/表格/公式占位）
-- 公式处理: LaTeX 公式转 OMML（Office Math）较复杂，初期方案是保留 `$...$` 原文 + 灰色底色标注"请手动插入公式"
-- 依赖: `pip install python-docx`
-- 涉及文件: 同 `export_routes.py`
-
 **代码结果持久化**
 
 - 当前问题: run_code 图片存 `tempfile.gettempdir()/mathmodel_outputs/{run_id}/`，系统重启或清理 tmp 后丢失
 - 方案: 执行完成后将图片复制到 `backend/data/code_outputs/{session_id}/{run_id}/`，URL 改为 `/api/images/{session_id}/{run_id}/{fn}`
 - 消息持久化: chat 消息目前仅存前端内存 + SSE 流，需后端存 Redis hash 或 SQLite（`chat_history:{session_id}`）
 - 涉及文件: `sandbox/executor.py`（输出路径）、`chat_routes.py`（图片路由）、新建 `backend/app/services/chat_persistence.py`
+
+**分析质量提升 (prompt 优化)**
+
+- 现状: 分析/建模阶段输出偏简短（temperature=0.3 保守 + 缺 few-shot 示例）
+- 方案: analysis/modeling prompt 增加 1-2 个 few-shot 示例引导深度；temperature 微调到 0.4-0.5
+- 写作图表: 考虑让 writing agent 用 `\includegraphics` 引用 solving 阶段已生成的 matplotlib 图片，替代纯 TikZ（前端 Markdown 渲染器无法显示 TikZ）
+- 涉及文件: `backend/app/core/prompts/analysis.py`、`modeling.py`、`writing.py`、`config.py`(temperature)
 
 ### 中期 (P5)
 
