@@ -35,3 +35,4 @@ backend/paper_output/
 # 系统杂项
 .DS_Store
 Thumbs.db
+.env.local
