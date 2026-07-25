@@ -12,6 +12,7 @@ from .knowledge_routes import knowledge_router
 from .apikeys import apikeys_router
 from .tasks import tasks_router
 from .files import files_router
+from .export_routes import export_router
 from .schemas.response import HealthResponse
 from ..config import get_settings
 from ..services.session import get_session_manager
@@ -25,6 +26,7 @@ api_router.include_router(chat_router)
 api_router.include_router(apikeys_router)
 api_router.include_router(tasks_router)
 api_router.include_router(files_router)
+api_router.include_router(export_router)
 
 # ── Auth（内联，轻量 OAuth）──
 

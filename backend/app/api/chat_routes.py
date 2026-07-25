@@ -42,6 +42,22 @@ MAX_HISTORY_MESSAGES = 20
 # 单次对话最多工具调用轮数，防止无限循环
 MAX_TOOL_ITERATIONS = 3
 
+# ── Retriever 缓存（避免每请求重建 BM25 索引）──────────────────────
+_cached_retriever = None
+
+def _get_retriever():
+    """懒加载 + 缓存 HybridRetriever 实例（BM25 索引只建一次）。"""
+    global _cached_retriever
+    if _cached_retriever is None:
+        from ..knowledge.retriever import HybridRetriever
+        from ..config import get_settings
+        settings = get_settings()
+        _cached_retriever = HybridRetriever(
+            kb_root=settings.kb_root,
+            persist_dir=settings.chroma_dir,
+        )
+    return _cached_retriever
+
 CHAT_SYSTEM_PROMPT = f"""# 数学建模助手
 
 你是一位专业、友善的数学建模助手，擅长解答数学建模、算法、优化、统计、
@@ -151,15 +167,9 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
         # ── RAG 预检索：如果用户开启了 use_rag，先查知识库并注入上下文 ──
         if req.use_rag:
             try:
-                from ..knowledge.retriever import HybridRetriever
                 from ..knowledge.chain import format_docs
-                from ..config import get_settings
 
-                settings = get_settings()
-                retriever = HybridRetriever(
-                    kb_root=settings.kb_root,
-                    persist_dir=settings.chroma_dir,
-                )
+                retriever = _get_retriever()
                 last_user = next(
                     (m for m in reversed(messages) if isinstance(m, HumanMessage)),
                     None,
