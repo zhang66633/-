@@ -148,7 +148,7 @@ export const useTaskStore = defineStore("task", () => {
     completed.value = false;
     currentStep.value = "";
 
-    const baseUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8000/api/ws";
+    const baseUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8001/api/ws";
     const token = localStorage.getItem("mma:token") || "";
     const wsUrl = `${baseUrl}/task/${taskId}?token=${encodeURIComponent(token)}`;
 

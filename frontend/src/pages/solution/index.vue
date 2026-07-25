@@ -170,7 +170,7 @@ async function handleUserSend(text: string) {
       id: generateId(),
       msg_type: "system",
       type: "error",
-      content: `⚠️ 创建任务失败：${e?.message ?? "后端不可达，请确认已启动 (uvicorn app.main:app --port 8000)"}`,
+      content: `⚠️ 创建任务失败：${e?.message ?? "后端不可达，请确认已启动 (uvicorn app.main:app --port 8001)"}`,
       created_at: new Date().toISOString(),
     } as Message);
     chatSession.setRunning(null);
