@@ -114,8 +114,6 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from "vue";
-import { marked } from "marked";
-import markedKatex from "marked-katex-extension";
 import {
   Wrench,
   Info,
@@ -130,8 +128,7 @@ import type { Message, SystemMessage as SysMsg, AgentMessage, ToolMessage, Clari
 import ClarifyCard from "@/components/ClarifyCard.vue";
 import { AgentType } from "@/types/enum";
 import { useTypewriter } from "@/composables/useTypewriter";
-
-marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+import { renderMarkdown } from "@/utils/markdown";
 
 const props = withDefaults(defineProps<{
   message: Message;
@@ -325,7 +322,7 @@ const systemBody = computed(() => {
 const renderedContent = computed(() => {
   const text = enableTypewriter.value ? displayText.value : content.value;
   if (!text) return "";
-  return marked.parse(text) as string;
+  return renderMarkdown(text);
 });
 
 const timestamp = computed(() => {

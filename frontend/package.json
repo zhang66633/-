@@ -11,6 +11,7 @@
   "dependencies": {
     "@vueuse/core": "^12.7.0",
     "axios": "^1.8.4",
+    "dompurify": "^3.4.12",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
     "lucide-vue-next": "^0.475.0",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@inspira-ui/plugins": "^0.0.1",
+    "@types/dompurify": "^3.2.0",
     "@types/highlight.js": "^10.1.0",
     "@types/katex": "^0.16.7",
     "@types/marked": "^6.0.0",

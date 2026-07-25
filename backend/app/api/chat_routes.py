@@ -16,6 +16,7 @@ SSE 事件协议：
   data: {"error": "..."}\n\n                 错误
 """
 
+import asyncio
 import json
 import logging
 
@@ -165,7 +166,7 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                 )
                 if last_user:
                     query = str(last_user.content)
-                    docs = retriever.invoke(query, k=5)
+                    docs = await asyncio.to_thread(retriever.invoke, query, k=5)
                     if docs:
                         ctx = format_docs(docs)
                         messages.insert(
@@ -245,7 +246,7 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                         yield f"data: {json.dumps({'code_exec': {'status': 'running'}}, ensure_ascii=False)}\n\n"
 
                     try:
-                        result_text = tool.invoke(tool_args)
+                        result_text = await asyncio.to_thread(tool.invoke, tool_args)
                     except Exception as e:  # noqa: BLE001
                         logger.exception("tool %s failed", tool_name)
                         result_text = f"工具执行失败: {e}"

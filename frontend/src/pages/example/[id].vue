@@ -110,13 +110,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { marked } from "marked";
-import markedKatex from "marked-katex-extension";
 import { ChevronRight, Copy, Play } from "lucide-vue-next";
 import { BTN_PRIMARY } from "@/config/styles";
-
-
-marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+import { renderMarkdown } from "@/utils/markdown";
 
 const props = defineProps<{
   id: string;
@@ -151,16 +147,16 @@ const relatedExamples = ref<Array<{ id: number; title: string; category: string 
 const difficultyClass = computed(() => "");
 
 const renderedAnalysis = computed(() =>
-  example.value.analysis ? marked.parse(example.value.analysis) : ""
+  renderMarkdown(example.value.analysis || "")
 );
 const renderedModel = computed(() =>
-  example.value.model ? marked.parse(example.value.model) : ""
+  renderMarkdown(example.value.model || "")
 );
 const renderedSolution = computed(() =>
-  example.value.solution ? marked.parse(example.value.solution) : ""
+  renderMarkdown(example.value.solution || "")
 );
 const renderedResults = computed(() =>
-  example.value.results ? marked.parse(example.value.results) : ""
+  renderMarkdown(example.value.results || "")
 );
 
 function copyCode() {

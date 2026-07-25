@@ -1,6 +1,7 @@
 """Auth dependencies — FastAPI Depends() callables for route protection."""
 
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
@@ -14,18 +15,23 @@ logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
+JWT_EXPIRE_DAYS = 7
+
 
 # ── JWT helpers ─────────────────────────────────────────────────────
 
 
 def create_jwt(user: GitHubUser) -> str:
-    """Create a signed JWT for the authenticated user."""
+    """Create a signed JWT for the authenticated user (7-day expiry)."""
     settings = get_settings()
+    now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user.id),
         "login": user.login,
         "name": user.name,
         "avatar_url": user.avatar_url,
+        "iat": now,
+        "exp": now + timedelta(days=JWT_EXPIRE_DAYS),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 

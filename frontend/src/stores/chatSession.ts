@@ -216,7 +216,7 @@ export const useChatSessionStore = defineStore(
     persist: {
       key: "mma-chat-sessions",
       storage: localStorage,
-      pick: ["chatSessions", "teachSessions", "solutionSessions", "activeChatId", "activeTeachId", "activeSolutionId", "runningMode"],
+      pick: ["chatSessions", "teachSessions", "solutionSessions", "activeChatId", "activeTeachId", "activeSolutionId"],
     },
   },
 );
