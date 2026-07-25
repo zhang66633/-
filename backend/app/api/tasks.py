@@ -142,7 +142,7 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
         }
 
         def _make_summary(node_name: str, node_output: dict) -> str:
-            """从 node_output 中抽取该 Agent 的实际产出摘要（首 280 字）。"""
+            """从 node_output 中抽取该 Agent 的实际产出摘要（首 800 字）。"""
             field = node_output_fields.get(node_name)
             if not field:
                 return ""
@@ -153,7 +153,7 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
             # 去掉前导 markdown 标题与多余空白
             text = re.sub(r"^#+\s+", "", text, flags=re.MULTILINE)
             text = re.sub(r"\s+", " ", text)
-            return text[:280].strip()
+            return text[:800].strip()
 
         messages = []
         final_state = state
@@ -165,7 +165,7 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
 
                 # 构造更具体的聊天消息：标题 + 描述 + 摘要
                 if summary:
-                    content = f"[{stage}] {desc}\n\n{summary}{'…' if len(str(node_output.get(node_output_fields.get(node_name, ''), ''))) > 280 else ''}"
+                    content = f"[{stage}] {desc}\n\n{summary}{'…' if len(str(node_output.get(node_output_fields.get(node_name, ''), ''))) > 800 else ''}"
                 else:
                     content = f"[{stage}] {desc}…"
 

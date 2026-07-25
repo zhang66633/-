@@ -53,7 +53,10 @@ class Settings(BaseSettings):
 
     # ---- LLM Defaults ----
     default_temperature: float = 0.3
-    default_max_tokens: int = 8192
+    default_max_tokens: int = 16384
+    # 写作阶段需生成完整 LaTeX 论文（国赛~1万字 / 美赛25页，含公式+TikZ+表格开销，
+    # 实际约 2-4 万 tokens）。DeepSeek V4 Pro 最大输出 393216，给足余量避免截断。
+    writing_max_tokens: int = 65536
 
     # ---- DeepSeek Proxy ----
     deepseek_base_url: str = "https://api.deepseek.com"
@@ -112,13 +115,16 @@ class Settings(BaseSettings):
             provider = "openai"
             api_key = self.openai_api_key
 
+        # 按角色选择 max_tokens：写作阶段需更长输出
+        max_tokens = self.writing_max_tokens if agent_role == "writing" else self.default_max_tokens
+
         return LLMConfig(
             provider=provider,
             model=model,
             api_key=api_key,
             base_url=base_url,
             temperature=self.default_temperature,
-            max_tokens=self.default_max_tokens,
+            max_tokens=max_tokens,
         )
 
 

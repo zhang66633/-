@@ -46,6 +46,19 @@ export const useTaskStore = defineStore("task", () => {
   function handleProgressEvent(taskId: string, data: Record<string, any>) {
     const event = data?.event;
 
+    // 工具调用：求解阶段代码执行（代码/stdout/图表），渲染为 tool 消息卡片
+    if (event === "tool_call") {
+      appendMessage(taskId, {
+        id: data.id ?? genId(),
+        msg_type: "tool",
+        tool_name: data.data?.tool_name ?? "run_code",
+        input: data.data?.input ?? null,
+        output: data.data?.output ?? null,
+        created_at: now(),
+      } as Message);
+      return;
+    }
+
     // 节点完成：追加一条进度 system 消息 + 更新当前步骤
     // 优先用 summary（节点实际产出）替代空泛的 desc，让用户看到"做了什么"
     if (event === "node_end") {
@@ -54,7 +67,7 @@ export const useTaskStore = defineStore("task", () => {
       const desc = data.data?.desc ?? "";
       const summary: string = (data.data?.summary ?? "").trim();
       const content = summary
-        ? `[${title}] ${desc}\n\n${summary}${summary.length >= 280 ? "…" : ""}`
+        ? `[${title}] ${desc}\n\n${summary}${summary.length >= 800 ? "…" : ""}`
         : `[${title}] ${desc}…`;
       appendMessage(taskId, {
         id: data.id ?? genId(),
@@ -87,13 +100,19 @@ export const useTaskStore = defineStore("task", () => {
         // 异步拉取完整内容
         fetchFullFinalResponse(taskId).catch((e) => {
           console.error("拉取完整论文失败：", e);
-          appendMessage(taskId, {
-            id: genId(),
-            msg_type: "system",
-            type: "warning",
-            content: "⚠️ 完整论文拉取失败，仅显示上文预览片段。请重试或刷新页面。",
-            created_at: now(),
-          } as Message);
+          // 清除占位消息中的"正在加载"提示，避免残留
+          const bucket = messagesByTask.value[taskId];
+          if (bucket) {
+            const idx = bucket.findIndex((m) => m.id === "final-" + taskId);
+            if (idx !== -1) {
+              const cleaned = (bucket[idx].content as string).replace(
+                /\n\n_（正在加载完整论文…）_$/,
+                "\n\n_（完整论文加载失败，以上为预览片段）_",
+              );
+              bucket[idx] = { ...bucket[idx], content: cleaned };
+              messagesByTask.value = { ...messagesByTask.value, [taskId]: [...bucket] };
+            }
+          }
         });
       } else if (data.data?.message) {
         appendMessage(taskId, {

@@ -492,13 +492,31 @@ def solving_agent_node(state: AgentState) -> dict:
         if exec_result["success"]:
             # 成功 — 拼接完整输出
             images = exec_result.get("images", [])
-            all_images = images
+            run_id = exec_result.get("run_id", "")
+            # 本地路径 → HTTP URL（前端通过 /api/images/{run_id}/{filename} 访问）
+            image_urls = [
+                f"/api/images/{run_id}/{Path(p).name}" for p in images
+            ] if run_id else []
+            all_images = image_urls
             final_output = (
                 f"{full_text}\n\n"
                 f"### 执行结果\n```\n{exec_result['stdout'][:2000]}\n```\n"
             )
-            if images:
-                final_output += f"\n生成图表: {len(images)} 张\n"
+            if image_urls:
+                final_output += f"\n生成图表: {len(image_urls)} 张\n"
+                for url in image_urls:
+                    final_output += f"\n![图表]({url})\n"
+
+            # 发布 tool_call 事件，前端渲染代码执行卡片（代码/stdout/图表）
+            _pub_event(task_id, "tool_call", "solving_agent", {
+                "tool_name": "run_code",
+                "input": {"code": code[:3000]},
+                "output": [{
+                    "name": "run_code",
+                    "preview": (exec_result['stdout'][:1500] or "执行完成（无标准输出）"),
+                    "images": image_urls,
+                }],
+            })
             break
         else:
             last_error = exec_result.get("stderr", "")
@@ -651,6 +669,23 @@ def writing_agent_node(state: AgentState) -> dict:
     import re
     writing_output = re.sub(r"^```(?:latex|tex)?\s*\n", "", writing_output)
     writing_output = re.sub(r"\n```\s*$", "", writing_output)
+
+    # 续写兜底：若未以 \end{document} 结尾，说明被 max_tokens 截断，继续生成
+    max_continuations = 2
+    for _ in range(max_continuations):
+        if "\\end{document}" in writing_output:
+            break
+        _pub_event(task_id, "node_progress", "writing_agent", {"continuing": True})
+        cont_resp = llm.invoke([
+            SystemMessage(content="请继续输出被截断的 LaTeX 论文，从上次中断处接着写，不要重复已有内容，直到 \\end{document} 结束。"),
+            HumanMessage(content=f"已生成内容（结尾部分）：\n```\n{writing_output[-2000:]}\n```\n请从这里继续："),
+        ])
+        cont_text = str(cont_resp.content)
+        cont_text = re.sub(r"^```(?:latex|tex)?\s*\n", "", cont_text)
+        cont_text = re.sub(r"\n```\s*$", "", cont_text)
+        if not cont_text.strip():
+            break
+        writing_output += "\n" + cont_text
 
     _pub_event(task_id, "node_end", "writing_agent", {
         "step": idx + 1,
