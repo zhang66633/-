@@ -23,6 +23,8 @@ from .config import get_settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown events."""
+    import asyncio
+
     settings = get_settings()
 
     # JWT secret 安全校验
@@ -38,6 +40,27 @@ async def lifespan(app: FastAPI):
             "请在 .env 中设置 JWT_SECRET。",
             flush=True,
         )
+
+    # 知识库向量索引：不存在则自动重建（后台线程，不阻塞启动）
+    chroma_db_file = Path(settings.chroma_dir) / "chroma.sqlite3"
+    if not chroma_db_file.exists():
+        print("[INFO] 向量索引不存在，后台自动重建...", flush=True)
+
+        def _rebuild_index():
+            try:
+                from .knowledge.embedder import KBEmbedder
+                embedder = KBEmbedder(
+                    kb_root=settings.kb_root,
+                    persist_dir=settings.chroma_dir,
+                )
+                count = embedder.build_index()
+                print(f"[INFO] 向量索引自动重建完成，共 {count} 篇文档", flush=True)
+            except Exception as e:
+                print(f"[WARNING] 向量索引自动重建失败: {e}", flush=True)
+
+        asyncio.get_event_loop().run_in_executor(None, _rebuild_index)
+    else:
+        print("[INFO] 向量索引已存在，跳过重建", flush=True)
 
     print(f"MathModelAgent backend starting on {settings.host}:{settings.port}")
 
