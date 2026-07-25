@@ -4,7 +4,10 @@
       <ChatArea
         :messages="chatSession.activeChatMessages"
         :is-running="chatSession.getIsRunning('chat')"
+        :cancellable="true"
         @send="handleUserSend"
+        @cancel="cancelStream"
+        @export="handleExport"
       />
     </div>
   </div>
@@ -15,9 +18,14 @@ import { onMounted } from "vue";
 import ChatArea from "@/components/ChatArea.vue";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { useStreamChat } from "@/composables/useStreamChat";
+import { downloadMarkdown } from "@/composables/useExport";
 
 const chatSession = useChatSessionStore();
-const { handleUserSend, restoreLatestSession } = useStreamChat("chat", "chat");
+const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat("chat", "chat");
+
+function handleExport() {
+  downloadMarkdown(chatSession.activeChatMessages, "对话记录.md");
+}
 
 onMounted(restoreLatestSession);
 </script>

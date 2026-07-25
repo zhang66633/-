@@ -3,6 +3,7 @@
  * 负责：会话创建/复用、用户消息与 agent 占位消息写入、
  * 调 SSE 接口并流式就地累加、工具调用可视化、运行态管理、最新会话恢复。
  */
+import { ref } from "vue";
 import { useChatSessionStore, type SessionMode } from "@/stores/chatSession";
 import { streamChat, type ChatHistoryMessage, type ChatFileRef } from "@/apis/chatApi";
 import type { Message } from "@/types/response";
@@ -13,6 +14,16 @@ function generateId() {
 
 export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teach") {
   const chatSession = useChatSessionStore();
+  const abortController = ref<AbortController | null>(null);
+
+  /** 取消当前正在进行的流式请求。 */
+  function cancelStream() {
+    if (abortController.value) {
+      abortController.value.abort();
+      abortController.value = null;
+    }
+    chatSession.setRunning(null);
+  }
 
   /** 当前会话消息 → 后端历史格式（仅 user/assistant，跳过流式中的空消息）。 */
   function buildHistory(): ChatHistoryMessage[] {
@@ -30,6 +41,10 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
     if (!sessionId) {
       sessionId = chatSession.createSession(sessionMode);
     }
+
+    // 创建 AbortController 用于取消
+    const controller = new AbortController();
+    abortController.value = controller;
 
     const userMsg: Message = {
       id: generateId(),
@@ -63,6 +78,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
     await streamChat(buildHistory(), {
       mode: chatMode,
       files,
+      signal: controller.signal,
       onDelta(delta) {
         acc += delta;
         const id = ensureAgentMsg();
@@ -132,6 +148,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
         }
       },
       onDone() {
+        abortController.value = null;
         const id = ensureAgentMsg();
         chatSession.updateMessage(sessionMode, sessionId, id, {
           content: acc || "（未收到回复内容）",
@@ -140,11 +157,20 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
         chatSession.setRunning(null);
       },
       onError(message) {
+        abortController.value = null;
         const id = ensureAgentMsg();
-        chatSession.updateMessage(sessionMode, sessionId, id, {
-          content: `出错了：${message}`,
-          streaming: false,
-        });
+        // 用户主动取消时不显示错误
+        if (controller.signal.aborted) {
+          chatSession.updateMessage(sessionMode, sessionId, id, {
+            content: acc || "（已取消）",
+            streaming: false,
+          });
+        } else {
+          chatSession.updateMessage(sessionMode, sessionId, id, {
+            content: `出错了：${message}`,
+            streaming: false,
+          });
+        }
         chatSession.setRunning(null);
       },
     });
@@ -159,5 +185,5 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
     }
   }
 
-  return { handleUserSend, restoreLatestSession };
+  return { handleUserSend, restoreLatestSession, cancelStream };
 }

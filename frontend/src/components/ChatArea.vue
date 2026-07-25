@@ -96,6 +96,15 @@
           accept=".csv,.xlsx,.xls,.txt,.md,.json,.pdf,.py,.dat,.tsv"
           @change="onFileSelected"
         />
+        <!-- 导出按钮 -->
+        <button
+          v-if="messages.length > 0"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background hover:bg-accent transition-colors"
+          title="导出对话 (Markdown)"
+          @click="$emit('export')"
+        >
+          <Download class="h-4 w-4" />
+        </button>
         <textarea
           v-model="inputText"
           class="flex min-h-10 max-h-40 w-full resize-none rounded-md border border-border bg-background px-4 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -121,7 +130,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick, computed, provide } from "vue";
-import { Brain, ArrowDown, Send, Loader2, Square, Paperclip, X } from "lucide-vue-next";
+import { Brain, ArrowDown, Send, Loader2, Square, Paperclip, X, Download } from "lucide-vue-next";
 import { useTaskStore } from "@/stores/task";
 import Bubble from "@/components/Bubble.vue";
 import type { Message } from "@/types/response";
@@ -147,6 +156,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   send: [text: string, files?: ChatFileRef[]];
   cancel: [];
+  export: [];
 }>();
 
 // 提供给 ClarifyCard 注入的发送函数（澄清选项确认后直接发送）

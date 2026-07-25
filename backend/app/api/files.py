@@ -31,19 +31,43 @@ def _get_uploads_dir() -> Path:
     return uploads
 
 
+# 上传限制
+MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20MB
+ALLOWED_EXTENSIONS = {
+    ".csv", ".xlsx", ".xls", ".txt", ".pdf", ".json",
+    ".py", ".mat", ".dat", ".tsv", ".md",
+}
+
+
 @files_router.post("/files/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """上传文件到 data/uploads/ 目录。"""
+    """上传文件到 data/uploads/ 目录（限 20MB，白名单扩展名）。"""
+    # 扩展名校验
+    suffix = Path(file.filename or "upload").suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的文件类型 '{suffix}'，允许: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
+
     uploads_dir = _get_uploads_dir()
     file_id = str(uuid.uuid4())[:8]
-    # Keep original extension
-    suffix = Path(file.filename or "upload").suffix
     stored_name = f"{file_id}{suffix}"
     stored_path = uploads_dir / stored_name
 
     try:
+        # 流式写入 + 大小检查
+        size = 0
         with stored_path.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
+            while chunk := file.file.read(1024 * 1024):  # 1MB chunks
+                size += len(chunk)
+                if size > MAX_UPLOAD_SIZE:
+                    f.close()
+                    stored_path.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail="文件超过 20MB 限制")
+                f.write(chunk)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"文件保存失败: {e}")
 
