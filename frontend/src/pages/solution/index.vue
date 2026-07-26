@@ -33,6 +33,32 @@
         <div v-if="currentTaskId" class="mt-3 font-mono text-[10px] text-muted-foreground break-all">
           Task ID: {{ currentTaskId }}
         </div>
+
+        <!-- 下载按钮：任务完成后显示 -->
+        <div v-if="taskStore.completed && currentTaskId" class="mt-4 space-y-2">
+          <p class="text-xs font-medium text-foreground mb-2">📥 下载文档</p>
+          <a
+            :href="`/api/tasks/${currentTaskId}/export?format=md`"
+            download
+            class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+          >
+            <FileText class="h-4 w-4" /> Markdown (.md)
+          </a>
+          <a
+            :href="`/api/tasks/${currentTaskId}/export?format=latex`"
+            download
+            class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+          >
+            <FileCode class="h-4 w-4" /> LaTeX (.tex)
+          </a>
+          <a
+            :href="`/api/tasks/${currentTaskId}/export?format=docx`"
+            download
+            class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+          >
+            <FileDown class="h-4 w-4" /> Word (.docx)
+          </a>
+        </div>
       </div>
     </Transition>
   </div>
@@ -40,7 +66,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
-import { PanelRight } from "lucide-vue-next";
+import { PanelRight, FileText, FileCode, FileDown } from "lucide-vue-next";
 import ChatArea from "@/components/ChatArea.vue";
 import ProgressTimeline, { type ProgressStep } from "@/components/ProgressTimeline.vue";
 import { useChatSessionStore } from "@/stores/chatSession";

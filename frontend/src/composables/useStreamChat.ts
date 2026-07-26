@@ -147,14 +147,25 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
           }
         }
       },
-      onDone() {
+      onDone(taskId?: string) {
         abortController.value = null;
         const id = ensureAgentMsg();
+        const doneContent = acc || "（未收到回复内容）";
         chatSession.updateMessage(sessionMode, sessionId, id, {
-          content: acc || "（未收到回复内容）",
+          content: doneContent,
           streaming: false,
+          // 附加 task_id 供下载按钮使用
+          ...(taskId ? { task_id: taskId } as any : {}),
         });
         chatSession.setRunning(null);
+
+        // solution 模式：写入 task_id 到 session 上
+        if (taskId) {
+          const sess = chatSession.getActiveSession(sessionMode).value;
+          if (sess) {
+            (sess as any).taskId = taskId;
+          }
+        }
       },
       onError(message) {
         abortController.value = null;

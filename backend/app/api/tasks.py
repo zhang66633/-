@@ -256,3 +256,138 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
     finally:
         # 清理取消事件
         get_session_manager().cleanup_cancel_event(task_id)
+
+
+# ── Document export ────────────────────────────────────────────────
+
+import io
+from fastapi import Query
+from fastapi.responses import Response, StreamingResponse
+
+
+@tasks_router.get("/tasks/{task_id}/export")
+async def export_document(
+    task_id: str,
+    format: str = Query("md", description="导出格式: md | latex | docx"),
+):
+    """导出方案模式生成的结果文档。
+
+    - format=md:    Markdown 原文
+    - format=latex: LaTeX .tex 文件
+    - format=docx:  Word .docx 文件
+    """
+    task = get_session_manager().get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+
+    final_response = task.get("final_response", "")
+    if not final_response:
+        raise HTTPException(status_code=400, detail="任务尚未完成或未生成文档")
+
+    # 尝试从 final_response 提取各部分
+    writing = task.get("writing_output") or ""
+    model_output = task.get("model_output") or ""
+
+    if format == "latex":
+        return _export_latex(final_response, writing)
+
+    elif format == "docx":
+        return _export_docx(final_response, title=task.get("problem", "数学建模方案")[:80])
+
+    else:  # md
+        return Response(
+            content=final_response.encode("utf-8"),
+            media_type="text/markdown; charset=utf-8",
+            headers={
+                "Content-Disposition": f"attachment; filename=modeling_solution_{task_id}.md",
+            },
+        )
+
+
+def _export_latex(full_text: str, writing_output: str) -> Response:
+    """从输出中提取/生成 LaTeX 并返回 .tex 下载。"""
+    # 优先提取 writing 输出中的 LaTeX
+    latex = writing_output or full_text
+
+    # 尝试从 ```latex ... ``` 或 ```tex ... ``` 代码块中提取
+    latex_match = re.search(r"```(?:latex|tex)?\s*\n(.*?)```", latex, re.DOTALL)
+    if latex_match:
+        latex = latex_match.group(1).strip()
+    else:
+        # 检查是否已经以 \documentclass 开头
+        if not latex.strip().startswith("\\documentclass"):
+            # 把全文当作 LaTeX-like 内容，包裹最小文档框架
+            latex = (
+                r"\documentclass[12pt,a4paper]{ctexart}"
+                r"\usepackage{amsmath,amssymb,graphicx,booktabs,geometry}"
+                r"\geometry{margin=2.5cm}"
+                r"\begin{document}" + latex + r"\end{document}"
+            )
+
+    return Response(
+        content=latex.encode("utf-8"),
+        media_type="application/x-latex; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=modeling_paper.tex"},
+    )
+
+
+def _export_docx(content: str, title: str = "数学建模方案") -> StreamingResponse:
+    """将 Markdown 转换为 Word .docx 并返回。"""
+    from docx import Document
+    from docx.shared import Pt, Inches, Cm
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    doc = Document()
+
+    # 设置默认字体
+    style = doc.styles["Normal"]
+    font = style.font
+    font.name = "Times New Roman"
+    font.size = Pt(12)
+
+    # 标题
+    heading = doc.add_heading(title, level=1)
+    heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # 简单 Markdown → docx 转换
+    lines = content.split("\n")
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if stripped.startswith("```"):
+            continue  # skip code fences
+
+        if stripped.startswith("### "):
+            doc.add_heading(stripped[4:], level=3)
+        elif stripped.startswith("## "):
+            doc.add_heading(stripped[3:], level=2)
+        elif stripped.startswith("# "):
+            doc.add_heading(stripped[2:], level=1)
+        elif stripped.startswith("- ") or stripped.startswith("* "):
+            doc.add_paragraph(stripped[2:], style="List Bullet")
+        elif re.match(r"^\d+\.\s", stripped):
+            doc.add_paragraph(re.sub(r"^\d+\.\s", "", stripped), style="List Number")
+        elif stripped.startswith("|"):
+            # 跳过表格（简化处理）
+            continue
+        elif stripped.startswith("$$") or stripped.startswith("$"):
+            # 公式保留原文
+            p = doc.add_paragraph()
+            run = p.add_run(stripped)
+            run.font.size = Pt(11)
+            run.italic = True
+        else:
+            p = doc.add_paragraph(stripped)
+
+    # 输出到 buffer
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=modeling_solution.docx"},
+    )

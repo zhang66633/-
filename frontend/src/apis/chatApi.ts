@@ -49,8 +49,8 @@ export interface StreamChatOptions {
   onClarify?: (event: ClarifyEvent) => void;
   /** 代码执行状态变化回调 */
   onCodeExec?: (event: CodeExecEvent) => void;
-  /** 流正常结束回调 */
-  onDone?: () => void;
+  /** 流正常结束回调（可选传 taskId） */
+  onDone?: (taskId?: string) => void;
   /** 出错回调（网络错误或服务端 error 帧） */
   onError?: (message: string) => void;
   /** 可选：外部中止 */
@@ -105,6 +105,9 @@ export async function streamChat(
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
+  // 收集所有非 delta 事件，在 [DONE] 时传给 onDone
+  let finalTaskId: string | undefined;
+
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}/chat`, {
@@ -149,7 +152,7 @@ export async function streamChat(
         const payload = line.slice(5).trim();
 
         if (payload === "[DONE]") {
-          onDone?.();
+          onDone?.(finalTaskId);
           return;
         }
 
@@ -158,6 +161,9 @@ export async function streamChat(
           if (obj.error) {
             onError?.(obj.error);
             return;
+          }
+          if (obj.done && obj.task_id) {
+            finalTaskId = obj.task_id;
           }
           if (obj.delta) {
             onDelta(obj.delta);
