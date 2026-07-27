@@ -1,5 +1,5 @@
 @echo off
-REM MathModelAgent one-click stop: kill backend and frontend (5173)
+REM MathModelAgent one-click stop: kill backend and frontend (5174)
 REM Reads PORT from backend\.env (default 8000 if missing).
 
 cd /d %~dp0
@@ -14,7 +14,7 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%BACKEND_PORT%" ^| findstr 
   echo [stop] backend PID %%a
   taskkill /PID %%a /F >nul 2>&1
 )
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5173" ^| findstr "LISTENING"') do (
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5174" ^| findstr "LISTENING"') do (
   echo [stop] frontend PID %%a
   taskkill /PID %%a /F >nul 2>&1
 )

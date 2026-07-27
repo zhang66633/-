@@ -398,7 +398,7 @@ data: {"error": "错误信息"}\n\n
 | marked + katex | Markdown 渲染 + 数学公式 |
 | axios | 非流式 API 请求 |
 
-包管理: pnpm。dev server 端口 5173，代理 `/api` → `localhost:8000`。
+包管理: pnpm。dev server 端口 5174，代理 `/api` → `localhost:8000`。
 
 ### 8.4 API 端点清单
 
@@ -422,7 +422,7 @@ data: {"error": "错误信息"}\n\n
 ```
 ┌─────────────┐     ┌──────────────────────────────────┐
 │  Vue3 SPA   │────▶│  FastAPI (uvicorn :8000)          │
-│  (vite :5173│     │  ├─ /api/chat (SSE)              │
+│  (vite :5174│     │  ├─ /api/chat (SSE)              │
 │   dev proxy)│     │  ├─ /api/solution (WS + REST)    │
 └─────────────┘     │  ├─ /api/files, /api/images      │
                     │  └─ /api/auth, /api/kb, /api/keys│

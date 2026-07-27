@@ -92,18 +92,23 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # 全局异常处理器：500 错误返回 JSON 含 traceback，便于排查
+    # 全局异常处理器：500 错误返回 JSON，debug 模式含 traceback 便于排查
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):
         tb = traceback.format_exc()
         print(f"[UNHANDLED] {request.method} {request.url.path}\n{tb}", flush=True)
+        if get_settings().debug:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "detail": f"{type(exc).__name__}: {str(exc)[:300]}",
+                    "type": type(exc).__name__,
+                    "path": str(request.url.path),
+                },
+            )
         return JSONResponse(
             status_code=500,
-            content={
-                "detail": f"{type(exc).__name__}: {str(exc)[:300]}",
-                "type": type(exc).__name__,
-                "path": str(request.url.path),
-            },
+            content={"detail": "服务器内部错误，请稍后重试"},
         )
 
     @app.exception_handler(RequestValidationError)

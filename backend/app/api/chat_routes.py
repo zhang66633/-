@@ -260,6 +260,11 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                 # 累加 chunk 以获取完整的 tool_calls
                 full_message = chunk if full_message is None else full_message + chunk
 
+                # 思考模式：DeepSeek 推理模型返回 reasoning_content
+                reasoning = getattr(chunk, "additional_kwargs", {}).get("reasoning_content")
+                if reasoning:
+                    yield f"data: {json.dumps({'thinking': reasoning}, ensure_ascii=False)}\n\n"
+
                 # 文本增量
                 delta = getattr(chunk, "content", None)
                 if delta:
@@ -352,6 +357,7 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
         elif "api_key" in err.lower() or "api key" in err.lower():
             err = f"API Key 错误: {err[:300]}"
         yield f"data: {json.dumps({'error': err}, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
 
 
 def _parse_code_result(result_text: str) -> dict:

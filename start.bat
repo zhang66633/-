@@ -23,14 +23,14 @@ if %errorlevel%==0 (
   start "math_backend" cmd /k "cd /d %~dp0backend && uvicorn app.main:app --host 127.0.0.1 --port %BACKEND_PORT%"
 )
 
-netstat -ano | findstr ":5173" | findstr "LISTENING" >nul
+netstat -ano | findstr ":5174" | findstr "LISTENING" >nul
 if %errorlevel%==0 (
-  echo [skip] frontend already running on 5173
+  echo [skip] frontend already running on 5174
 ) else (
-  echo [start] frontend http://localhost:5173
+  echo [start] frontend http://localhost:5174
   start "math_frontend" cmd /k "cd /d %~dp0frontend && pnpm dev"
 )
 
 echo.
-echo Done. Frontend: http://localhost:5173   API docs: http://127.0.0.1:%BACKEND_PORT%/docs
+echo Done. Frontend: http://localhost:5174   API docs: http://127.0.0.1:%BACKEND_PORT%/docs
 ping -n 5 127.0.0.1 >nul

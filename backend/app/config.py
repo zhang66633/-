@@ -53,10 +53,12 @@ class Settings(BaseSettings):
 
     # ---- LLM Defaults ----
     default_temperature: float = 0.3
-    default_max_tokens: int = 16384
-    # 写作阶段需生成完整 LaTeX 论文（国赛~1万字 / 美赛25页，含公式+TikZ+表格开销，
-    # 实际约 2-4 万 tokens）。DeepSeek V4 Pro 最大输出 393216，给足余量避免截断。
-    writing_max_tokens: int = 65536
+    default_max_tokens: int = 32768
+    # DeepSeek V4 Pro 最大输出 393216 tokens (384K)，按实际 token 计费，拉满无额外成本。
+    # 写作阶段需生成完整 LaTeX 论文（国赛~1万字 / 美赛25页，含公式+TikZ+表格开销）。
+    writing_max_tokens: int = 393216
+    # 求解阶段含代码+推导+图表说明，也给足余量。
+    solving_max_tokens: int = 131072
 
     # ---- DeepSeek Proxy ----
     deepseek_base_url: str = "https://api.deepseek.com"
@@ -77,7 +79,7 @@ class Settings(BaseSettings):
     # ---- GitHub OAuth ----
     github_client_id: str = ""
     github_client_secret: str = ""
-    github_redirect_uri: str = "http://localhost:5173/auth/callback"
+    github_redirect_uri: str = "http://localhost:5174/auth/callback"
 
     # ---- JWT ----
     jwt_secret: str = "set-in-env-file"
@@ -115,8 +117,13 @@ class Settings(BaseSettings):
             provider = "openai"
             api_key = self.openai_api_key
 
-        # 按角色选择 max_tokens：写作阶段需更长输出
-        max_tokens = self.writing_max_tokens if agent_role == "writing" else self.default_max_tokens
+        # 按角色选择 max_tokens：写作/求解阶段需更长输出
+        if agent_role == "writing":
+            max_tokens = self.writing_max_tokens
+        elif agent_role == "solving":
+            max_tokens = self.solving_max_tokens
+        else:
+            max_tokens = self.default_max_tokens
 
         return LLMConfig(
             provider=provider,

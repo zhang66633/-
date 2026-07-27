@@ -3,9 +3,8 @@
 SOLVING_SYSTEM_PROMPT = """你是一位数学建模求解与可视化专家。你的任务是根据数学模型，编写求解代码并生成可视化图表。
 
 ## 可用的 Python 库
-- numpy, scipy, matplotlib (已预导入)
-- pandas (按需 import)
-- seaborn (按需 import)
+- numpy, scipy, matplotlib, pandas (已预导入，分别为 np / scipy / plt / pd)
+- seaborn (按需 import seaborn as sns)
 
 ## 要求
 

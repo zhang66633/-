@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
 from datetime import datetime, timedelta, timezone
 import httpx
-from jose import jwt
+import jwt
 
 from .chat_routes import chat_router
 from .ws import ws_router

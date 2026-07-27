@@ -60,6 +60,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
     // 确保工具调用气泡排在最终回答之前
     let agentMsgId: string | null = null;
     let acc = "";
+    let thinkingAcc = "";
 
     function ensureAgentMsg(): string {
       if (!agentMsgId) {
@@ -83,6 +84,13 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
         acc += delta;
         const id = ensureAgentMsg();
         chatSession.updateMessage(sessionMode, sessionId, id, { content: acc });
+      },
+      onThinking(thinking) {
+        thinkingAcc += thinking;
+        const id = ensureAgentMsg();
+        chatSession.updateMessage(sessionMode, sessionId, id, {
+          thinking: thinkingAcc,
+        } as any);
       },
       onToolCall(event) {
         const toolMsg: Message = {

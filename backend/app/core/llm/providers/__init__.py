@@ -42,12 +42,18 @@ class OpenaiCompatibleProvider(BaseProvider):
     ) -> BaseChatModel:
         from langchain_openai import ChatOpenAI
 
+        # DeepSeek 推理模型 (reasoner) 要求 temperature=0
+        is_reasoner = "reasoner" in model.lower() or "r1" in model.lower()
+        effective_temp = 0.0 if is_reasoner else temperature
+
         return ChatOpenAI(
             model=model,
             api_key=api_key,
             base_url=base_url or self.default_base_url,
-            temperature=temperature,
+            temperature=effective_temp,
             max_tokens=max_tokens,
+            request_timeout=300,
+            max_retries=2,
         )
 
 
@@ -76,6 +82,8 @@ class AnthropicProvider(BaseProvider):
             "api_key": api_key,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "request_timeout": 300,
+            "max_retries": 2,
         }
         if base_url:
             kwargs["base_url"] = base_url

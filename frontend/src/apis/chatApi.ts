@@ -49,6 +49,8 @@ export interface StreamChatOptions {
   onClarify?: (event: ClarifyEvent) => void;
   /** 代码执行状态变化回调 */
   onCodeExec?: (event: CodeExecEvent) => void;
+  /** 思考模式：推理模型的思考过程增量回调 */
+  onThinking?: (thinking: string) => void;
   /** 流正常结束回调（可选传 taskId） */
   onDone?: (taskId?: string) => void;
   /** 出错回调（网络错误或服务端 error 帧） */
@@ -96,7 +98,7 @@ export async function streamChat(
   messages: ChatHistoryMessage[],
   opts: StreamChatOptions,
 ): Promise<void> {
-  const { onDelta, onToolCall, onToolResult, onClarify, onCodeExec, onDone, onError, signal, useRag = false, mode = "chat", files } = opts;
+  const { onDelta, onToolCall, onToolResult, onClarify, onCodeExec, onThinking, onDone, onError, signal, useRag = false, mode = "chat", files } = opts;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -180,12 +182,15 @@ export async function streamChat(
           if (obj.code_exec) {
             onCodeExec?.(obj.code_exec);
           }
+          if (obj.thinking) {
+            onThinking?.(obj.thinking);
+          }
         } catch {
           // 非 JSON 帧，忽略
         }
       }
     }
-    onDone?.();
+    onDone?.(finalTaskId);
   } catch (e: any) {
     if (e?.name !== "AbortError") {
       onError?.(`流读取中断：${e?.message ?? e}`);

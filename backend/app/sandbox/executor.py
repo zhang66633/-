@@ -7,6 +7,7 @@
   - 执行超时 (subprocess timeout)
 """
 
+import json
 import subprocess
 import sys
 import tempfile
@@ -144,10 +145,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
+import pandas as pd
 import sys
 import os
 
-os.chdir(r"{output_dir}")
+os.chdir({json.dumps(output_dir)})
 
 # 用户代码
 {code}
@@ -155,7 +158,7 @@ os.chdir(r"{output_dir}")
 # 自动保存所有打开的图表
 for i in plt.get_fignums():
     fig = plt.figure(i)
-    fig.savefig(os.path.join(r"{output_dir}", f"figure_{{i}}.png"),
+    fig.savefig(os.path.join({json.dumps(output_dir)}, f"figure_{{i}}.png"),
                 dpi=150, bbox_inches="tight")
 plt.close("all")
 '''

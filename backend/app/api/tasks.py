@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from .schemas.request import CreateTaskRequest
 from .schemas.response import TaskResponse, MessageResponse
 from ..config import get_settings
-from ..auth import GitHubUser, get_current_user
+from ..auth import GitHubUser, get_current_user, require_auth
 from ..services.session import get_session_manager
 from .apikeys import get_active_api_key, _resolve_user_id
 
@@ -48,7 +48,7 @@ async def create_task(
 
 
 @tasks_router.get("/tasks/{task_id}", response_model=TaskResponse)
-async def get_task(task_id: str):
+async def get_task(task_id: str, user: GitHubUser = Depends(require_auth)):
     task = get_session_manager().get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -56,7 +56,7 @@ async def get_task(task_id: str):
 
 
 @tasks_router.get("/tasks/{task_id}/messages", response_model=list[MessageResponse])
-async def get_task_messages(task_id: str):
+async def get_task_messages(task_id: str, user: GitHubUser = Depends(require_auth)):
     task = get_session_manager().get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -64,7 +64,7 @@ async def get_task_messages(task_id: str):
 
 
 @tasks_router.post("/tasks/{task_id}/cancel")
-async def cancel_task(task_id: str):
+async def cancel_task(task_id: str, user: GitHubUser = Depends(require_auth)):
     success = get_session_manager().cancel(task_id)
     if not success:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -269,6 +269,7 @@ from fastapi.responses import Response, StreamingResponse
 async def export_document(
     task_id: str,
     format: str = Query("md", description="导出格式: md | latex | docx"),
+    user: GitHubUser = Depends(require_auth),
 ):
     """导出方案模式生成的结果文档。
 
