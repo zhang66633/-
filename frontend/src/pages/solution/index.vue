@@ -121,7 +121,15 @@ const agentSteps = computed<ProgressStep[]>(() => {
 const displayMessages = computed<Message[]>(() => {
   const userMsgs = chatSession.activeSolutionMessages;
   const taskMsgs = currentTaskId.value ? taskStore.messages : [];
-  return [...userMsgs, ...taskMsgs];
+  // 去重：taskStore 的消息会被 watcher 同步进 chatSession，直接拼接会重复显示
+  const seen = new Set<string>();
+  const result: Message[] = [];
+  for (const m of [...userMsgs, ...taskMsgs]) {
+    if (seen.has(m.id)) continue;
+    seen.add(m.id);
+    result.push(m);
+  }
+  return result;
 });
 
 /** 把 taskStore 推送的进度/final 消息同步到 chatSession（持久化）。 */
