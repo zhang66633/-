@@ -45,12 +45,6 @@
           </button>
           <button
             class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
-            @click="downloadExport('latex')"
-          >
-            <FileCode class="h-4 w-4" /> LaTeX (.tex)
-          </button>
-          <button
-            class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
             @click="downloadExport('docx')"
           >
             <FileDown class="h-4 w-4" /> Word (.docx)
@@ -63,7 +57,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
-import { PanelRight, FileText, FileCode, FileDown } from "lucide-vue-next";
+import { PanelRight, FileText, FileDown } from "lucide-vue-next";
 import ChatArea from "@/components/ChatArea.vue";
 import ProgressTimeline, { type ProgressStep } from "@/components/ProgressTimeline.vue";
 import { useChatSessionStore } from "@/stores/chatSession";
@@ -221,7 +215,7 @@ async function handleCancel() {
 }
 
 /** 带鉴权的文件导出下载 */
-async function downloadExport(format: "md" | "latex" | "docx") {
+async function downloadExport(format: "md" | "docx") {
   if (!currentTaskId.value) return;
   try {
     const { default: request } = await import("@/utils/request");

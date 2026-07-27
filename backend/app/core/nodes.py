@@ -650,11 +650,13 @@ def writing_agent_node(state: AgentState) -> dict:
         )
         user_prompt = WRITING_TEACH_USER_TEMPLATE.format(problem=state["problem_raw"])
     else:
+        # DeepSeek V4 Pro 上下文 1M，写作阶段直接吃完整中间产出，
+        # 不做截断，确保论文能引用全部求解结果与数值。
         system_prompt = WRITING_SYSTEM_PROMPT.format(
-            analysis=state.get("analysis_output", "无")[:3000],
-            model=state.get("model_output", "无")[:3000],
-            solving=state.get("solving_output", "无")[:3000],
-            verification=state.get("verification_output", "无")[:3000],
+            analysis=state.get("analysis_output", "无"),
+            model=state.get("model_output", "无"),
+            solving=state.get("solving_output", "无"),
+            verification=state.get("verification_output", "无"),
         )
         user_prompt = WRITING_USER_TEMPLATE.format(problem=state["problem_raw"])
 
@@ -667,21 +669,22 @@ def writing_agent_node(state: AgentState) -> dict:
 
     # 清理 Markdown 代码块标记
     import re
-    writing_output = re.sub(r"^```(?:latex|tex)?\s*\n", "", writing_output)
+    writing_output = re.sub(r"^```(?:markdown|md)?\s*\n", "", writing_output)
     writing_output = re.sub(r"\n```\s*$", "", writing_output)
 
-    # 续写兜底：若未以 \end{document} 结尾，说明被 max_tokens 截断，继续生成
+    # 续写兜底：Markdown 论文以"参考文献"为末章，若缺失且正文偏长，
+    # 视为被 max_tokens 截断，续写补全（max_tokens 已拉满，极少触发）。
     max_continuations = 2
     for _ in range(max_continuations):
-        if "\\end{document}" in writing_output:
+        if "参考文献" in writing_output or len(writing_output) < 2000:
             break
         _pub_event(task_id, "node_progress", "writing_agent", {"continuing": True})
         cont_resp = llm.invoke([
-            SystemMessage(content="请继续输出被截断的 LaTeX 论文，从上次中断处接着写，不要重复已有内容，直到 \\end{document} 结束。"),
+            SystemMessage(content="请继续输出被截断的论文，从上次中断处接着写，不要重复已有内容，直到写完参考文献章节。"),
             HumanMessage(content=f"已生成内容（结尾部分）：\n```\n{writing_output[-2000:]}\n```\n请从这里继续："),
         ])
         cont_text = str(cont_resp.content)
-        cont_text = re.sub(r"^```(?:latex|tex)?\s*\n", "", cont_text)
+        cont_text = re.sub(r"^```(?:markdown|md)?\s*\n", "", cont_text)
         cont_text = re.sub(r"\n```\s*$", "", cont_text)
         if not cont_text.strip():
             break
@@ -729,7 +732,17 @@ def format_response(state: AgentState) -> dict:
 
 
 def _format_execute_response(state: AgentState) -> str:
-    """方案输出模式: 拼接所有 agent 输出。"""
+    """方案输出模式: 以写作Agent的完整论文为最终输出。
+
+    各阶段中间产出（analysis/model/solving/verification）已通过
+    node_end 进度事件展示给用户，不再重复拼进最终论文，
+    否则会出现"假设写两遍、约束写两遍"的内容重复。
+    """
+    writing = state.get("writing_output")
+    if writing:
+        return writing
+
+    # 兜底：写作节点未产出时，退化为拼接中间结果
     parts = []
     if state.get("analysis_output"):
         parts.append(state["analysis_output"])
@@ -739,8 +752,6 @@ def _format_execute_response(state: AgentState) -> str:
         parts.append(state["solving_output"])
     if state.get("verification_output"):
         parts.append(state["verification_output"])
-    if state.get("writing_output"):
-        parts.append(state["writing_output"])
     return "\n\n---\n\n".join(parts) if parts else "（无输出）"
 
 
