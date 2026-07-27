@@ -24,7 +24,7 @@
 ### Windows 一键启动
 
 ```bat
-start.bat    REM 启动后端(8001) + 前端(5173)
+start.bat    REM 启动后端(端口读 backend/.env) + 前端(5173)
 stop.bat     REM 停止全部
 ```
 
@@ -42,7 +42,7 @@ cp .env.example .env    # 填入 DeepSeek API Key 等
 ```bash
 cd backend
 pip install -e .
-uvicorn app.main:app --host 127.0.0.1 --port 8001
+uvicorn app.main:app --host 127.0.0.1 --port 8002
 ```
 
 > Redis 非必须：无 Redis 时自动回退 fakeredis（同进程 pub/sub）。
@@ -56,7 +56,7 @@ pnpm install
 pnpm dev                  # http://localhost:5173
 ```
 
-前端通过 Vite 代理将 `/api` 和 `/ws` 转发到 `127.0.0.1:8001`。
+前端通过 Vite 代理将 `/api` 和 `/ws` 转发到 `127.0.0.1:8002`。
 
 ### Docker Compose
 

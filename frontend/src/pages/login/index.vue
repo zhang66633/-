@@ -162,7 +162,7 @@ async function handleGithubLogin() {
     const msg = e?.response?.data?.detail || e?.message || "获取授权链接失败";
     // 如果是网络错误，给更明确的提示
     if (!e?.response) {
-      setupError.value = "无法连接后端，请确认后端已启动 (http://localhost:8001)";
+      setupError.value = "无法连接后端，请确认后端已启动 (http://localhost:8002)";
     } else {
       setupError.value = msg;
     }
