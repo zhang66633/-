@@ -37,27 +37,24 @@
         <!-- 下载按钮：任务完成后显示 -->
         <div v-if="taskStore.completed && currentTaskId" class="mt-4 space-y-2">
           <p class="text-xs font-medium text-foreground mb-2">📥 下载文档</p>
-          <a
-            :href="`/api/tasks/${currentTaskId}/export?format=md`"
-            download
+          <button
             class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+            @click="downloadExport('md')"
           >
             <FileText class="h-4 w-4" /> Markdown (.md)
-          </a>
-          <a
-            :href="`/api/tasks/${currentTaskId}/export?format=latex`"
-            download
+          </button>
+          <button
             class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+            @click="downloadExport('latex')"
           >
             <FileCode class="h-4 w-4" /> LaTeX (.tex)
-          </a>
-          <a
-            :href="`/api/tasks/${currentTaskId}/export?format=docx`"
-            download
+          </button>
+          <button
             class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+            @click="downloadExport('docx')"
           >
             <FileDown class="h-4 w-4" /> Word (.docx)
-          </a>
+          </button>
         </div>
       </div>
     </Transition>
@@ -220,6 +217,28 @@ async function handleCancel() {
         chatSession.setRunning(null);
       }
     }, 2000);
+  }
+}
+
+/** 带鉴权的文件导出下载 */
+async function downloadExport(format: "md" | "latex" | "docx") {
+  if (!currentTaskId.value) return;
+  try {
+    const { default: request } = await import("@/utils/request");
+    const resp = await request.get(`/tasks/${currentTaskId.value}/export`, {
+      params: { format },
+      responseType: "blob",
+    });
+    const blob = new Blob([resp.data]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const ext = format === "latex" ? "tex" : format;
+    a.download = `paper.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e: any) {
+    console.error("导出失败：", e);
   }
 }
 

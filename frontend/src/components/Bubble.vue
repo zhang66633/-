@@ -60,9 +60,10 @@
                 {{ systemHeadline }}
               </span>
             </div>
-            <div class="text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground/90">
-              {{ systemBody }}
-            </div>
+            <div
+              class="prose prose-sm dark:prose-invert max-w-none break-words text-xs leading-relaxed text-foreground/90"
+              v-html="renderMarkdown(systemBody)"
+            />
           </div>
 
           <div
