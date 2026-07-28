@@ -72,7 +72,6 @@ const currentSection = computed(() => {
   if (p.startsWith("/task")) return { num: "§3", label: "任务" };
   if (p.startsWith("/archive")) return { num: "§3.1", label: "归档" };
   if (p.startsWith("/knowledge")) return { num: "§4", label: "知识库" };
-  if (p.startsWith("/example")) return { num: "§5", label: "例题" };
   return { num: "§1", label: "首页" };
 });
 </script>

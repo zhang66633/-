@@ -238,7 +238,6 @@ function isNavActive(path: string): boolean {
   if (path === "/teach") return route.path.startsWith("/teach");
   if (path === "/solution") return route.path.startsWith("/solution");
   if (path.startsWith("/knowledge")) return route.path.startsWith("/knowledge");
-  if (path.startsWith("/example")) return route.path.startsWith("/example");
   if (path.startsWith("/archive")) return route.path.startsWith("/archive");
   return false;
 }

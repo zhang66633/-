@@ -250,8 +250,9 @@ const statsReady = ref(false);
 
 const modules = [
   { num: "§2", label: "对话", desc: "与智能体交互,实时推进建模", path: "/chat" },
-  { num: "§3", label: "知识库", desc: "方法卡片、真题与模板套路", path: "/knowledge" },
-  { num: "§4", label: "例题", desc: "浏览示例与解析,参照学习", path: "/example/1" },
+  { num: "§3", label: "教学", desc: "苏格拉底式引导,逐步培养建模思维", path: "/teach" },
+  { num: "§4", label: "方案", desc: "结构化输出完整建模方案", path: "/solution" },
+  { num: "§5", label: "知识库", desc: "方法卡片、真题与模板套路", path: "/knowledge" },
 ];
 
 const statItems = ref([

@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import type { RouteRecordRaw } from "vue-router";
 import AppLayout from "@/components/AppLayout.vue";
-import { useAuthStore } from "@/stores/auth";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -34,11 +33,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/pages/solution/index.vue"),
       },
       {
-        path: "example/:id",
-        component: () => import("@/pages/example/[id].vue"),
-        props: true,
-      },
-      {
         path: "archive/:id",
         component: () => import("@/pages/archive/[id].vue"),
         props: true,
@@ -62,15 +56,6 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-});
-
-const PUBLIC_PATHS = ["/login", "/auth/callback"];
-
-router.beforeEach((to) => {
-  const auth = useAuthStore();
-  if (!PUBLIC_PATHS.includes(to.path) && !auth.isLoggedIn) {
-    return "/login";
-  }
 });
 
 export default router;
