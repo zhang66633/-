@@ -44,16 +44,24 @@ def _extract_attachment_text(file_id: str, filename: str) -> str:
         elif suffix in (".xlsx", ".xls", ".csv", ".tsv"):
             import pandas as pd
             import io as _io
+
+            def _df_to_text(df) -> str:
+                # 优先 Markdown 表格（需 tabulate），缺包时降级为 CSV 文本
+                try:
+                    return df.to_markdown(index=False)
+                except Exception:
+                    return df.to_csv(index=False)
+
             if suffix in (".csv", ".tsv"):
                 sep = "\t" if suffix == ".tsv" else ","
                 df = pd.read_csv(_io.StringIO(data.decode("utf-8", errors="replace")), sep=sep)
-                text = df.to_markdown(index=False)
+                text = _df_to_text(df)
             else:
                 xls = pd.ExcelFile(_io.BytesIO(data))
                 parts = []
                 for sheet in xls.sheet_names:
                     df = pd.read_excel(xls, sheet_name=sheet)
-                    parts.append(f"### 工作表: {sheet}\n{df.to_markdown(index=False)}")
+                    parts.append(f"### 工作表: {sheet}\n{_df_to_text(df)}")
                 text = "\n\n".join(parts)
         else:
             # txt / md / json / py / dat 等按文本读
