@@ -193,14 +193,16 @@ export interface JobStatus {
 /** Upload raw text or file for LLM extraction. */
 export function uploadKnowledge(params: {
   text?: string;
-  file?: File;
+  files?: File[];
   kb_type: string;
   name?: string;
   problem_ref?: string;
 }) {
   const formData = new FormData();
   if (params.text) formData.append("text", params.text);
-  if (params.file) formData.append("file", params.file);
+  if (params.files?.length) {
+    for (const f of params.files) formData.append("files", f);
+  }
   formData.append("kb_type", params.kb_type);
   if (params.name) formData.append("name", params.name);
   if (params.problem_ref) formData.append("problem_ref", params.problem_ref);

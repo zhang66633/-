@@ -566,64 +566,100 @@ async def kb_reindex(
 @knowledge_router.post("/upload")
 async def upload_knowledge(
     background_tasks: BackgroundTasks,
-    text: str = Form("", description="原始文本内容（与 file 二选一）"),
-    file: Optional[UploadFile] = File(None, description="上传文件（.txt/.md/.pdf 等，与 text 二选一）"),
+    text: str = Form("", description="题目描述/论文文本"),
+    files: list[UploadFile] = File([], description="附件文件（Excel/CSV/图片/PDF/DOCX/TXT等，可多选）"),
     kb_type: str = Form(..., description="method / paper / template / problem"),
     name: str = Form("", description="名称提示"),
     problem_ref: str = Form("", description="上传论文时指定关联的题目 ID，跳过自动匹配"),
     user: GitHubUser = Depends(require_contributor),
 ):
-    """上传原始文本或文件，LLM 自动提取结构化知识，保存 YAML 并增量索引。
+    """上传题目/论文文本及附件，LLM 自动提取结构化知识。
 
-    - text 和 file 至少提供一个
-    - 如果提供 file，读取其内容作为文本
-    - 返回 job_id，前端轮询 GET /knowledge/jobs/{job_id} 获取结果
-    - problem_ref: 上传论文时指定关联题目，优先级高于自动匹配
+    支持多文件上传：Excel 数据表格、CSV、图片 (.png/.jpg/.gif)、PDF、DOCX 等。
+    每种文件类型有对应的解析策略，最终汇总为一条多模态消息送给 LLM。
+    返回 job_id，前端轮询 GET /knowledge/jobs/{job_id} 获取结果。
     """
     if kb_type not in ("method", "paper", "template", "problem"):
         raise HTTPException(status_code=400, detail="kb_type 必须为 method / paper / template / problem")
 
-    # Resolve text content
     raw_text = text.strip()
-    if file:
-        try:
-            content = await file.read()
-            filename = (file.filename or "").lower()
+    text_parts: list[str] = []   # 各文件解析后的文本片段
+    raw_images: list[str] = []   # base64 图片 (PNG/JPG/GIF/PDF页)
+    raw_file_data: list[dict] = []  # 附件元数据（文件名+内容）用于持久化
 
-            # Detect file type and extract text accordingly
-            if filename.endswith(".pdf"):
-                raw_text = _extract_pdf_text(content)
-            elif filename.endswith(".docx"):
-                raw_text = _extract_docx_text(content)
-            elif filename.endswith(".doc"):
-                raise HTTPException(
-                    status_code=400,
-                    detail="暂不支持旧版 .doc 格式，请用 Word 另存为 .docx 后重新上传",
-                )
+    for f in files:
+        try:
+            content = await f.read()
+            filename = (f.filename or "").lower()
+            ext = Path(filename).suffix
+
+            if not name and f.filename:
+                name = Path(f.filename).stem
+
+            if ext in (".xlsx", ".xls"):
+                summary = _parse_excel(content, f.filename or "")
+                text_parts.append(summary)
+                raw_file_data.append({"name": f.filename, "bytes": content})
+
+            elif ext == ".csv":
+                summary = _parse_csv(content, f.filename or "")
+                text_parts.append(summary)
+                raw_file_data.append({"name": f.filename, "bytes": content})
+
+            elif ext in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"):
+                import base64
+                mime_map = {".png": "png", ".jpg": "jpeg", ".jpeg": "jpeg",
+                            ".gif": "gif", ".webp": "webp", ".bmp": "bmp"}
+                mime = mime_map.get(ext, "png")
+                img_b64 = base64.b64encode(content).decode()
+                raw_images.append(f"data:image/{mime};base64,{img_b64}")
+                text_parts.append(f"[图片附件] {f.filename}: 内容见视觉分析")
+                raw_file_data.append({"name": f.filename, "bytes": content})
+
+            elif ext == ".pdf":
+                pdf_text = _extract_pdf_text(content)
+                text_parts.append(pdf_text)
+                try:
+                    pdf_imgs = _pdf_to_images(content)
+                    raw_images.extend(f"data:image/png;base64,{i}" for i in pdf_imgs)
+                except Exception:
+                    pass
+                raw_file_data.append({"name": f.filename, "bytes": content})
+
+            elif ext == ".docx":
+                docx_text = _extract_docx_text(content)
+                text_parts.append(docx_text)
+                raw_file_data.append({"name": f.filename, "bytes": content})
+
             else:
-                # Plain text files
+                # Plain text
+                decoded = ""
                 for enc in ("utf-8", "gbk", "gb2312", "latin-1"):
                     try:
-                        raw_text = content.decode(enc)
+                        decoded = content.decode(enc)
                         break
                     except UnicodeDecodeError:
                         continue
-                else:
-                    raw_text = content.decode("utf-8", errors="replace")
-            if not name and file.filename:
-                name = Path(file.filename).stem
+                if not decoded:
+                    decoded = content.decode("utf-8", errors="replace")
+                text_parts.append(f"[文件: {f.filename}]\n{decoded}")
+                raw_file_data.append({"name": f.filename, "bytes": content})
+
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"文件读取失败: {e}")
+            raise HTTPException(status_code=400, detail=f"文件 {f.filename} 处理失败: {e}")
 
-    if not raw_text:
+    if not raw_text and not text_parts:
         raise HTTPException(status_code=400, detail="请提供文本内容或上传文件")
 
     job_id = str(uuid.uuid4())[:8]
     _extraction_jobs[job_id] = {"status": "processing", "result": None, "error": None}
 
-    background_tasks.add_task(_run_extraction, job_id, raw_text, kb_type, name, problem_ref)
+    background_tasks.add_task(
+        _run_extraction, job_id, raw_text, text_parts, raw_images, raw_file_data,
+        kb_type, name, problem_ref,
+    )
     return KnowledgeUploadJob(job_id=job_id, status="processing")
 
 
@@ -714,6 +750,124 @@ def _extract_pdf_text(file_bytes: bytes) -> str:
     return extracted
 
 
+def _pdf_to_images(file_bytes: bytes, max_pages: int = 30) -> list[str]:
+    """PDF → 每页一张 PNG base64。pymupdf 渲染，保留公式、图表、代码等视觉元素。
+
+    限制 max_pages 防止超大 PDF 导致 LLM context 溢出。
+    """
+    import base64
+    import fitz
+
+    try:
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"PDF 打开失败: {e}")
+
+    pages = min(len(doc), max_pages)
+    images: list[str] = []
+    for i in range(pages):
+        page = doc[i]
+        pix = page.get_pixmap(dpi=150)
+        img_b64 = base64.b64encode(pix.tobytes("png")).decode()
+        images.append(img_b64)
+
+    doc.close()
+    return images
+
+
+def _build_multimodal_message(text_content: str, images_base64: list[str]):
+    """构建多模态 HumanMessage：文本指令 + 每页 PDF 图片。
+
+    如果 images_base64 为空，返回纯文本消息。
+    """
+    from langchain_core.messages import HumanMessage
+
+    if not images_base64:
+        return HumanMessage(content=text_content)
+
+    content: list[dict] = [
+        {"type": "text", "text": text_content}
+    ]
+    for img in images_base64:
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{img}"},
+        })
+
+    return HumanMessage(content=content)
+
+
+# ── file type parsers ──────────────────────────────────────────────
+
+
+def _parse_excel(file_bytes: bytes, filename: str) -> str:
+    """Excel (.xlsx/.xls) → 结构化文本摘要。
+
+    每个 sheet 输出: 行列数、列名、前20行数据、数值列统计信息。
+    """
+    import io
+    import pandas as pd
+
+    xls = pd.ExcelFile(io.BytesIO(file_bytes))
+    parts = [f"[Excel: {filename}] 共 {len(xls.sheet_names)} 个工作表"]
+
+    for sheet_name in xls.sheet_names:
+        df = pd.read_excel(xls, sheet_name=sheet_name)
+        parts.append(f"\n--- 工作表: {sheet_name} ---")
+        parts.append(f"维度: {df.shape[0]} 行 × {df.shape[1]} 列")
+        parts.append(f"列名: {list(df.columns)}")
+
+        if df.shape[0] > 0:
+            # Show first 20 rows
+            parts.append(f"\n前 {min(20, df.shape[0])} 行数据:")
+            try:
+                parts.append(df.head(20).to_string(index=False))
+            except Exception:
+                parts.append(str(df.head(20)))
+
+            # Statistical summary for numeric columns
+            num_cols = df.select_dtypes(include="number").columns
+            if len(num_cols) > 0:
+                parts.append(f"\n数值列统计摘要:")
+                try:
+                    parts.append(df[num_cols].describe().to_string())
+                except Exception:
+                    pass
+
+    return "\n".join(parts)
+
+
+def _parse_csv(file_bytes: bytes, filename: str) -> str:
+    """CSV → 结构化文本摘要。"""
+    import io
+    import pandas as pd
+
+    # Try common encodings
+    for enc in ("utf-8", "gbk", "gb2312", "latin-1"):
+        try:
+            df = pd.read_csv(io.BytesIO(file_bytes), encoding=enc)
+            break
+        except (UnicodeDecodeError, Exception):
+            continue
+    else:
+        df = pd.read_csv(io.BytesIO(file_bytes), encoding="utf-8", errors="replace")
+
+    parts = [
+        f"[CSV: {filename}]",
+        f"维度: {df.shape[0]} 行 × {df.shape[1]} 列",
+        f"列名: {list(df.columns)}",
+    ]
+
+    if df.shape[0] > 0:
+        parts.append(f"\n前 {min(20, df.shape[0])} 行:")
+        try:
+            parts.append(df.head(20).to_string(index=False))
+        except Exception:
+            parts.append(str(df.head(20)))
+
+    return "\n".join(parts)
+
+
 def _extract_docx_text(file_bytes: bytes) -> str:
     """Extract text from a DOCX byte stream（段落 + 表格，按文档顺序）。"""
     try:
@@ -768,10 +922,14 @@ async def get_extraction_job(job_id: str):
     )
 
 
-async def _run_extraction(job_id: str, raw_text: str, kb_type: str, name_hint: str, problem_ref: str = ""):
+async def _run_extraction(job_id: str, raw_text: str, text_parts: list[str], raw_images: list[str], raw_file_data: list[dict], kb_type: str, name_hint: str, problem_ref: str = ""):
     """Background task: LLM extract → validate → write YAML → index.
 
-    When problem_ref is provided (paper upload), use it directly — no matching needed.
+    Accepts multiple file types assembled into a rich multimodal message:
+      - raw_text:      user-written problem description
+      - text_parts:    Excel/CSV/DOCX summaries, one per file
+      - raw_images:    base64 images (standalone PNG/JPG/GIF + PDF pages)
+      - raw_file_data: attachment metadata for persistence
     """
     try:
         settings = get_settings()
@@ -796,9 +954,16 @@ async def _run_extraction(job_id: str, raw_text: str, kb_type: str, name_hint: s
             "problem": Problem,
         }
 
-        prompt = prompt_map[kb_type].format(raw_text=raw_text)
-        from langchain_core.messages import HumanMessage
-        response = llm.invoke([HumanMessage(content=prompt)])
+        # Assemble full context: problem text + data summaries
+        full_text = raw_text
+        if text_parts:
+            full_text += "\n\n--- 附件资料 ---\n\n" + "\n\n".join(text_parts)
+
+        prompt = prompt_map[kb_type].format(raw_text=full_text)
+
+        # Multimodal if images available (PDF pages, standalone images, GIFs)
+        msg = _build_multimodal_message(prompt, raw_images)
+        response = llm.invoke([msg])
         extracted = _parse_llm_json(str(response.content))
 
         if not extracted:
@@ -900,6 +1065,14 @@ async def _run_extraction(job_id: str, raw_text: str, kb_type: str, name_hint: s
         raw_path = out_path.with_suffix(".raw.txt")
         raw_path.write_text(raw_text, encoding="utf-8")
 
+        # Save attachment files in _attachments/ subdirectory
+        if raw_file_data:
+            attach_dir = out_path.parent / f"{out_path.stem}_attachments"
+            attach_dir.mkdir(parents=True, exist_ok=True)
+            for fd in raw_file_data:
+                attach_path = attach_dir / (fd["name"] or "attachment")
+                attach_path.write_bytes(fd["bytes"])
+
         # 4. Incremental index
         embedder = _get_embedder()
         embedder.add_document(out_path)
@@ -951,7 +1124,16 @@ _EXTRACT_METHOD_PROMPT = """你是一个数学建模知识工程师。请从以�
 _EXTRACT_PAPER_PROMPT = """你是一个数学建模竞赛论文深度分析专家。你的任务不是简单摘要，而是以建模教学者的视角，
 将这篇论文拆解为可复用的结构化知识。每一个字段都要为后续读者提供真正有用的指导。
 
-论文文本:
+你将看到论文的每一页扫描图片（以及可选的 OCR 文本参考）。请逐页仔细阅读所有内容：
+
+视觉解读要求:
+- **数学公式**: 识别并转换为标准 LaTeX 格式
+- **图表**: 理解图表展示的趋势和结论,在 problem_context 和 approach 中描述
+- **表格数据**: 提取关键数值和结构
+- **代码**: 完整保留代码片段
+- **图片中的文字**: 一并提取
+
+以下是 OCR 提取的文本参考（可能不完整或有错误，以图片为准）:
 ```
 {raw_text}
 ```

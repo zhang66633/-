@@ -69,6 +69,8 @@ const route = useRoute();
 const currentSection = computed(() => {
   const p = route.path;
   if (p.startsWith("/chat")) return { num: "§2", label: "对话" };
+  if (p.startsWith("/teach")) return { num: "§2", label: "教学" };
+  if (p.startsWith("/solution")) return { num: "§2", label: "方案" };
   if (p.startsWith("/task")) return { num: "§3", label: "任务" };
   if (p.startsWith("/archive")) return { num: "§3.1", label: "归档" };
   if (p.startsWith("/knowledge")) return { num: "§4", label: "知识库" };

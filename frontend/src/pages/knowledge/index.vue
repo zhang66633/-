@@ -130,23 +130,26 @@
             <div class="relative rounded-md border border-dashed border-border p-6 text-center cursor-pointer transition-colors"
               :class="dragOver ? 'border-primary bg-primary/5' : impFile ? 'border-primary/50 bg-primary/5' : 'hover:border-muted-foreground/50'"
               @click="triggerFileInput" @dragover.prevent="dragOver = true" @dragleave.prevent="dragOver = false" @drop.prevent="onDrop">
-              <input ref="fileRef" type="file" accept=".txt,.md,.pdf,.doc,.docx,.tex" class="hidden" @change="onFileSel" />
-              <template v-if="impFile">
-                <div class="flex items-center justify-center gap-2 text-sm min-w-0 flex-wrap">
-                  <FileText class="h-5 w-5 text-primary shrink-0" /><span class="font-medium truncate min-w-0">{{ impFile.name }}</span>
-                  <span class="font-mono text-[10px] text-muted-foreground shrink-0">{{ fmtSize(impFile.size) }}</span>
-                  <button class="ml-2 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive shrink-0" @click.stop="clearFile"><X class="h-3.5 w-3.5" /></button>
+              <input ref="fileRef" type="file" multiple accept=".txt,.md,.pdf,.doc,.docx,.tex,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.gif,.webp,.bmp" class="hidden" @change="onFileSel" />
+              <template v-if="impFiles.length > 0">
+                <div class="space-y-1.5 text-left w-full">
+                  <div v-for="(f, i) in impFiles" :key="i" class="flex items-center gap-2 text-sm rounded-md bg-muted/30 px-3 py-1.5">
+                    <FileText class="h-4 w-4 shrink-0 text-primary" />
+                    <span class="font-medium truncate flex-1 min-w-0">{{ f.name }}</span>
+                    <span class="font-mono text-[10px] text-muted-foreground shrink-0">{{ fmtSize(f.size) }}</span>
+                    <button class="rounded-md p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive shrink-0" @click.stop="removeFile(i)"><X class="h-3 w-3" /></button>
+                  </div>
                 </div>
-                <p class="font-mono text-[10px] text-muted-foreground/70 mt-1">文件内容已加载,可在下方编辑后提取</p>
+                <p class="font-mono text-[10px] text-muted-foreground/70 mt-2">{{ impFiles.length }} 个文件，可在下方补充文本后一起提取</p>
               </template>
               <template v-else>
                 <FileUp class="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
-                <p class="text-sm text-muted-foreground">拖拽文件到此处,或<span class="text-primary">点击选择</span></p>
-                <p class="font-mono text-[10px] text-muted-foreground/60 mt-1">支持 .txt / .md / .pdf / .doc / .tex</p>
+                <p class="text-sm text-muted-foreground">拖拽文件到此处，或<span class="text-primary">点击选择</span>（支持多选）</p>
+                <p class="font-mono text-[10px] text-muted-foreground/60 mt-1">Excel / CSV / PDF / DOCX / TXT / 图片 / GIF</p>
               </template>
             </div>
 
-            <label class="block font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-2 mt-5">{{ impFile ? '文件内容(可编辑)' : '粘贴原始文本' }}</label>
+            <label class="block font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-2 mt-5">{{ impFiles.length > 0 ? '补充文本(可选)' : '粘贴原始文本' }}</label>
             <textarea v-model="impText" rows="8" :placeholder="impPlaceholder"
               class="w-full resize-y rounded-md border border-border bg-background px-4 py-3 text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             <div class="flex items-center gap-2 mt-3 flex-wrap">
@@ -653,7 +656,7 @@ async function doReindex() {
 }
 
 // ── Tab 3: Import ───────────────────────────────────────────────
-const impType = ref("method"); const impText = ref(""); const impName = ref(""); const impFile = ref<File | null>(null);
+const impType = ref("method"); const impText = ref(""); const impName = ref(""); const impFiles = ref<File[]>([]);
 const dragOver = ref(false); const fileRef = ref<HTMLInputElement | null>(null);
 const extracting = ref(false); const saving = ref(false); const extractPreview = ref(""); const extractError = ref("");
 const impTypes = [{ label: "方法卡片", value: "method" }, { label: "真题论文", value: "paper" }, { label: "框架模板", value: "template" }, { label: "竞赛真题", value: "problem" }];
@@ -666,34 +669,36 @@ const impPlaceholder = computed(() => ({
 }[impType.value]));
 
 function triggerFileInput() { fileRef.value?.click(); }
-function onFileSel(e: Event) { readFile((e.target as HTMLInputElement).files?.[0]); }
-function onDrop(e: DragEvent) { dragOver.value = false; readFile(e.dataTransfer?.files?.[0]); }
-function readFile(file?: File) {
-  if (!file) return;
-  if (file.size > 10*1024*1024) { extractError.value = "文件超过 10MB"; return; }
-  impFile.value = file; if (!impName.value) impName.value = file.name.replace(/\.[^.]+$/, "");
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (ext === 'pdf' || ext === 'docx') {
-    // Binary files: don't read as text, backend will extract
-    impText.value = `[${ext.toUpperCase()} 文件: ${file.name}]\n文件内容将由后端自动提取，无需手动粘贴。`;
-  } else {
-    const r = new FileReader(); r.onload = () => { impText.value = r.result as string; }; r.readAsText(file);
+function onFileSel(e: Event) { const fl = (e.target as HTMLInputElement).files; if (fl) addFiles(Array.from(fl)); }
+function onDrop(e: DragEvent) { dragOver.value = false; if (e.dataTransfer?.files) addFiles(Array.from(e.dataTransfer.files)); }
+function addFiles(newFiles: File[]) {
+  const valid = newFiles.filter(f => f.size <= 10 * 1024 * 1024);
+  if (valid.length < newFiles.length) extractError.value = "部分文件超过 10MB 已跳过";
+  impFiles.value = [...impFiles.value, ...valid];
+  if (!impName.value && valid.length > 0) impName.value = valid[0].name.replace(/\.[^.]+$/, "");
+  // Pre-load small text files for preview; binary files handled by backend
+  for (const f of valid) {
+    const ext = f.name.split('.').pop()?.toLowerCase();
+    if (ext && ["txt", "md", "tex", "csv"].includes(ext) && f.size < 500 * 1024) {
+      const r = new FileReader(); r.onload = () => { if (!impText.value) impText.value = r.result as string; }; r.readAsText(f);
+    }
   }
 }
-function clearFile() { impFile.value = null; impText.value = ""; if (fileRef.value) fileRef.value.value = ""; }
+function removeFile(i: number) { impFiles.value.splice(i, 1); }
+function clearAll() { impFiles.value = []; impText.value = ""; if (fileRef.value) fileRef.value.value = ""; }
 // 追加论文: 记录最后导入的题目 ID
 const lastProblemRef = ref("");
 function switchToPaperUpload() {
-  impType.value = "paper"; impText.value = ""; impName.value = ""; clearFile();
+  impType.value = "paper"; impText.value = ""; impName.value = ""; clearAll();
   extractPreview.value = ""; extractError.value = "";
 }
 function fmtSize(b: number) { if (b<1024) return `${b}B`; if (b<1048576) return `${(b/1024).toFixed(1)}KB`; return `${(b/1048576).toFixed(1)}MB`; }
 
 async function doExtract() {
-  if (!impText.value.trim()) return;
+  if (!impText.value.trim() && impFiles.value.length === 0) return;
   extracting.value = true; extractError.value = ""; extractPreview.value = "";
   try {
-    const uploadParams: any = { text: impText.value.trim(), file: impFile.value || undefined, kb_type: impType.value, name: impName.value };
+    const uploadParams: any = { text: impText.value.trim() || undefined, files: impFiles.value.length > 0 ? impFiles.value : undefined, kb_type: impType.value, name: impName.value };
     if (impType.value === 'paper' && lastProblemRef.value) {
       uploadParams.problem_ref = lastProblemRef.value;
     }
@@ -723,7 +728,7 @@ async function doSaveExtract() {
     lastProblemRef.value = entryId;
   }
 
-  extractPreview.value = ""; extractError.value = ""; impText.value = ""; impName.value = ""; clearFile(); saving.value = false;
+  extractPreview.value = ""; extractError.value = ""; impText.value = ""; impName.value = ""; clearAll(); saving.value = false;
 
   if (impType.value === 'problem' && lastProblemRef.value) {
     // 不弹 alert，让用户在追加区域操作
