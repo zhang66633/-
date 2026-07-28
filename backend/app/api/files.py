@@ -35,7 +35,7 @@ def _get_uploads_dir() -> Path:
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20MB
 ALLOWED_EXTENSIONS = {
     ".csv", ".xlsx", ".xls", ".txt", ".pdf", ".json",
-    ".py", ".mat", ".dat", ".tsv", ".md",
+    ".py", ".mat", ".dat", ".tsv", ".md", ".docx", ".doc",
 }
 
 

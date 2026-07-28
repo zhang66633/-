@@ -595,6 +595,11 @@ async def upload_knowledge(
                 raw_text = _extract_pdf_text(content)
             elif filename.endswith(".docx"):
                 raw_text = _extract_docx_text(content)
+            elif filename.endswith(".doc"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="暂不支持旧版 .doc 格式，请用 Word 另存为 .docx 后重新上传",
+                )
             else:
                 # Plain text files
                 for enc in ("utf-8", "gbk", "gb2312", "latin-1"):
@@ -622,34 +627,124 @@ async def upload_knowledge(
     return KnowledgeUploadJob(job_id=job_id, status="processing")
 
 
-def _extract_pdf_text(file_bytes: bytes) -> str:
-    """Extract text from a PDF byte stream."""
+def _ocr_pdf_text(file_bytes: bytes) -> str:
+    """对扫描版/无文字层 PDF 做 OCR 提取（pymupdf 渲染 + RapidOCR）。"""
+    import io
     try:
-        import io
-        import PyPDF2
-        reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
-        pages = []
-        for page in reader.pages:
-            text = page.extract_text()
-            if text:
-                pages.append(text)
-        return "\n\n".join(pages)
+        import fitz  # pymupdf
+        from rapidocr_onnxruntime import RapidOCR
     except ImportError:
         raise HTTPException(
             status_code=500,
-            detail="PDF 提取需要安装 PyPDF2: pip install PyPDF2",
+            detail="扫描版 PDF 需要 OCR 支持，请安装: pip install pymupdf rapidocr_onnxruntime",
         )
+
+    try:
+        import numpy as np
+        ocr = RapidOCR()
+        doc = fitz.open(io.BytesIO(file_bytes))
+        pages = []
+        for page in doc:
+            pix = page.get_pixmap(dpi=150)
+            img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                pix.height, pix.width, pix.n
+            )
+            # RapidOCR 接受 BGR/灰度，统一转 3 通道
+            if pix.n == 4:  # RGBA -> RGB
+                img = img[:, :, :3]
+            result, _ = ocr(img)
+            if result:
+                pages.append("\n".join(line[1] for line in result))
+        return "\n\n".join(pages)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"PDF 解析失败: {e}")
+        raise HTTPException(status_code=400, detail=f"PDF OCR 失败: {e}")
+
+
+def _extract_pdf_text(file_bytes: bytes) -> str:
+    """Extract text from a PDF byte stream.
+
+    优先用 pdfplumber（对表格、多栏版面支持更好），缺失时回退 PyPDF2；
+    若文字层提取为空（扫描版 PDF），自动转 OCR。
+    """
+    import io
+
+    extracted = ""
+
+    # 首选 pdfplumber
+    try:
+        import pdfplumber
+        pages = []
+        with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    pages.append(text)
+        extracted = "\n\n".join(pages)
+    except ImportError:
+        pass  # 回退到 PyPDF2
+    except Exception:
+        # pdfplumber 解析异常时也尝试 PyPDF2 兜底
+        pass
+
+    # 回退 PyPDF2
+    if not extracted.strip():
+        try:
+            import PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+            pages = []
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    pages.append(text)
+            extracted = "\n\n".join(pages)
+        except ImportError:
+            pass
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"PDF 解析失败: {e}")
+
+    # 文字层为空 → 扫描版 PDF，转 OCR
+    if not extracted.strip():
+        extracted = _ocr_pdf_text(file_bytes)
+
+    if not extracted.strip():
+        raise HTTPException(status_code=400, detail="PDF 未提取到任何文本（可能为纯图片且 OCR 无结果）")
+
+    return extracted
 
 
 def _extract_docx_text(file_bytes: bytes) -> str:
-    """Extract text from a DOCX byte stream."""
+    """Extract text from a DOCX byte stream（段落 + 表格，按文档顺序）。"""
     try:
         import io
         import docx
+        from docx.table import Table
+        from docx.text.paragraph import Paragraph
+
         doc = docx.Document(io.BytesIO(file_bytes))
-        return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        parts: list[str] = []
+
+        def _iter_block_items(document):
+            """按文档顺序产出段落和表格对象。"""
+            from docx.oxml.ns import qn
+            for child in document.element.body.iterchildren():
+                if child.tag == qn("w:p"):
+                    yield Paragraph(child, document)
+                elif child.tag == qn("w:tbl"):
+                    yield Table(child, document)
+
+        for block in _iter_block_items(doc):
+            if isinstance(block, Paragraph):
+                if block.text.strip():
+                    parts.append(block.text)
+            elif isinstance(block, Table):
+                for row in block.rows:
+                    cells = [c.text.strip().replace("\n", " ") for c in row.cells]
+                    if any(cells):
+                        parts.append(" | ".join(cells))
+
+        return "\n".join(parts)
     except ImportError:
         raise HTTPException(
             status_code=500,
