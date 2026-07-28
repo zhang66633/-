@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import List
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from app.config import get_settings
 from app.core.state import AgentState
@@ -14,6 +14,10 @@ from app.knowledge.loader import KnowledgeBaseLoader
 from app.knowledge.retriever import HybridRetriever
 from app.sandbox.executor import SandboxExecutor
 from app.services.redis_pubsub import get_publisher
+from app.tools.interaction_tools import RunCodeTool
+from app.tools.kb_tools import create_kb_tools
+from app.tools.math_tools import create_math_tools
+from app.tools.web_search_tools import create_web_search_tools
 
 from .llm.factory import get_llm
 from .prompts.classifier import CLASSIFIER_SYSTEM_PROMPT, CLASSIFIER_USER_TEMPLATE
@@ -29,6 +33,7 @@ from .prompts.modeling import (
 from .prompts.solving import (
     SOLVING_SYSTEM_PROMPT, SOLVING_USER_TEMPLATE,
     SOLVING_TEACH_SYSTEM_PROMPT, SOLVING_TEACH_USER_TEMPLATE,
+    SOLVING_TOOL_SYSTEM_PROMPT, SOLVING_TOOL_USER_TEMPLATE,
 )
 from .prompts.verification import (
     VERIFICATION_SYSTEM_PROMPT, VERIFICATION_USER_TEMPLATE,
@@ -37,6 +42,8 @@ from .prompts.verification import (
 from .prompts.writing import (
     WRITING_SYSTEM_PROMPT, WRITING_USER_TEMPLATE,
     WRITING_TEACH_SYSTEM_PROMPT, WRITING_TEACH_USER_TEMPLATE,
+    WRITING_OUTLINE_PROMPT, WRITING_SECTION_PROMPT, WRITING_ABSTRACT_PROMPT,
+    RED_TEAM_PROMPT, WRITING_REVISE_PROMPT,
 )
 
 
@@ -433,101 +440,126 @@ def modeling_agent_node(state: AgentState) -> dict:
     }
 
 
+def _collect_image_urls(text: str) -> list[str]:
+    """从工具输出文本中提取 /api/images/... 形式的图表 URL。"""
+    return re.findall(r"/api/images/[^\s,，)）'\"]+\.png", text or "")
+
+
 def solving_agent_node(state: AgentState) -> dict:
-    """求解计算 Agent — 生成代码、沙箱执行、错误修正、图表输出。"""
+    """求解计算 Agent。
+
+    - teach 模式：引导式教学（不执行代码）。
+    - execute 模式：多轮 tool loop —— 通过 bind_tools 动态调用
+      run_code / sympy / 优化 / 知识库 / 搜索，形成"求解→检验→灵敏度"闭环，
+      产出证据驱动的结构化求解报告。
+    """
     idx = _next_step(state)
     task_id = state["session_id"]
     _pub_event(task_id, "node_start", "solving_agent", {"step": idx + 1})
     llm = get_llm("solving", state.get("api_key_config"))
-    sandbox = SandboxExecutor()
 
     model_text = state.get("model_output") or "无模型"
 
+    # ── teach 模式：保持原有引导式输出 ──
     if state["mode"] == "teach":
         system_prompt = SOLVING_TEACH_SYSTEM_PROMPT.format(model_info=model_text[:3000])
         user_prompt = SOLVING_TEACH_USER_TEMPLATE.format(
             problem=state["problem_raw"],
             model=model_text[:3000],
         )
-    else:
-        system_prompt = SOLVING_SYSTEM_PROMPT.format(model_info=model_text[:3000])
-        user_prompt = SOLVING_USER_TEMPLATE.format(
-            problem=state["problem_raw"],
-            model=model_text[:3000],
-        )
-
-    # 最多重试 2 次
-    max_attempts = 2
-    all_images: list[str] = []
-    final_output = ""
-
-    for attempt in range(max_attempts + 1):
-        # 第一次调用 LLM，重试时附加错误信息
-        if attempt == 0:
-            prompt = user_prompt
-        else:
-            prompt = (
-                f"{user_prompt}\n\n"
-                f"【重要】上次代码执行失败，请修正：\n"
-                f"错误信息：\n```\n{last_error[:1000]}\n```\n"
-                f"请修复代码并重新输出完整的求解方案。"
-            )
-
         response = llm.invoke([
             SystemMessage(content=system_prompt),
-            HumanMessage(content=prompt),
+            HumanMessage(content=user_prompt),
         ])
+        final_output = str(response.content)
+        _pub_event(task_id, "node_end", "solving_agent", {
+            "step": idx + 1,
+            "output_length": len(final_output),
+            "images_count": 0,
+        })
+        return {
+            "solving_output": final_output,
+            "current_step_index": idx,
+            "messages": [SystemMessage(content=f"[求解Agent] 第{idx+1}步完成（教学模式）")],
+        }
 
-        full_text = str(response.content)
+    # ── execute 模式：多轮 tool loop ──
+    tools = (
+        [RunCodeTool()]
+        + create_math_tools()
+        + create_kb_tools()
+        + create_web_search_tools()
+    )
+    tool_map = {t.name: t for t in tools}
+    llm_with_tools = llm.bind_tools(tools)
 
-        # 提取代码块
-        code = _extract_code_block(full_text)
-        if not code:
-            final_output = full_text
-            break
+    system_prompt = SOLVING_TOOL_SYSTEM_PROMPT.format(model_info=model_text)
+    user_prompt = SOLVING_TOOL_USER_TEMPLATE.format(
+        problem=state["problem_raw"],
+        model=model_text,
+    )
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt),
+    ]
 
-        # 沙箱执行
-        exec_result = sandbox.run(code)
+    all_images: list[str] = []
+    max_rounds = 10  # 工具调用轮数上限（每轮可并发多个工具）
 
-        if exec_result["success"]:
-            # 成功 — 拼接完整输出
-            images = exec_result.get("images", [])
-            run_id = exec_result.get("run_id", "")
-            # 本地路径 → HTTP URL（前端通过 /api/images/{run_id}/{filename} 访问）
-            image_urls = [
-                f"/api/images/{run_id}/{Path(p).name}" for p in images
-            ] if run_id else []
-            all_images = image_urls
-            final_output = (
-                f"{full_text}\n\n"
-                f"### 执行结果\n```\n{exec_result['stdout'][:2000]}\n```\n"
-            )
-            if image_urls:
-                final_output += f"\n生成图表: {len(image_urls)} 张\n"
-                for url in image_urls:
-                    final_output += f"\n![图表]({url})\n"
+    for _ in range(max_rounds):
+        response = llm_with_tools.invoke(messages)
+        messages.append(response)
 
-            # 发布 tool_call 事件，前端渲染代码执行卡片（代码/stdout/图表）
+        tool_calls = getattr(response, "tool_calls", None) or []
+        if not tool_calls:
+            break  # LLM 停止调用工具 → 最后一条即结构化求解报告
+
+        for tc in tool_calls:
+            tool_name = tc.get("name")
+            tool_args = tc.get("args") or {}
+            tool = tool_map.get(tool_name)
+
+            if tool is None:
+                result_text = f"未知工具: {tool_name}"
+            else:
+                try:
+                    result_text = tool.invoke(tool_args)
+                except Exception as e:  # noqa: BLE001
+                    result_text = f"工具执行失败: {e}"
+
+            # 收集 run_code 产出的图表 URL
+            if tool_name == "run_code":
+                all_images.extend(_collect_image_urls(result_text))
+
+            # 前端渲染工具调用卡片
             _pub_event(task_id, "tool_call", "solving_agent", {
-                "tool_name": "run_code",
-                "input": {"code": code[:3000]},
+                "tool_name": tool_name,
+                "input": {k: (str(v)[:1500] if k == "code" else v) for k, v in tool_args.items()},
                 "output": [{
-                    "name": "run_code",
-                    "preview": (exec_result['stdout'][:1500] or "执行完成（无标准输出）"),
-                    "images": image_urls,
+                    "name": tool_name,
+                    "preview": result_text[:1500],
+                    "images": _collect_image_urls(result_text),
                 }],
             })
+
+            messages.append(ToolMessage(
+                content=result_text,
+                tool_call_id=tc.get("id") or tool_name,
+            ))
+
+    # 最终求解报告 = 最后一条 AI 文本消息
+    final_output = ""
+    for m in reversed(messages):
+        if isinstance(m, AIMessage) and m.content and not (getattr(m, "tool_calls", None)):
+            final_output = str(m.content)
             break
-        else:
-            last_error = exec_result.get("stderr", "")
-            if attempt < max_attempts:
-                print(f"[求解Agent] 第{attempt+1}次执行失败，重试中...")
-            else:
-                final_output = (
-                    f"{full_text}\n\n"
-                    f"### 执行失败（已重试{max_attempts}次）\n"
-                    f"```\n{last_error[:1000]}\n```"
-                )
+
+    if not final_output:
+        # 兜底：轮数耗尽仍在调工具，强制让 LLM 基于已有结果总结
+        fallback = llm.invoke(messages + [HumanMessage(
+            content="请停止调用工具，基于以上已获得的全部求解结果，立即输出结构化求解报告。"
+        )])
+        final_output = str(fallback.content)
 
     _pub_event(task_id, "node_end", "solving_agent", {
         "step": idx + 1,
@@ -634,13 +666,55 @@ def verification_agent_node(state: AgentState) -> dict:
     }
 
 
+# ── 论文章节规格（方案模式分章节写作）──────────────────────────────
+# (章节标题, 写作要求) —— 顺序即生成顺序；摘要最后单独生成。
+PAPER_SECTIONS: list[tuple[str, str]] = [
+    ("一、问题重述",
+     "用数学语言重述问题：明确已知量、未知量、优化/分析目标。"
+     "不要照抄题目原文，要提炼出数学要素。篇幅 300-500 字。"),
+    ("二、问题分析",
+     "分析问题的关键特征、难点与建模思路，2-4 段，体现'表象→机理'的递进。"
+     "不要罗列假设（假设在第三章），不要堆砌空话。"),
+    ("三、模型假设与符号说明",
+     "假设用有序列表，每条一句话，共 4-6 条，不给每条配冗长展开。"
+     "符号说明用 Markdown 表格（符号 | 含义 | 单位）。假设与符号全文只在此处定义一次。"),
+    ("四、模型的建立与求解",
+     "核心章，占全文 50% 以上篇幅。按题目子问题分 ### 4.1 / 4.2 等小节。"
+     "每个子问题必须包含：①原理与方法（为什么用、适用条件）②目标函数与约束（$$...$$ 公式块）"
+     "③求解算法与过程 ④真实求解结果（具体数值，来自求解材料，禁止编造）⑤结果检验与分析。"
+     "每个结论必须配证据（数值/表格/图），图表引用材料中真实的 /api/images/ 链接并配'图1 xxx'说明。"),
+    ("五、模型检验与灵敏度分析",
+     "独立成章（竞赛显式给分项）。①模型正确性检验（量纲、边界、与常识对比、误差分析）"
+     "②对 1-2 个关键参数做灵敏度分析：参数如何变化、结果如何响应，用表格或图呈现，"
+     "并给出'模型是否稳健'的结论。"),
+    ("六、模型评价与改进",
+     "优点 2-3 条、不足与改进方向 2-3 条，各一句话，具体不空泛。"),
+    ("参考文献",
+     "用 `[1] 作者. 文献名. 来源, 年份.` 格式列 3-5 条与建模方法相关的文献。"),
+]
+
+
+def _clean_md(text: str) -> str:
+    """去掉 LLM 输出外层的 Markdown 代码块标记。"""
+    text = str(text)
+    text = re.sub(r"^```(?:markdown|md)?\s*\n", "", text)
+    text = re.sub(r"\n```\s*$", "", text)
+    return text.strip()
+
+
 def writing_agent_node(state: AgentState) -> dict:
-    """论文写作 Agent — 整合全流程输出为竞赛论文。"""
+    """论文写作 Agent。
+
+    - teach 模式：引导式写作教学。
+    - execute 模式：分章节流水线 ——
+      大纲 → 逐章生成 → 摘要(最后写,提炼真实结果) → 拼装 → 红队审校 → 最小化修订。
+    """
     idx = _next_step(state)
     task_id = state["session_id"]
     _pub_event(task_id, "node_start", "writing_agent", {"step": idx + 1})
     llm = get_llm("writing", state.get("api_key_config"))
 
+    # ── teach 模式：保持原有教学输出 ──
     if state["mode"] == "teach":
         system_prompt = WRITING_TEACH_SYSTEM_PROMPT.format(
             analysis=state.get("analysis_output", "无")[:3000],
@@ -649,50 +723,96 @@ def writing_agent_node(state: AgentState) -> dict:
             verification=state.get("verification_output", "无")[:3000],
         )
         user_prompt = WRITING_TEACH_USER_TEMPLATE.format(problem=state["problem_raw"])
-    else:
-        # DeepSeek V4 Pro 上下文 1M，写作阶段直接吃完整中间产出，
-        # 不做截断，确保论文能引用全部求解结果与数值。
-        system_prompt = WRITING_SYSTEM_PROMPT.format(
-            analysis=state.get("analysis_output", "无"),
-            model=state.get("model_output", "无"),
-            solving=state.get("solving_output", "无"),
-            verification=state.get("verification_output", "无"),
-        )
-        user_prompt = WRITING_USER_TEMPLATE.format(problem=state["problem_raw"])
-
-    response = llm.invoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt),
-    ])
-
-    writing_output = str(response.content)
-
-    # 清理 Markdown 代码块标记
-    import re
-    writing_output = re.sub(r"^```(?:markdown|md)?\s*\n", "", writing_output)
-    writing_output = re.sub(r"\n```\s*$", "", writing_output)
-
-    # 续写兜底：Markdown 论文以"参考文献"为末章，若缺失且正文偏长，
-    # 视为被 max_tokens 截断，续写补全（max_tokens 已拉满，极少触发）。
-    max_continuations = 2
-    for _ in range(max_continuations):
-        if "参考文献" in writing_output or len(writing_output) < 2000:
-            break
-        _pub_event(task_id, "node_progress", "writing_agent", {"continuing": True})
-        cont_resp = llm.invoke([
-            SystemMessage(content="请继续输出被截断的论文，从上次中断处接着写，不要重复已有内容，直到写完参考文献章节。"),
-            HumanMessage(content=f"已生成内容（结尾部分）：\n```\n{writing_output[-2000:]}\n```\n请从这里继续："),
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
         ])
-        cont_text = str(cont_resp.content)
-        cont_text = re.sub(r"^```(?:markdown|md)?\s*\n", "", cont_text)
-        cont_text = re.sub(r"\n```\s*$", "", cont_text)
-        if not cont_text.strip():
-            break
-        writing_output += "\n" + cont_text
+        writing_output = _clean_md(response.content)
+        _pub_event(task_id, "node_end", "writing_agent", {
+            "step": idx + 1, "output_length": len(writing_output),
+        })
+        return {
+            "writing_output": writing_output,
+            "current_step_index": idx,
+            "messages": [SystemMessage(content=f"[写作Agent] 第{idx+1}步完成（教学模式）")],
+        }
+
+    # ── execute 模式：分章节流水线 ──
+    # 上下文 1M，各章共享完整材料，保证跨章一致与联想。
+    # 按调用类型绑定合理的 max_tokens：单次只写一章/一段，无需 384K 全量预算，
+    # 否则模型会放开了写超长内容，11 次串行调用慢到无法迭代。
+    llm_outline = llm.bind(max_tokens=4096)
+    llm_section = llm.bind(max_tokens=12000)
+    llm_abstract = llm.bind(max_tokens=2048)
+    llm_redteam = llm.bind(max_tokens=4096)
+    llm_revise = llm.bind(max_tokens=65536)  # 修订会重生整篇，给足余量
+
+    materials = {
+        "problem": state["problem_raw"],
+        "analysis": state.get("analysis_output", "无"),
+        "model": state.get("model_output", "无"),
+        "solving": state.get("solving_output", "无"),
+        "verification": state.get("verification_output", "无"),
+    }
+
+    # 1) 大纲
+    _pub_event(task_id, "node_progress", "writing_agent", {"stage": "outline"})
+    outline = _clean_md(llm_outline.invoke([HumanMessage(
+        content=WRITING_OUTLINE_PROMPT.format(**materials)
+    )]).content)
+
+    # 提取标题（大纲首行 "# xxx"）
+    paper_title = "数学建模论文"
+    first_line = outline.split("\n", 1)[0].strip()
+    if first_line.startswith("#"):
+        paper_title = first_line.lstrip("#").strip() or paper_title
+
+    # 2) 逐章生成
+    section_texts: list[str] = []
+    for i, (title, requirements) in enumerate(PAPER_SECTIONS):
+        _pub_event(task_id, "node_progress", "writing_agent",
+                   {"stage": "section", "title": title, "index": i + 1})
+        sec = _clean_md(llm_section.invoke([HumanMessage(
+            content=WRITING_SECTION_PROMPT.format(
+                outline=outline, section_title=title,
+                section_requirements=requirements, **materials,
+            )
+        )]).content)
+        if sec and not sec.startswith("##"):
+            sec = f"## {title}\n\n{sec}"
+        section_texts.append(sec)
+
+    # 3) 摘要最后写（提炼正文真实结果）
+    _pub_event(task_id, "node_progress", "writing_agent", {"stage": "abstract"})
+    paper_body = "\n\n".join(section_texts)
+    abstract = _clean_md(llm_abstract.invoke([HumanMessage(
+        content=WRITING_ABSTRACT_PROMPT.format(outline=outline, paper_body=paper_body)
+    )]).content)
+
+    # 4) 拼装：标题 + 摘要 + 正文
+    paper = f"# {paper_title}\n\n{abstract}\n\n{paper_body}"
+
+    # 5) 红队审校（合规 + 洞察双 gate）
+    _pub_event(task_id, "node_progress", "writing_agent", {"stage": "red_team"})
+    critique = _clean_md(llm_redteam.invoke([HumanMessage(
+        content=RED_TEAM_PROMPT.format(paper=paper)
+    )]).content)
+
+    # 6) 有实质问题则最小化修订一轮
+    if critique and "PASS" not in critique.upper().split("\n")[0]:
+        _pub_event(task_id, "node_progress", "writing_agent", {"stage": "revise"})
+        revised = _clean_md(llm_revise.invoke([HumanMessage(
+            content=WRITING_REVISE_PROMPT.format(paper=paper, critique=critique)
+        )]).content)
+        if revised and len(revised) > len(paper) // 2:  # 修订结果应大体完整
+            paper = revised
+
+    writing_output = paper
 
     _pub_event(task_id, "node_end", "writing_agent", {
         "step": idx + 1,
         "output_length": len(writing_output),
+        "red_team": "PASS" if "PASS" in critique.upper().split("\n")[0] else "REVISED",
     })
 
     return {

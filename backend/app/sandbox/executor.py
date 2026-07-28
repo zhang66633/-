@@ -44,7 +44,11 @@ def _make_preexec_fn(max_memory_mb: int, timeout: int):
 
 def _clean_env() -> dict:
     """构建清洗后的子进程环境变量，仅保留 Python 运行必需项。"""
-    safe_keys = {"PATH", "PYTHONPATH", "PYTHONIOENCODING", "TEMP", "TMP", "TMPDIR", "HOME", "USERPROFILE", "SYSTEMROOT", "COMSPEC"}
+    # APPDATA / LOCALAPPDATA 必须保留：Windows 用户级 site-packages 位于
+    # %APPDATA%\Python\PythonXYZ\site-packages，pip 安装的 numpy/matplotlib/scipy
+    # 等都在此，清掉会导致沙箱内所有第三方科学计算包 import 失败。
+    safe_keys = {"PATH", "PYTHONPATH", "PYTHONIOENCODING", "TEMP", "TMP", "TMPDIR",
+                 "HOME", "USERPROFILE", "SYSTEMROOT", "COMSPEC", "APPDATA", "LOCALAPPDATA"}
     env = {k: v for k, v in os.environ.items() if k.upper() in safe_keys}
     env["PYTHONIOENCODING"] = "utf-8"
     # 显式阻断代理，防止通过 proxy 绕过网络限制
