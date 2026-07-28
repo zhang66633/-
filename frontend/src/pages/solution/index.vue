@@ -63,6 +63,7 @@ import ProgressTimeline, { type ProgressStep } from "@/components/ProgressTimeli
 import { useChatSessionStore } from "@/stores/chatSession";
 import { useTaskStore } from "@/stores/task";
 import { createTask, cancelTask } from "@/apis/commonApi";
+import type { ChatFileRef } from "@/apis/chatApi";
 import type { Message } from "@/types/response";
 
 const chatSession = useChatSessionStore();
@@ -165,7 +166,7 @@ function generateId() {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function handleUserSend(text: string) {
+async function handleUserSend(text: string, files?: ChatFileRef[]) {
   let sessionId = chatSession.activeSolutionId;
   if (!sessionId) {
     sessionId = chatSession.createSession("solution");
@@ -194,7 +195,7 @@ async function handleUserSend(text: string) {
   chatSession.setRunning("solution");
 
   try {
-    const res = await createTask({ problem: text, mode: "execute" });
+    const res = await createTask({ problem: text, mode: "execute", files });
     const taskId = res.data?.task_id ?? res.data?.data?.task_id;
     if (!taskId) throw new Error("未返回 task_id");
     currentTaskId.value = taskId;

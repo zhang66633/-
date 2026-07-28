@@ -15,6 +15,79 @@ logger = logging.getLogger(__name__)
 
 tasks_router = APIRouter()
 
+
+# ── 附件内容提取（方案模式把上传的题目/数据文件读进问题上下文）────────
+
+# 单个文件提取内容的上限（字符），避免超大文件撑爆上下文
+_MAX_FILE_CHARS = 50000
+
+
+def _extract_attachment_text(file_id: str, filename: str) -> str:
+    """按扩展名提取已上传附件的文本内容。失败时返回提示信息而非抛错。"""
+    settings = get_settings()
+    uploads_dir = settings.project_root / "data" / "uploads"
+    matches = list(uploads_dir.glob(f"{file_id}.*"))
+    if not matches:
+        return f"（附件 {filename} 未找到）"
+    path = matches[0]
+    suffix = path.suffix.lower()
+
+    try:
+        data = path.read_bytes()
+
+        if suffix == ".pdf":
+            from .knowledge_routes import _extract_pdf_text
+            text = _extract_pdf_text(data)
+        elif suffix == ".docx":
+            from .knowledge_routes import _extract_docx_text
+            text = _extract_docx_text(data)
+        elif suffix in (".xlsx", ".xls", ".csv", ".tsv"):
+            import pandas as pd
+            import io as _io
+            if suffix in (".csv", ".tsv"):
+                sep = "\t" if suffix == ".tsv" else ","
+                df = pd.read_csv(_io.StringIO(data.decode("utf-8", errors="replace")), sep=sep)
+                text = df.to_markdown(index=False)
+            else:
+                xls = pd.ExcelFile(_io.BytesIO(data))
+                parts = []
+                for sheet in xls.sheet_names:
+                    df = pd.read_excel(xls, sheet_name=sheet)
+                    parts.append(f"### 工作表: {sheet}\n{df.to_markdown(index=False)}")
+                text = "\n\n".join(parts)
+        else:
+            # txt / md / json / py / dat 等按文本读
+            for enc in ("utf-8", "gbk", "gb2312", "latin-1"):
+                try:
+                    text = data.decode(enc)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                text = data.decode("utf-8", errors="replace")
+
+        text = (text or "").strip()
+        if len(text) > _MAX_FILE_CHARS:
+            text = text[:_MAX_FILE_CHARS] + f"\n…（内容过长，已截断至 {_MAX_FILE_CHARS} 字符）"
+        return text or "（附件无可提取文本）"
+    except HTTPException as e:
+        return f"（附件 {filename} 解析失败: {e.detail}）"
+    except Exception as e:  # noqa: BLE001
+        logger.exception("附件提取失败 %s", filename)
+        return f"（附件 {filename} 解析失败: {e}）"
+
+
+def _build_problem_with_attachments(problem: str, files: list) -> str:
+    """把附件内容拼接进问题描述，供分类/建模/求解各节点使用。"""
+    if not files:
+        return problem
+    parts = [problem]
+    for f in files:
+        content = _extract_attachment_text(f.file_id, f.filename)
+        parts.append(f"\n\n## 附件：{f.filename}\n{content}")
+    return "".join(parts)
+
+
 # ── Tasks ────────────────────────────────────────────────────────
 
 @tasks_router.post("/tasks", response_model=TaskResponse)
@@ -35,13 +108,16 @@ async def create_task(
         )
 
     session_mgr = get_session_manager()
-    task = session_mgr.create(problem=req.problem, mode=req.mode)
+    # 把上传附件（题目PDF/数据Excel等）的内容提取进问题上下文，
+    # 否则分类节点只能看到用户输入的一句话，无法理解题目。
+    full_problem = _build_problem_with_attachments(req.problem, req.files)
+    task = session_mgr.create(problem=full_problem, mode=req.mode)
     task_id = task["task_id"]
 
     # 在独立线程中运行编排器（节点含同步阻塞调用 llm.invoke / subprocess），
     # 以免阻塞事件循环导致 HTTP 响应体无法刷新、WS 进度卡住
     asyncio.create_task(
-        asyncio.to_thread(_run_orchestrator_sync, task_id, req.problem, req.mode, uid)
+        asyncio.to_thread(_run_orchestrator_sync, task_id, full_problem, req.mode, uid)
     )
 
     return TaskResponse(**task)

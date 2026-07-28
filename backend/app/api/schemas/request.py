@@ -4,10 +4,18 @@ from typing import Literal, Optional
 from pydantic import BaseModel
 
 
+class ChatFileRef(BaseModel):
+    """附件引用（已上传到 /files/upload 的文件）。"""
+    file_id: str
+    filename: str
+
+
 class CreateTaskRequest(BaseModel):
     """创建建模任务请求。"""
     problem: str
     mode: Literal["teach", "execute"] = "execute"
+    # 附件引用（已上传到 /files/upload 的文件），内容会被提取进问题上下文
+    files: list[ChatFileRef] = []
 
 
 class CancelTaskRequest(BaseModel):
@@ -21,12 +29,6 @@ class ChatMessage(BaseModel):
     """单条对话消息。"""
     role: Literal["user", "assistant", "system"]
     content: str
-
-
-class ChatFileRef(BaseModel):
-    """聊天附件引用（已上传到 /files/upload 的文件）。"""
-    file_id: str
-    filename: str
 
 
 class ChatRequest(BaseModel):
