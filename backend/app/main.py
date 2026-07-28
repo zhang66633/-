@@ -135,4 +135,7 @@ if __name__ == "__main__":
         host=settings.host,
         port=settings.port,
         reload=settings.debug,
+        workers=1,
+        limit_concurrency=4,
+        timeout_keep_alive=30,
     )

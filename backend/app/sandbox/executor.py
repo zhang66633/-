@@ -135,7 +135,11 @@ class SandboxExecutor:
             }
 
     def _wrap_code(self, code: str, output_dir: str) -> str:
-        """包装用户代码：阻断网络 + 自动捕获 matplotlib 输出。"""
+        """包装用户代码：阻断网络 + 按需导入 + 自动捕获 matplotlib 输出。
+
+        不再预导入 numpy/scipy/pandas —— LLM 生成的代码自带 import，预导入浪费
+        200-500MB 内存每个沙箱进程。matplotlib 仅设置 backend（轻量），pyplot 按需导入。
+        """
         return f'''
 # ── 网络阻断：禁止任何 socket 连接 ──
 import socket as _socket
@@ -145,24 +149,24 @@ def _blocked_connect(self, *args, **kwargs):
 _socket.socket.connect = _blocked_connect
 del _socket, _original_connect
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
-import scipy
-import pandas as pd
-import sys
-import os
+import sys as _sys
+import os as _os
 
-os.chdir({json.dumps(output_dir)})
+# 必须在任何 pyplot import 之前设置 Agg backend（仅配置，不加载 pyplot）
+import matplotlib as _mpl
+_mpl.use("Agg")
 
-# 用户代码
+_os.chdir({json.dumps(output_dir)})
+
+# ── 用户代码（LLM 自行 import 所需库）──
 {code}
 
-# 自动保存所有打开的图表
-for i in plt.get_fignums():
-    fig = plt.figure(i)
-    fig.savefig(os.path.join({json.dumps(output_dir)}, f"figure_{{i}}.png"),
-                dpi=150, bbox_inches="tight")
-plt.close("all")
+# ── 自动保存 matplotlib 图表（仅当用户代码用到了 pyplot）──
+if "matplotlib.pyplot" in _sys.modules:
+    import matplotlib.pyplot as _plt
+    for i in _plt.get_fignums():
+        fig = _plt.figure(i)
+        fig.savefig(_os.path.join({json.dumps(output_dir)}, f"figure_{{i}}.png"),
+                    dpi=150, bbox_inches="tight")
+    _plt.close("all")
 '''
