@@ -114,6 +114,14 @@ async def create_task(
     task = session_mgr.create(problem=full_problem, mode=req.mode)
     task_id = task["task_id"]
 
+    # 文件区：记录用户上传的附件（供前端文件区展示与下载）
+    for f in req.files:
+        session_mgr.add_artifact(task_id, {
+            "type": "uploaded",
+            "name": f.filename,
+            "url": f"/api/files/{f.file_id}",
+        })
+
     # 在独立线程中运行编排器（节点含同步阻塞调用 llm.invoke / subprocess），
     # 以免阻塞事件循环导致 HTTP 响应体无法刷新、WS 进度卡住
     asyncio.create_task(
@@ -137,6 +145,15 @@ async def get_task_messages(task_id: str, user: GitHubUser = Depends(require_aut
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     return [MessageResponse(**m) for m in task.get("messages", [])]
+
+
+@tasks_router.get("/tasks/{task_id}/files")
+async def get_task_files(task_id: str, user: GitHubUser = Depends(require_auth)):
+    """任务文件区：上传的附件 + 生成的图表/结果文件。"""
+    task = get_session_manager().get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return {"task_id": task_id, "files": task.get("artifacts", [])}
 
 
 @tasks_router.post("/tasks/{task_id}/cancel")

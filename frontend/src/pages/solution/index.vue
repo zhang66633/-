@@ -34,6 +34,39 @@
           Task ID: {{ currentTaskId }}
         </div>
 
+        <!-- 文件区：上传的附件 + 生成的图表 -->
+        <div v-if="currentTaskId" class="mt-4">
+          <p class="text-xs font-medium text-foreground mb-2">📁 文件区</p>
+          <div v-if="taskFiles.length === 0" class="text-[11px] text-muted-foreground">
+            暂无文件（上传的题目/数据与生成的图表会显示在这里）
+          </div>
+          <div v-else class="space-y-1.5">
+            <div
+              v-for="f in taskFiles"
+              :key="f.url"
+              class="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs hover:bg-accent transition-colors"
+            >
+              <!-- 生成的图表显示缩略图 -->
+              <img
+                v-if="f.type === 'figure'"
+                :src="f.url"
+                class="h-8 w-8 object-cover rounded border shrink-0"
+                loading="lazy"
+              />
+              <Paperclip v-else class="h-4 w-4 text-muted-foreground shrink-0" />
+              <span class="flex-1 truncate" :title="f.name">{{ f.name }}</span>
+              <a
+                :href="f.url"
+                :download="f.name"
+                class="text-muted-foreground hover:text-foreground shrink-0"
+                title="下载"
+              >
+                <Download class="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+        </div>
+
         <!-- 下载按钮：任务完成后显示 -->
         <div v-if="taskStore.completed && currentTaskId" class="mt-4 space-y-2">
           <p class="text-xs font-medium text-foreground mb-2">📥 下载文档</p>
@@ -57,12 +90,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
-import { PanelRight, FileText, FileDown } from "lucide-vue-next";
+import { PanelRight, FileText, FileDown, Paperclip, Download } from "lucide-vue-next";
 import ChatArea from "@/components/ChatArea.vue";
 import ProgressTimeline, { type ProgressStep } from "@/components/ProgressTimeline.vue";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { useTaskStore } from "@/stores/task";
-import { createTask, cancelTask } from "@/apis/commonApi";
+import { createTask, cancelTask, getTaskFiles } from "@/apis/commonApi";
 import type { ChatFileRef } from "@/apis/chatApi";
 import type { Message } from "@/types/response";
 
@@ -77,6 +110,43 @@ const rightPanelOpen = ref(true);
 // 任务进度消息本身已通过 chatSession.solutionSessions 持久化（向下兼容）。
 const currentTaskId = ref<string | null>(null);
 const cancelling = ref(false);
+
+// 文件区：任务的附件 + 生成文件
+interface TaskFile {
+  type: string;
+  name: string;
+  url: string;
+  size?: number;
+}
+const taskFiles = ref<TaskFile[]>([]);
+
+async function fetchTaskFiles(taskId: string) {
+  try {
+    const res = await getTaskFiles(taskId);
+    taskFiles.value = res.data?.files ?? [];
+  } catch {
+    taskFiles.value = [];
+  }
+}
+
+// 任务确定后拉一次文件区；任务完成（求解出图后）再刷新一次
+watch(currentTaskId, (id) => {
+  taskFiles.value = [];
+  if (id) fetchTaskFiles(id);
+});
+watch(
+  () => taskStore.completed,
+  (done) => {
+    if (done && currentTaskId.value) fetchTaskFiles(currentTaskId.value);
+  },
+);
+// 求解阶段会陆续产出图表，消息数变化时顺带刷新文件区
+watch(
+  () => taskStore.messages.length,
+  () => {
+    if (currentTaskId.value && taskStore.isRunning) fetchTaskFiles(currentTaskId.value);
+  },
+);
 
 const stepDefs: ProgressStep[] = [
   { id: "1", label: "问题分析", description: "识别问题类型，理解题意", status: "wait" },

@@ -12,3 +12,7 @@ export function cancelTask(taskId: string) {
 export function getTask(taskId: string) {
   return request.get(`/tasks/${taskId}`);
 }
+
+export function getTaskFiles(taskId: string) {
+  return request.get(`/tasks/${taskId}/files`);
+}

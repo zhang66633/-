@@ -110,3 +110,19 @@ async def get_image(run_id: str, filename: str):
         raise HTTPException(status_code=404, detail="图片不存在")
     return FileResponse(str(img_path), media_type="image/png")
 
+
+@files_router.get("/task_files/{task_id}/{filename}")
+async def get_task_file(task_id: str, filename: str):
+    """获取任务文件区中持久化保存的文件（生成的图表/结果等）。"""
+    _validate_path_segment(task_id, "task_id")
+    _validate_path_segment(filename, "filename")
+    settings = get_settings()
+    file_dir = (settings.project_root / "data" / "task_files" / task_id).resolve()
+    file_path = (file_dir / filename).resolve()
+    if not str(file_path).startswith(str(file_dir)):
+        raise HTTPException(status_code=400, detail="非法路径")
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    media_type = "image/png" if file_path.suffix.lower() == ".png" else "application/octet-stream"
+    return FileResponse(str(file_path), media_type=media_type, filename=filename)
+

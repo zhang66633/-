@@ -445,6 +445,46 @@ def _collect_image_urls(text: str) -> list[str]:
     return re.findall(r"/api/images/[^\s,，)）'\"]+\.png", text or "")
 
 
+def _persist_task_images(task_id: str, image_urls: list[str]) -> list[str]:
+    """把沙箱临时目录里的图表复制到任务持久目录，并登记进文件区。
+
+    返回持久化后的 /api/task_files/{task_id}/{filename} URL 列表。
+    """
+    import shutil
+    import tempfile
+    from app.services.session import get_session_manager
+
+    settings = get_settings()
+    task_dir = settings.project_root / "data" / "task_files" / task_id
+    temp_root = Path(tempfile.gettempdir()) / "mathmodel_outputs"
+    session_mgr = get_session_manager()
+
+    durable_urls: list[str] = []
+    for url in image_urls:
+        try:
+            # url 形如 /api/images/{run_id}/{filename}
+            parts = url.rstrip("/").split("/")
+            run_id, filename = parts[-2], parts[-1]
+            src = temp_root / run_id / filename
+            if not src.exists():
+                continue
+            task_dir.mkdir(parents=True, exist_ok=True)
+            dst = task_dir / filename
+            if not dst.exists():
+                shutil.copy2(src, dst)
+            durable_url = f"/api/task_files/{task_id}/{filename}"
+            session_mgr.add_artifact(task_id, {
+                "type": "figure",
+                "name": filename,
+                "url": durable_url,
+                "size": dst.stat().st_size,
+            })
+            durable_urls.append(durable_url)
+        except Exception:  # noqa: BLE001
+            continue  # 单个图表持久化失败不阻塞流程
+    return durable_urls
+
+
 def solving_agent_node(state: AgentState) -> dict:
     """求解计算 Agent。
 
@@ -560,6 +600,9 @@ def solving_agent_node(state: AgentState) -> dict:
             content="请停止调用工具，基于以上已获得的全部求解结果，立即输出结构化求解报告。"
         )])
         final_output = str(fallback.content)
+
+    # 图表持久化到任务文件区（临时目录可能被系统清理）
+    _persist_task_images(task_id, all_images)
 
     _pub_event(task_id, "node_end", "solving_agent", {
         "step": idx + 1,

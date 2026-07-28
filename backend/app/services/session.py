@@ -53,6 +53,7 @@ class SessionManager:
             "mode": mode,
             "final_response": None,
             "messages": [],
+            "artifacts": [],  # 文件区：上传的附件 + 生成的图表/结果文件
             "created_at": now,
             "updated_at": now,
         }
@@ -62,6 +63,26 @@ class SessionManager:
             self._save()
 
         return task
+
+    def add_artifact(self, task_id: str, artifact: dict) -> Optional[dict]:
+        """向任务的文件区追加一个文件记录。
+
+        artifact 形如:
+          {"type": "uploaded"|"figure"|"result", "name": 文件名,
+           "url": 访问地址, "size": 字节数(可选)}
+        同 name+url 已存在则跳过，避免重复。
+        """
+        with self._lock:
+            task = self._tasks.get(task_id)
+            if task is None:
+                return None
+            arts = task.setdefault("artifacts", [])
+            if any(a.get("name") == artifact.get("name") and a.get("url") == artifact.get("url") for a in arts):
+                return task
+            arts.append(artifact)
+            task["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._save()
+            return task
 
     def get(self, task_id: str) -> Optional[dict]:
         """Get a task by ID (returns None if not found)."""

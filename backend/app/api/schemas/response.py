@@ -4,6 +4,14 @@ from typing import Any, List, Optional
 from pydantic import BaseModel
 
 
+class TaskArtifact(BaseModel):
+    """任务文件区的一条文件记录。"""
+    type: str  # "uploaded" | "figure" | "result"
+    name: str
+    url: str
+    size: Optional[int] = None
+
+
 class TaskResponse(BaseModel):
     """任务响应。"""
     task_id: str
@@ -16,6 +24,7 @@ class TaskResponse(BaseModel):
     model_output: Optional[str] = None
     solving_output: Optional[str] = None
     verification_output: Optional[str] = None
+    artifacts: list[TaskArtifact] = []
 
 
 class MessageResponse(BaseModel):
