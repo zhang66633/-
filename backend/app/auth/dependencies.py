@@ -101,6 +101,6 @@ async def require_contributor(
     if user.login.lower() not in {c.lower() for c in ALLOWED_CONTRIBUTORS}:
         raise HTTPException(
             status_code=403,
-            detail=f"仅项目贡献者 ({', '.join(sorted(ALLOWED_CONTRIBUTORS))}) 可以管理知识库",
+            detail=f"当前登录: {user.login} — 不在贡献者列表中。请联系 zhang66633 添加你的 GitHub 用户名到 ALLOWED_CONTRIBUTORS",
         )
     return user

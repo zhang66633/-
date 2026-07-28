@@ -2,7 +2,6 @@
 import logging, os
 from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
-from datetime import datetime, timedelta, timezone
 import httpx
 import jwt
 
@@ -68,13 +67,16 @@ async def github_callback(code: str = Query(...)):
             raise HTTPException(400, detail="无法获取 GitHub 用户信息")
         gh_user = user_resp.json()
     login = gh_user.get("login", "")
-    contributors = ALLOWED_CONTRIBUTORS
-    if login not in contributors:
-        raise HTTPException(status_code=403, detail="仅项目贡献者可登录")
-    token = jwt.encode(
-        {"sub": login, "exp": datetime.now(timezone.utc) + timedelta(days=7)},
-        settings.jwt_secret, algorithm="HS256",
-    )
+    if login.lower() not in {c.lower() for c in ALLOWED_CONTRIBUTORS}:
+        raise HTTPException(status_code=403, detail=f"仅项目贡献者可登录，当前: {login}")
+    from .auth.dependencies import create_jwt
+
+    token = create_jwt(GitHubUser(
+        id=gh_user.get("id", 0),
+        login=login,
+        name=gh_user.get("name", login),
+        avatar_url=gh_user.get("avatar_url", ""),
+    ))
     return TokenResponse(
         access_token=token,
         user=GitHubUser(
