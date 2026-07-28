@@ -121,13 +121,15 @@ const agentSteps = computed<ProgressStep[]>(() => {
 const displayMessages = computed<Message[]>(() => {
   const userMsgs = chatSession.activeSolutionMessages;
   const taskMsgs = currentTaskId.value ? taskStore.messages : [];
-  // 去重：taskStore 的消息会被 watcher 同步进 chatSession，直接拼接会重复显示
+  // 去重：taskStore 的消息会被 watcher 同步进 chatSession，直接拼接会重复显示。
+  // 同 id 消息优先取 taskStore 版本（实时源），确保完整论文替换预览后立即生效。
+  const taskMap = new Map(taskMsgs.map((m) => [m.id, m]));
   const seen = new Set<string>();
   const result: Message[] = [];
   for (const m of [...userMsgs, ...taskMsgs]) {
     if (seen.has(m.id)) continue;
     seen.add(m.id);
-    result.push(m);
+    result.push(taskMap.get(m.id) ?? m);
   }
   return result;
 });
@@ -136,9 +138,17 @@ const displayMessages = computed<Message[]>(() => {
 function syncTaskMsgToSession(msg: Message) {
   const sid = chatSession.activeSolutionId;
   if (!sid) return;
-  // 同一 id 已存在则跳过，避免重复（多次 sync）
   const list = chatSession.activeSolutionMessages;
-  if (list.find((m) => m.id === msg.id)) return;
+  const existing = list.find((m) => m.id === msg.id);
+  if (existing) {
+    // 已存在则更新内容（关键：fetchFullFinalResponse 会用完整论文替换
+    // 800字预览占位消息，若此处跳过，chatSession 将永远停留在旧预览，
+    // 导致完整论文不显示、导出 PDF 只有截断的预览）
+    if (existing.content !== msg.content) {
+      chatSession.updateMessage("solution", sid, msg.id, { content: msg.content });
+    }
+    return;
+  }
   chatSession.addMessage("solution", sid, msg);
 }
 
