@@ -101,9 +101,8 @@ class SearchMethodCardsTool(BaseTool):
     ) -> str:
         try:
             retriever = get_retriever()
-            # filter: 仅查方法卡片
-            retriever.search_kwargs = {"filter": {"kind": "method"}}
-            docs = retriever.invoke(query)
+            # 通过 invoke 的 metadata_filter 参数过滤（type 字段，方法卡片为 method_card）
+            docs = retriever.invoke(query, metadata_filter={"type": "method_card"})
             if not docs:
                 return "未找到相关方法卡片。"
             return "\n\n---\n\n".join(
@@ -131,8 +130,8 @@ class SearchSimilarPapersTool(BaseTool):
     ) -> str:
         try:
             retriever = get_retriever()
-            retriever.search_kwargs = {"filter": {"kind": "paper"}}
-            docs = retriever.invoke(query)
+            # 通过 invoke 的 metadata_filter 参数过滤（type 字段，论文/真题为 paper）
+            docs = retriever.invoke(query, metadata_filter={"type": "paper"})
             if not docs:
                 return "未找到相关论文/真题。"
             return "\n\n---\n\n".join(
