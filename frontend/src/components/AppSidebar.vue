@@ -234,11 +234,19 @@ function openArchive(id: string) {
 
 function isNavActive(path: string): boolean {
   if (path === "/") return route.path === "/";
+  // 精确匹配避免 /learn 匹配到 / 等
+  if (path.startsWith("/learn")) return route.path.startsWith("/learn");
+  if (path.startsWith("/practice")) return route.path.startsWith("/practice");
+  if (path.startsWith("/qa")) return route.path.startsWith("/qa");
+  if (path.startsWith("/progress")) return route.path.startsWith("/progress");
+  if (path.startsWith("/knowledge")) return route.path.startsWith("/knowledge");
+  if (path.startsWith("/archive")) return route.path.startsWith("/archive");
+  if (path.startsWith("/apikeys")) return route.path.startsWith("/apikeys");
+  if (path.startsWith("/settings")) return route.path.startsWith("/settings");
+  // 以下路由需要在精确匹配之前做前缀匹配（/chat 不会与 / 冲突）
   if (path === "/chat") return route.path.startsWith("/chat");
   if (path === "/teach") return route.path.startsWith("/teach");
   if (path === "/solution") return route.path.startsWith("/solution");
-  if (path.startsWith("/knowledge")) return route.path.startsWith("/knowledge");
-  if (path.startsWith("/archive")) return route.path.startsWith("/archive");
   return false;
 }
 
