@@ -88,5 +88,5 @@ echo   Frontend : http://localhost:5174
 echo   API docs : http://127.0.0.1:%BACKEND_PORT%/docs
 echo ============================================
 
-timeout /t 5 >nul
-exit
+timeout /t 3 >nul
+pause
