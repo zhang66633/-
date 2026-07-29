@@ -53,6 +53,27 @@ const routes: RouteRecordRaw[] = [
         path: "settings",
         component: () => import("@/pages/settings/index.vue"),
       },
+      // ── 学习系统 (新增) ──
+      {
+        path: "learn",
+        component: () => import("@/pages/learn/index.vue"),
+      },
+      {
+        path: "learn/:unitId",
+        component: () => import("@/pages/learn/[unitId].vue"),
+      },
+      {
+        path: "practice",
+        component: () => import("@/pages/practice/index.vue"),
+      },
+      {
+        path: "qa",
+        component: () => import("@/pages/qa/index.vue"),
+      },
+      {
+        path: "progress",
+        component: () => import("@/pages/progress/index.vue"),
+      },
     ],
   },
 ];
