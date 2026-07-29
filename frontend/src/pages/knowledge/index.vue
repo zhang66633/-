@@ -370,7 +370,7 @@
 
           <!-- ===== 方法卡片 ===== -->
           <template v-if="mgrType === 'method'">
-            <p class="font-mono text-[10px] text-muted-foreground/70">ID: {{ editForm.card_id }}</p>
+            <p class="font-mono text-[10px] text-muted-foreground/70">ID: {{ editForm.id }}</p>
             <div><label class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">名称</label><Input v-model="editForm.name" class="mt-1" /></div>
             <div><label class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">核心原理</label><Textarea v-model="editForm.principle" rows="5" class="mt-1" /></div>
             <ArrayEditor v-model="editForm.category" label="分类" placeholder="优化 / 预测 / 统计..." />
@@ -385,7 +385,7 @@
 
           <!-- ===== 论文 ===== -->
           <template v-if="mgrType === 'paper'">
-            <p class="font-mono text-[10px] text-muted-foreground/70">ID: {{ editForm.paper_id }}</p>
+            <p class="font-mono text-[10px] text-muted-foreground/70">ID: {{ editForm.id }}</p>
             <div class="grid grid-cols-3 gap-2">
               <div><label class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">年份</label><Input v-model.number="editForm.year" type="number" class="mt-1" /></div>
               <div><label class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">竞赛</label><Input v-model="editForm.competition" class="mt-1" /></div>
@@ -419,7 +419,7 @@
 
           <!-- ===== 模板 ===== -->
           <template v-if="mgrType === 'template'">
-            <p class="font-mono text-[10px] text-muted-foreground/70">ID: {{ editForm.template_id }}</p>
+            <p class="font-mono text-[10px] text-muted-foreground/70">ID: {{ editForm.id }}</p>
             <div><label class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">名称</label><Input v-model="editForm.name" class="mt-1" /></div>
             <ArrayEditor v-model="editForm.applicable_to" label="适用类型" />
             <ArrayEditor v-model="editForm.steps" label="引导步骤" :fields="[{key:'name',label:'步骤名'},{key:'guiding_questions',label:'引导问题',type:'textarea'},{key:'decision_tree',label:'决策分支',type:'textarea'},{key:'checklist',label:'检查清单',type:'textarea'}]" empty-value="{name:'',guiding_questions:'',decision_tree:'',checklist:''}" />
@@ -427,7 +427,7 @@
 
           <!-- ===== 赛题 ===== -->
           <template v-if="mgrType === 'problem'">
-            <p class="font-mono text-[10px] text-muted-foreground/70">ID: {{ editForm.problem_id }}</p>
+            <p class="font-mono text-[10px] text-muted-foreground/70">ID: {{ editForm.id }}</p>
             <div class="grid grid-cols-3 gap-2">
               <div><label class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">年份</label><Input v-model.number="editForm.year" type="number" class="mt-1" /></div>
               <div><label class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">竞赛</label><Input v-model="editForm.competition" class="mt-1" /></div>
@@ -534,10 +534,10 @@ async function loadBrowseAll() {
   try {
     const [m, p, t, pr] = await Promise.all([listMethods(), listPapers(), listTemplates(), listProblems()]);
     browseAll.value = [
-      ...(m.data as any[]).map((c) => ({ id: c.card_id, type: "method_card" as const, name: c.name, title: c.name, snippet: (c.principle || "").slice(0, 120), score: null })),
-      ...(p.data as any[]).map((x) => ({ id: x.paper_id, type: "paper" as const, name: x.title, title: x.title, snippet: `${x.year} · ${x.competition} · ${x.problem || ""}`, score: null })),
-      ...(t.data as any[]).map((x) => ({ id: x.template_id, type: "template" as const, name: x.name, title: x.name, snippet: (x.applicable_to || []).join("、"), score: null })),
-      ...(pr.data as any[]).map((x) => ({ id: x.problem_id, type: "problem" as const, name: x.title, title: x.title, snippet: `${x.year} · ${x.competition} · ${x.problem || ""}`, score: null })),
+      ...(m.data as any[]).map((c: any) => ({ id: c.id, type: "method_card" as const, name: c.name, title: c.name, snippet: (c.principle || "").slice(0, 120), score: null })),
+      ...(p.data as any[]).map((x: any) => ({ id: x.id, type: "paper" as const, name: x.title, title: x.title, snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`, score: null })),
+      ...(t.data as any[]).map((x: any) => ({ id: x.id, type: "template" as const, name: x.name, title: x.name, snippet: (x.applicable_to || []).join(", "), score: null })),
+      ...(pr.data as any[]).map((x: any) => ({ id: x.id, type: "problem" as const, name: x.title, title: x.title, snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`, score: null })),
     ];
   } catch { browseAll.value = []; }
 }
@@ -667,7 +667,7 @@ async function openEdit(e: any) {
 async function doEditSave() {
   editSaving.value = true;
   try {
-    const id = editForm.value.id || editForm.value.card_id || editForm.value.paper_id || editForm.value.problem_id || editForm.value.template_id;
+    const id = editForm.value.id;
     let data: any = { ...editForm.value };
     if (mgrType.value === "method") { delete data.id; await updateMethod(id, data); }
     else if (mgrType.value === "paper") {
