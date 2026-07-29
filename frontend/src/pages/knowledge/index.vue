@@ -531,15 +531,17 @@ const visibleResults = computed<SearchResult[]>(() => {
   return searchFilter.value ? list.filter((r) => r.type === searchFilter.value) : list;
 });
 async function loadBrowseAll() {
-  try {
-    const [m, p, t, pr] = await Promise.all([listMethods(), listPapers(), listTemplates(), listProblems()]);
-    browseAll.value = [
-      ...(m.data as any[]).map((c: any) => ({ id: c.id, type: "method_card" as const, name: c.name, title: c.name, snippet: (c.principle || "").slice(0, 120), score: null })),
-      ...(p.data as any[]).map((x: any) => ({ id: x.id, type: "paper" as const, name: x.title, title: x.title, snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`, score: null })),
-      ...(t.data as any[]).map((x: any) => ({ id: x.id, type: "template" as const, name: x.name, title: x.name, snippet: (x.applicable_to || []).join(", "), score: null })),
-      ...(pr.data as any[]).map((x: any) => ({ id: x.id, type: "problem" as const, name: x.title, title: x.title, snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`, score: null })),
-    ];
-  } catch { browseAll.value = []; }
+  const items: any[] = [];
+  // 分开请求：单个失败不影响其他类型
+  try { const m = await listMethods(); items.push(...(m.data as any[]).map((c: any) => ({ id: c.id, type: "method_card" as const, name: c.name, title: c.name, snippet: (c.principle || "").slice(0, 120), score: null }))); }
+  catch (e) { console.warn("listMethods failed:", e); }
+  try { const p = await listPapers(); items.push(...(p.data as any[]).map((x: any) => ({ id: x.id, type: "paper" as const, name: x.title, title: x.title, snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`, score: null }))); }
+  catch (e) { console.warn("listPapers failed:", e); }
+  try { const t = await listTemplates(); items.push(...(t.data as any[]).map((x: any) => ({ id: x.id, type: "template" as const, name: x.name, title: x.name, snippet: (x.applicable_to || []).join(", "), score: null }))); }
+  catch (e) { console.warn("listTemplates failed:", e); }
+  try { const pr = await listProblems(); items.push(...(pr.data as any[]).map((x: any) => ({ id: x.id, type: "problem" as const, name: x.title, title: x.title, snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`, score: null }))); }
+  catch (e) { console.warn("listProblems failed:", e); }
+  browseAll.value = items;
 }
 // 清空搜索词时回到浏览模式
 watch(searchQuery, (v) => { if (!v.trim()) searchDone.value = false; });
