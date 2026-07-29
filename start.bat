@@ -45,6 +45,20 @@ if %HAS_DOCKER% equ 1 (
     echo [info] Docker not available - ChromaDB/Redis use local/fakeredis mode
 )
 
+REM ---- Docker sandbox image (lazy build on first run) ----
+if %HAS_DOCKER% equ 1 (
+    echo.
+    echo === Docker Sandbox Image ===
+    docker images -q mathmodel-sandbox >nul 2>&1
+    if errorlevel 1 (
+        echo [build] mathmodel-sandbox image (first run, takes ~2min) ...
+        docker build -t mathmodel-sandbox -f "%~dp0backend\Dockerfile.sandbox" "%~dp0backend" >nul 2>&1
+        if errorlevel 1 (echo [warn] sandbox image build failed - will use subprocess) else (echo [ ok ] sandbox image ready)
+    ) else (
+        echo [skip] sandbox image already exists
+    )
+)
+
 REM ---- Backend ----
 echo.
 echo === Backend ===
