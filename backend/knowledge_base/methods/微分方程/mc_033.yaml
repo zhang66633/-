@@ -1,0 +1,64 @@
+method_card:
+  id: mc_033
+  name: 差分方程模型
+  name_en: Difference Equation Model
+  category:
+  - 微分方程
+  - 预测
+  principle: 差分方程模型用于描述离散时间状态下的动态系统，通过将时间离散化为整数时刻，利用变量在各时刻的取值及其差分（一阶、二阶或高阶）建立方程。常系数线性差分方程可通过特征方程法求解：先求解特征方程得到特征根，根据根的不同情况（单实根、重根、复根）构造齐次方程的通解，再结合非齐次项的特解得到完整解。Z变换法可将差分方程转化为代数方程，简化求解过程。解的稳定性由特征根的模是否小于1判定。蛛网模型是差分方程在经济领域的典型应用，通过需求函数和供应函数的迭代分析市场价格的波动与稳定性。
+  formulas:
+  - name: n阶常系数线性差分方程
+    latex: $$a_0 y_{t+n} + a_1 y_{t+n-1} + \cdots + a_n y_t = b(t)$$
+    description: 一般形式，其中a_i为常数，a_0≠0，b(t)为非齐次项。
+  - name: 特征方程
+    latex: $$a_0 \lambda^n + a_1 \lambda^{n-1} + \cdots + a_n = 0$$
+    description: 用于求解齐次差分方程通解的特征方程。
+  - name: 齐次方程通解（单实根）
+    latex: $$y_t = c_1 \lambda_1^t + c_2 \lambda_2^t + \cdots + c_n \lambda_n^t$$
+    description: 当特征方程有n个互异实根时的通解形式。
+  - name: 齐次方程通解（k重根）
+    latex: $$y_t = (c_1 + c_2 t + \cdots + c_k t^{k-1}) \lambda^t$$
+    description: 当特征根λ为k重根时的通解形式。
+  - name: 齐次方程通解（单重复根）
+    latex: $$y_t = \rho^t (c_1 \cos \phi t + c_2 \sin \phi t)$$
+    description: 当特征根为共轭复根λ=α±iβ时的通解，ρ=√(α²+β²)，φ=arctan(β/α)。
+  - name: Z变换定义
+    latex: $$X(z) = Z[x(k)] = \sum_{k=0}^{\infty} x(k) z^{-k}$$
+    description: 离散序列x(k)的Z变换定义。
+  - name: 蛛网模型线性近似迭代式
+    latex: $$x_{k+1} - x_0 = (-\alpha\beta)(x_k - x_0)$$
+    description: 在平衡点附近线性化后得到的迭代关系，α=|f'(x0)|，β=1/|g'(y0)|。
+  applicable_when:
+  - 时间或过程是离散的，变量只在整数时刻取值
+  - 系统动态可由当前及过去若干时刻的状态线性表示
+  - 需要分析系统长期行为或稳定性
+  - 经济、生态、工程等领域中的递推关系建模
+  not_applicable_when:
+  - 时间连续且要求高精度连续解
+  - 系统非线性且无法线性化近似
+  - 变量间关系复杂且无法用低阶线性差分方程描述
+  typical_scenarios:
+  - 市场经济中商品价格与产量的波动分析（蛛网模型）
+  - 信道传输中允许传输的词数计数
+  - 人口增长或生物种群数量的离散时间模型
+  - 数字信号处理中的滤波器设计
+  common_mistakes:
+  - mistake: 误将差分方程阶数等同于特征方程次数，忽略系数为零的情况
+    solution: 严格按差分方程定义确定阶数，确保最高阶差分系数非零。
+  - mistake: 在求解非齐次方程时，特解形式选择错误（如未考虑特征根与b(t)形式的重合）
+    solution: 根据b(t)形式与特征根的关系，正确选择特解形式（如b为r重特征根时乘以t^r）。
+  - mistake: 忽略Z变换的收敛域，导致反变换结果错误
+    solution: 明确Z变换的收敛域，确保反变换时选取正确的围线积分路径。
+  code_snippets:
+  - language: python
+    description: 求解二阶线性齐次差分方程示例：y_{t+2} + y_t = 0，初值y0=0, y1=1
+    code: "import sympy as sp\n\nt = sp.symbols('t', integer=True, nonnegative=True)\n\
+      y = sp.Function('y')\n\n# 定义差分方程：y(t+2) + y(t) = 0\neq = sp.Eq(y(t+2) + y(t),\
+      \ 0)\n\n# 求解通解（符号形式）\nsol = sp.rsolve(eq, y(t))\nprint('通解:', sol)\n\n# 代入初值求特解\n\
+      ics = {y(0): 0, y(1): 1}\nsol_particular = sp.rsolve(eq, y(t), ics=ics)\nprint('特解:',\
+      \ sol_particular)\n\n# 输出前几项\nfor i in range(10):\n    print(f'y({i}) = {sol_particular.subs(t,\
+      \ i).simplify()}')"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

@@ -1,0 +1,52 @@
+method_card:
+  id: mc_027
+  name: 排队论模型
+  name_en: Queuing Theory Model
+  category:
+  - 排队论
+  principle: 排队论（随机服务系统理论）研究顾客到达、排队等待、接受服务及离开系统的随机过程。核心是通过分析输入过程（顾客到达规律）、排队规则（损失制、等待制、混合制）和服务过程（服务机构结构、服务规则）三部分，建立数学模型，求解系统稳态下的概率分布，进而计算平均队长、平均等待时间、平均逗留时间、平均忙期等运行指标，为服务系统的最优设计与运营提供决策依据。
+  formulas:
+  - name: 泊松分布概率
+    latex: $$P_n(t) = \frac{(\lambda t)^n}{n!} e^{-\lambda t}$$
+    description: 在时间区间[0,t]内到达n个顾客的概率，λ为单位时间平均到达率。
+  - name: 指数分布密度函数
+    latex: $$f(t) = \lambda e^{-\lambda t}$$
+    description: 顾客相继到达间隔时间T服从参数为λ的指数分布，λ>0。
+  - name: 服务时间指数分布密度函数
+    latex: $$g(t) = \mu e^{-\mu t}$$
+    description: 服务时间服从参数为μ的指数分布，μ为单位时间平均服务率。
+  applicable_when:
+  - 系统存在随机到达的顾客和随机服务时间
+  - 需要评估服务系统拥挤程度和效率
+  - 服务资源有限，需在服务质量和成本之间权衡
+  - 系统可抽象为输入过程、排队规则、服务过程三部分
+  not_applicable_when:
+  - 顾客到达和服务时间均为确定性且无随机性
+  - 系统规模极小且无排队现象
+  - 无法获取或估计到达率和服务率等基本参数
+  typical_scenarios:
+  - 电话交换系统占线问题分析
+  - 医院门诊排队挂号与就诊流程优化
+  - 银行、超市等服务窗口设置与人员配置
+  - 交通枢纽车船堵塞与疏导
+  - 故障机器停机待修调度
+  - 水库存贮调节
+  common_mistakes:
+  - mistake: 误将非平稳到达过程当作平稳泊松流处理
+    solution: 应先检验到达间隔时间是否独立同分布且与时间无关，必要时采用非平稳模型或分段平稳处理。
+  - mistake: 忽略系统容量限制或顾客源有限性，直接使用无限容量公式
+    solution: 应根据实际系统容量和顾客源大小选择正确的排队模型符号（如M/M/1/N/∞或M/M/1/∞/M）。
+  code_snippets:
+  - language: python
+    description: M/M/1排队系统稳态概率与运行指标计算示例
+    code: "import numpy as np\n\n# 参数设置\nlam = 2.0   # 平均到达率 (人/小时)\nmu = 3.0    #\
+      \ 平均服务率 (人/小时)\nrho = lam / mu  # 服务强度\n\nif rho >= 1:\n    print('系统不稳定，服务强度需小于1')\n\
+      else:\n    # 稳态概率 P0\n    P0 = 1 - rho\n    # 平均队长 Ls\n    Ls = rho / (1 - rho)\n\
+      \    # 平均排队长 Lq\n    Lq = rho**2 / (1 - rho)\n    # 平均逗留时间 Ws\n    Ws = 1 /\
+      \ (mu - lam)\n    # 平均等待时间 Wq\n    Wq = rho / (mu - lam)\n    print(f'P0 = {P0:.4f}')\n\
+      \    print(f'Ls = {Ls:.4f}')\n    print(f'Lq = {Lq:.4f}')\n    print(f'Ws =\
+      \ {Ws:.4f} 小时')\n    print(f'Wq = {Wq:.4f} 小时')"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

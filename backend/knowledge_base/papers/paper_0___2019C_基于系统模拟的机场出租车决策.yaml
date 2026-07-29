@@ -1,0 +1,25 @@
+paper:
+  id: paper_0___2019C_基于系统模拟的机场出租车决策
+  year: 0
+  competition: ''
+  problem_id: ''
+  title: ''
+  tags:
+    problem_type: []
+    core_models: []
+    techniques: []
+  analysis:
+    problem_summary: ''
+    key_assumptions: []
+    objective: ''
+    constraints: ''
+  model:
+    approach: ''
+    innovation: ''
+    solution_method: ''
+  evaluation:
+    strengths: []
+    weaknesses: []
+    lessons: ''
+  quality_rating: 3
+  source: 2019C：基于系统模拟的机场出租车决策与安排模型.pdf

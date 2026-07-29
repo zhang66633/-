@@ -31,7 +31,9 @@ class LLMFactory:
         active_key = api_key_config or get_active_api_key()
 
         if active_key:
-            llm_config.api_key = active_key.get("key", llm_config.api_key)
+            key = active_key.get("key", "")
+            if key:  # 不覆盖为空字符串的 key（防止 apikeys 空条目覆盖 .env 有效 key）
+                llm_config.api_key = key
             llm_config.model = active_key.get("model_name", llm_config.model)
             llm_config.provider = active_key.get("provider", llm_config.provider)
             # 优先使用 Key 记录里的 base_url（支持任意 OpenAI 兼容服务商）

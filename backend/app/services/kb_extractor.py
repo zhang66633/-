@@ -105,7 +105,12 @@ class KBExtractor:
     @property
     def llm(self):
         if self._llm is None:
-            self._llm = get_llm("analysis")
+            # 优先用 env 里的 key（批量脚本不走前端 apikeys 页面）
+            settings = get_settings()
+            api_config = {"key": settings.openai_api_key, "provider": "openai"}
+            if settings.deepseek_base_url:
+                api_config["base_url"] = settings.deepseek_base_url
+            self._llm = get_llm("analysis", api_key_config=api_config)
         return self._llm
 
     # ── PDF 文本提取 ────────────────────────────────────────
@@ -114,24 +119,56 @@ class KBExtractor:
     def extract_pdf_text(data: bytes, max_chars: int = 12000) -> str:
         """从 PDF 二进制数据提取纯文本。
 
-        使用 PyMuPDF（优先，质量好） 回退 pdfplumber。
+        策略: PyMuPDF → pdfplumber → OCR（扫描版兜底）
         """
         text = ""
+        # 1) PyMuPDF（文本型 PDF）
         try:
             import fitz  # PyMuPDF
             doc = fitz.open(stream=data, filetype="pdf")
             pages = []
             for page in doc:
-                pages.append(page.get_text())
+                t = page.get_text()
+                if t.strip():
+                    pages.append(t)
             doc.close()
             text = "\n\n".join(pages)
         except Exception:
+            pass
+
+        # 2) pdfplumber（表格密集的 PDF）
+        if not text.strip():
             try:
                 import pdfplumber
                 import io
                 with pdfplumber.open(io.BytesIO(data)) as pdf:
                     pages = [p.extract_text() or "" for p in pdf.pages]
                 text = "\n\n".join(pages)
+            except Exception:
+                pass
+
+        # 3) OCR 兜底（扫描版 PDF，无文本层）
+        if not text.strip():
+            try:
+                from rapidocr_onnxruntime import RapidOCR
+                import fitz
+                ocr = RapidOCR()
+                doc = fitz.open(stream=data, filetype="pdf")
+                ocr_pages = []
+                for page in doc:
+                    # 渲染为图片
+                    pix = page.get_pixmap(dpi=200)
+                    img_bytes = pix.tobytes("png")
+                    result, _ = ocr(img_bytes)
+                    if result:
+                        lines = []
+                        for entry in result:
+                            lines.append(entry[1])  # entry = (box, text, confidence)
+                        ocr_pages.append(" ".join(lines))
+                doc.close()
+                text = "\n\n".join(ocr_pages)
+                if text.strip():
+                    print(f"    [OCR] 扫描版 PDF，识别 {len(text)} 字符")
             except Exception:
                 pass
 
@@ -177,7 +214,7 @@ class KBExtractor:
                     "analysis": data.get("analysis", {}),
                     "model": data.get("model", {}),
                     "evaluation": data.get("evaluation", {}),
-                    "quality_rating": data.get("quality_rating", 3),
+                    "quality_rating": max(data.get("quality_rating", 3) or 3, 1),
                     "source": filename,
                 }
             }

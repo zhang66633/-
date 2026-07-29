@@ -1,0 +1,94 @@
+method_card:
+  id: mc_047
+  name: 偏最小二乘回归
+  name_en: Partial Least Squares Regression (PLS)
+  category:
+  - 统计
+  - 预测
+  principle: 偏最小二乘回归是一种多对多线性回归建模方法，特别适用于自变量和因变量数量多、存在多重相关性且样本量较少的情况。其核心思想是：在自变量和因变量两组变量中分别提取成分（主成分），并要求这些成分之间相关性最大。具体步骤为：首先在自变量集中提取第一成分t1（自变量的线性组合，尽可能多地提取变异信息），同时在因变量集中提取第一成分u1，并使t1与u1相关程度最大；然后建立因变量与t1的回归。若精度不满足，则继续提取第二对成分，直到精度满意为止。最终建立因变量与提取的r个成分的回归式，再转化为原自变量的回归方程。该方法融合了主成分分析、典型相关分析和线性回归分析的特点。
+  formulas:
+  - name: 第一对成分的提取
+    latex: $$t_1 = X w_1, \quad u_1 = Y v_1$$
+    description: 从自变量集X和因变量集Y中分别提取第一对成分t1和u1，其中w1和v1是单位向量，使得t1和u1的协方差最大。
+  - name: 优化目标
+    latex: $$\max_{w_1, v_1} \langle E_0 w_1, F_0 v_1 \rangle \quad \text{s.t.} \quad
+      \|w_1\| = 1, \|v_1\| = 1$$
+    description: 第一对成分的提取转化为条件极值问题，即最大化标准化观测数据阵E0和F0的得分向量的内积。
+  - name: 回归模型
+    latex: $$\begin{cases} E_0 = t_1 \alpha_1^T + E_1 \\ F_0 = t_1 \beta_1^T + F_1
+      \end{cases}$$
+    description: 建立自变量和因变量对第一成分t1的回归，α1和β1为回归系数向量（模型效应负荷量），E1和F1为残差阵。
+  - name: 回归系数估计
+    latex: $$\hat{\alpha}_1 = \frac{E_0^T \hat{t}_1}{\|\hat{t}_1\|^2}, \quad \hat{\beta}_1
+      = \frac{F_0^T \hat{t}_1}{\|\hat{t}_1\|^2}$$
+    description: 回归系数向量的最小二乘估计，其中t̂1为第一成分的得分向量。
+  - name: 交叉有效性
+    latex: $$Q_h^2 = 1 - \frac{\text{PRESS}(h)}{\text{SS}(h-1)}$$
+    description: 定义交叉有效性指标，用于确定提取成分的个数。当Q_h^2 < 0.0985时，模型达到精度要求，停止提取成分。
+  applicable_when:
+  - 自变量和因变量数量多（高维数据）
+  - 自变量之间存在多重相关性
+  - 观测数据样本量较少（小于变量个数）
+  - 需要同时处理多组变量间的相互依赖关系
+  not_applicable_when:
+  - 变量间关系为非线性（需使用非线性PLS扩展）
+  - 样本量远大于变量个数且无多重共线性（传统多元回归更简单有效）
+  - 需要因果推断或假设检验（PLS主要用于预测而非推断）
+  typical_scenarios:
+  - 化学计量学中光谱数据与成分浓度的建模
+  - 经济金融中多指标预测与因子分析
+  - 生物信息学中基因表达数据与表型关联分析
+  - 工业过程监控中多变量过程参数与产品质量的建模
+  common_mistakes:
+  - mistake: 未对数据进行标准化处理，导致变量量纲影响成分提取
+    solution: 在建模前对自变量和因变量均进行标准化（均值为0，方差为1）
+  - mistake: 盲目使用所有提取的成分，未进行交叉有效性检验
+    solution: 使用交叉有效性指标Q_h^2确定最优成分个数，避免过拟合
+  - mistake: 将PLS回归等同于主成分回归（PCR）
+    solution: PLS同时考虑自变量和因变量的信息及相关性，而PCR只考虑自变量方差
+  code_snippets:
+  - language: python
+    description: 使用scikit-learn实现偏最小二乘回归
+    code: 'from sklearn.cross_decomposition import PLSRegression
+
+      import numpy as np
+
+
+      # 示例数据
+
+      X = np.array([[191, 36, 50], [189, 37, 52], [193, 38, 58]])
+
+      Y = np.array([[5, 162, 60], [2, 110, 60], [12, 101, 101]])
+
+
+      # 创建PLS模型，设置成分个数
+
+      pls = PLSRegression(n_components=2)
+
+
+      # 拟合模型
+
+      pls.fit(X, Y)
+
+
+      # 预测
+
+      Y_pred = pls.predict(X)
+
+
+      # 获取成分
+
+      X_scores = pls.x_scores_
+
+      Y_scores = pls.y_scores_
+
+
+      # 获取权重
+
+      X_weights = pls.x_weights_
+
+      Y_weights = pls.y_weights_'
+  related_cards: []
+  related_papers: []
+  difficulty: 4
+  quality_rating: 4

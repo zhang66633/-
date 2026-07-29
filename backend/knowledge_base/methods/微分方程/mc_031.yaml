@@ -1,0 +1,54 @@
+method_card:
+  id: mc_031
+  name: 微分方程稳定性分析
+  name_en: Stability Analysis of Differential Equations
+  category:
+  - 微分方程
+  principle: 通过研究微分方程平衡点（奇点）的稳定性，分析系统在长时间后的行为趋势，而无需求解完整的动态过程。对于自治系统，平衡点满足F(x)=0。通过线性近似（Jacobian矩阵）的特征根实部符号判断稳定性：若所有特征根实部为负，则平衡点渐近稳定；若存在正实部，则不稳定；若实部非正且有零实部，则需进一步分析。对于非线性系统，若线性近似系统的特征根无零实部，则两者奇点类型和稳定性相同。
+  formulas:
+  - name: 自治系统
+    latex: $$\frac{dx}{dt} = F(x)$$
+    description: 不含时间变量t的微分方程组，称为自治系统或动力系统。
+  - name: 平衡点条件
+    latex: $$F(x_0)=0$$
+    description: 满足该条件的点x0称为系统的奇点或平衡点。
+  - name: 线性近似系统
+    latex: $$\frac{dx}{dt} = A x$$
+    description: 在平衡点附近将非线性系统线性化得到的系统，其中A为Jacobian矩阵。
+  - name: 特征方程（二维）
+    latex: $$\lambda^2 + p\lambda + q = 0$$
+    description: 其中p=-(a+d)，q=ad-bc，用于判断二维线性系统平衡点的类型和稳定性。
+  applicable_when:
+  - 系统可用常微分方程描述
+  - 关注长时间后的稳定状态而非瞬态过程
+  - 平衡点存在且可求解
+  - 系统在平衡点附近可线性化（Jacobian矩阵非奇异）
+  not_applicable_when:
+  - 系统无法用微分方程建模
+  - 平衡点不存在或非孤立
+  - 线性近似系统特征根有零实部（此时不能直接判断原系统稳定性）
+  - 需要精确的瞬态过程信息
+  typical_scenarios:
+  - 生态系统中种群数量的长期演化趋势分析
+  - 可再生资源（如渔业）的持续开发策略制定
+  - 经济系统中均衡点的稳定性判断
+  - 工程控制系统的稳定性分析
+  common_mistakes:
+  - mistake: 直接使用线性近似系统的稳定性结论而不验证特征根是否有零实部
+    solution: 必须检查线性近似系统特征根的实部是否全不为零，否则需用其他方法（如Lyapunov函数）分析原系统的稳定性。
+  - mistake: 将非自治系统当作自治系统处理
+    solution: 先通过增补时间变量将非自治系统转化为自治系统，再进行稳定性分析。
+  code_snippets:
+  - language: python
+    description: 计算二维非线性系统平衡点及稳定性（以Logistic增长模型为例）
+    code: "import sympy as sp\n\n# 定义变量和参数\nx, r, N, E = sp.symbols('x r N E', positive=True)\n\
+      \n# 定义微分方程（Scheafer模型）\ndxdt = r*x*(1 - x/N) - E*x\n\n# 求解平衡点\nbalance_points\
+      \ = sp.solve(dxdt, x)\nprint('平衡点:', balance_points)\n\n# 计算Jacobian（一维情况即为导数）\n\
+      J = sp.diff(dxdt, x)\nprint('Jacobian:', J)\n\n# 代入平衡点判断稳定性\nfor pt in balance_points:\n\
+      \    J_val = sp.simplify(J.subs(x, pt))\n    print(f'在x={pt}处，Jacobian={J_val}')\n\
+      \    if J_val < 0:\n        print('  稳定')\n    elif J_val > 0:\n        print('\
+      \  不稳定')\n    else:\n        print('  临界')\n"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

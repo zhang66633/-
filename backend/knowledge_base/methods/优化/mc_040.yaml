@@ -1,0 +1,52 @@
+method_card:
+  id: mc_040
+  name: 模拟退火算法
+  name_en: Simulated Annealing
+  category:
+  - 优化
+  principle: 模拟退火算法源于材料统计力学中的退火过程。高温下粒子能量高，可自由运动；缓慢降温后，粒子在每个温度下达到热平衡，最终形成低能晶体。算法将优化问题的解视为材料的状态，目标函数值视为能量，通过Metropolis准则以一定概率接受较差解，从而跳出局部最优，在温度缓慢下降过程中逐步逼近全局最优解。
+  formulas:
+  - name: 状态转移接受概率
+    latex: $$P(x \to x') = \begin{cases} 1, & f(x') \leq f(x) \\ e^{-\frac{f(x') -
+      f(x)}{T}}, & f(x') > f(x) \end{cases}$$
+    description: 在温度T下，从当前解x生成新解x'，若新解目标函数值更小则接受，否则以指数概率接受。
+  - name: 平衡态分布
+    latex: $$P_i(T) = \frac{e^{-\frac{f(x_i)}{T}}}{\sum_{j \in S} e^{-\frac{f(x_j)}{T}}}$$
+    description: 在温度T下，系统处于状态i的概率服从玻尔兹曼分布，温度越低，低能量状态的概率越大。
+  - name: 降温公式
+    latex: $$T_{i+1} = \alpha T_i$$
+    description: 每次降温时，新温度等于当前温度乘以降温系数α（通常取0.8~0.999）。
+  applicable_when:
+  - 目标函数复杂、非线性、多峰值的优化问题
+  - 解空间巨大且离散的组合优化问题
+  - 对求解时间要求不苛刻，允许较长的计算过程
+  - 难以使用梯度信息或传统确定性算法失效的问题
+  not_applicable_when:
+  - 问题有明确的解析解或可用简单算法快速求解
+  - 需要严格保证实时性或极短响应时间
+  - 解空间连续且光滑，梯度下降等算法更高效
+  typical_scenarios:
+  - 旅行商问题（TSP）
+  - 二次分配问题（QAP）
+  - 作业车间调度问题（JSP）
+  - 电路布线优化
+  - 神经网络权重训练
+  common_mistakes:
+  - mistake: 降温速度过快，导致算法过早收敛于局部最优
+    solution: 选择较小的降温系数（如0.95~0.999），并保证每个温度下有足够多的迭代次数。
+  - mistake: 初始温度设置过低，导致算法缺乏探索能力
+    solution: 初始温度应足够高，使得初始阶段接受较差解的概率接近1，通常通过试验或自适应方法确定。
+  - mistake: 终止温度设置过高，未充分收敛
+    solution: 设置足够低的终止温度（如1e-10），或使用连续多次无改进作为终止条件。
+  code_snippets:
+  - language: matlab
+    description: 模拟退火求解TSP问题（核心退火循环部分）
+    code: "for k = 1:L\n    % 产生新解（2变换法）\n    u = randi([2, 101]); v = randi([2, 101]);\n\
+      \    if u > v, [u, v] = deal(v, u); end\n    S_new = S;\n    S_new(u:v) = S_new(v:-1:u);\n\
+      \    % 计算代价差\n    df = d(S(u-1), S(v)) + d(S(u), S(v+1)) - d(S(u-1), S(u)) -\
+      \ d(S(v), S(v+1));\n    % 接受准则\n    if df < 0 || exp(-df / T) > rand\n     \
+      \   S = S_new;\n    end\n    T = at * T;\n    if T < e, break; end\nend"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

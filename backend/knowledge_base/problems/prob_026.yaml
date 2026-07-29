@@ -1,0 +1,18 @@
+problem:
+  id: "prob_026"
+  year: 2014
+  competition: "国赛"
+  problem_id: "B"
+  title: "2014国赛B题"
+  full_text: |
+    !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~Root EntryData
+    1TableWordDocumentSummaryInformation(DocumentSummaryInformation8CompObju#楍牣獯景晏楦散圠牯〰坓牯捯圀牯潄畣敭瑮q
+  background: ""
+  objectives: []
+  data_description: ""
+  deliverables: []
+  tags:
+    problem_type: ['优化', '调度', '规划']
+    difficulty: "medium"
+  linked_papers: []
+  source_url: ""

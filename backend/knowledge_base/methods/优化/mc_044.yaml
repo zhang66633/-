@@ -1,0 +1,106 @@
+method_card:
+  id: mc_044
+  name: 有瓶颈设备的多级生产计划问题
+  name_en: Multi-level Production Planning with Bottleneck Equipment
+  category:
+  - 优化
+  principle: 该模型针对多级生产计划问题，在有限计划期内，考虑产品结构（物料清单）、生产能力限制、生产准备费用和库存费用，以总费用最小为目标建立混合整数规划模型。核心是通过物流守恒方程（每个项目在每个时段的库存平衡）、资源能力约束（瓶颈设备能力上限）以及生产准备逻辑约束（产量非零时需支付固定准备费用），确定每个项目在每个时段的生产批量。模型将非线性约束通过大M法线性化，决策变量包括生产批量（连续变量）和是否生产的0-1变量。
+  formulas:
+  - name: 目标函数
+    latex: $$\min \sum_{i=1}^{N}\sum_{t=1}^{T} (s_{i,t} Y_{i,t} + h_{i,t} I_{i,t})$$
+    description: 最小化所有项目在所有时段的生产准备费用与库存费用之和。
+  - name: 物流守恒方程
+    latex: $$I_{i,t-1} + X_{i,t} - I_{i,t} = d_{i,t} + \sum_{j \in S(i)} r_{i,j} X_{j,t}$$
+    description: 每个项目每个时段的库存平衡：上期库存加本期产量减本期库存等于外部需求加上用于组装后继项目的消耗量。
+  - name: 资源能力约束
+    latex: $$\sum_{i=1}^{N} a_{i,k,t} X_{i,t} \leq C_{k,t}$$
+    description: 每个时段每种瓶颈资源上所有项目消耗的能力之和不超过该资源的能力上限。
+  - name: 生产准备逻辑约束
+    latex: $$0 \leq X_{i,t} \leq M Y_{i,t}, \quad Y_{i,t} \in \{0,1\}$$
+    description: 当生产批量大于0时，对应的0-1变量必须为1；M为充分大的正数，用于线性化。
+  applicable_when:
+  - 产品具有多级装配结构（物料清单）
+  - 存在瓶颈资源（如关键设备、人力）且能力有限
+  - 生产准备费用与批量无关，库存费用与库存量成正比
+  - 计划期离散（周、天、月），需求已知且不允许缺货
+  - 不考虑生产提前期或提前期可忽略
+  not_applicable_when:
+  - 需求不确定或动态变化
+  - 生产准备时间不可忽略且影响排程
+  - 存在多品种、多订单的复杂排序问题
+  - 库存费用非线性或存在数量折扣
+  typical_scenarios:
+  - 制造企业中期或短期生产计划编制
+  - 多级装配线（如汽车、电子）的批量决策
+  - 瓶颈设备能力紧张时的生产排程优化
+  common_mistakes:
+  - mistake: 忽略产品结构中的消耗系数，直接用总需求计算各项目产量
+    solution: 必须根据物料清单（BOM）和消耗系数，通过物流守恒方程逐级推导各项目的需求。
+  - mistake: 将生产准备费用视为可变成本，错误地计入单位成本
+    solution: 生产准备费用是固定成本，与批量大小无关，应通过0-1变量建模。
+  - mistake: M值选取过小导致约束过紧，或过大导致数值不稳定
+    solution: M应取为每个项目每个时段可能的最大产量（如根据总需求和消耗系数估算的上限）。
+  code_snippets:
+  - language: lindo
+    description: LINGO代码实现示例（对应文本中的模型）
+    code: 'MODEL:
+
+      TITLE 瓶颈设备的多级生产计划;
+
+      SETS:
+
+      PART/A B C D E F G/:Setup,Hold,A;
+
+      TIME/1..6/:Capacity;
+
+      USES(PART,PART):Req;
+
+      PXT(PART,TIME):Demand,X,Y,Inv;
+
+      ENDSETS
+
+      [OBJ]Min=@sum(PXT(i,t):setup(i)*Y(i,t)+hold(i)*Inv(i,t));
+
+      @FOR(PXT(i,t)|t #NE# 1:[Bal]Inv(i,t-1)+X(i,t)-Inv(i,t)=Demand(i,t)+@SUM(USES(i,j):Req(i,j)*X(j,t)));
+
+      @FOR(PXT(i,t)|t #eq# 1:[Ba0]X(i,t)-Inv(i,t)=Demand(i,t)+@SUM(USES(i,j):Req(i,j)*X(j,t)));
+
+      @FOR(TIME(t):[Cap]@SUM(PART(i):A(i)*X(i,t))<Capacity(t));
+
+      M = 25000;
+
+      @FOR(PXT(i,t):X(i,t)<=M*Y(i,t));
+
+      @FOR(PXT:@BIN(Y));
+
+      DATA:
+
+      Demand=0;Req =0;
+
+      Capacity=10000 0 5000 5000 1000 1000;
+
+      Setup=400 500 1000 300 200 400 100;
+
+      Hold=12 0.6 1.0 0.04 0.03 0.04 0.04;
+
+      A=0 5 8 0 0 0 0;
+
+      ENDDATA
+
+      CALC:
+
+      demand(1,1)=40;demand(1,3)=100;
+
+      demand(1,5)=90;demand(1,6)=10;
+
+      req(2,1)=5;req(3,1)=7;req(4,2)=9;
+
+      req(5,2)=11;req(6,3)=13;req(7,3)=15;
+
+      ENDCALC
+
+      END'
+  related_cards: []
+  related_papers: []
+  difficulty: 4
+  quality_rating: 4

@@ -1,0 +1,54 @@
+method_card:
+  id: mc_030
+  name: 微分方程建模
+  name_en: Differential Equation Modeling
+  category:
+  - 微分方程
+  - 预测
+  principle: 微分方程建模是将实际问题中变量之间的变化规律用微分方程描述的方法。其核心步骤包括：根据实际要求确定研究的量（自变量、未知函数、参数等）并建立坐标系；找出这些量所满足的基本规律（物理、几何、化学、生物学等）；运用这些规律列出微分方程和定解条件。常用的列方程方法有：按已知规律直接列方程、微元分析法与任意区域上取积分的方法、以及模拟近似法。建模过程中常需作出合理假设与简化，并将模型结果与实际对照验证，以修正模型，最终达到描述和预测实际问题的目的。
+  formulas:
+  - name: 一阶线性微分方程（Malthus模型）
+    latex: $$\frac{dx}{dt}=rx,\quad x(0)=x_0$$
+    description: 人口增长模型，r为常数增长率，x(t)为t时刻人口数。
+  - name: Logistic模型
+    latex: $$\frac{dx}{dt}=r\left(1-\frac{x}{x_m}\right)x,\quad x(0)=x_0$$
+    description: 阻滞增长模型，r为固有增长率，x_m为环境容纳最大人口数。
+  - name: 火箭速度公式（动量守恒）
+    latex: $$v(t)=u\ln\frac{m_0}{m(t)}+v_0$$
+    description: 火箭升空速度模型，u为喷气相对速度，m(t)为t时刻火箭质量。
+  - name: 理想火箭速度公式
+    latex: $$v(t)=u(1-\alpha)\ln\frac{m_0}{m(t)}$$
+    description: 理想火箭模型，α为丢弃结构质量与烧掉燃料质量的比例参数。
+  applicable_when:
+  - 实际问题中变量随时间或空间连续变化，且变化率与变量本身或其他变量有关
+  - 已知或可合理假设变量满足某种物理、化学、生物、经济等规律
+  - 需要定量描述动态过程、预测未来状态或分析系统稳定性
+  not_applicable_when:
+  - 问题本质是离散的，且离散性不可忽略
+  - 变量间关系过于复杂，无法用微分方程合理近似
+  - 缺乏足够的数据或规律来建立微分方程模型
+  typical_scenarios:
+  - 人口增长预测（Malthus模型、Logistic模型）
+  - 火箭发射与卫星轨道动力学
+  - 传染病传播模型（SIR等）
+  - 化学反应动力学
+  - 生态系统中的种群竞争与捕食关系
+  common_mistakes:
+  - mistake: 忽略模型假设的适用条件，直接套用Malthus模型预测长期人口，导致结果严重偏离实际。
+    solution: 应使用考虑资源限制的Logistic模型或其他更符合实际的模型，并验证假设。
+  - mistake: 在火箭建模中忽略结构质量的影响，认为燃料质量全部转化为有效载荷速度。
+    solution: 应区分有效负载、燃料质量和结构质量，使用多级火箭或理想火箭模型。
+  code_snippets:
+  - language: python
+    description: 使用SciPy求解Logistic人口增长模型（微分方程数值解）
+    code: "import numpy as np\nfrom scipy.integrate import solve_ivp\nimport matplotlib.pyplot\
+      \ as plt\n\n# 参数\nr = 0.02  # 固有增长率\nx_m = 1e10  # 环境容纳量\nx0 = 3.06e9  # 初始人口（1961年）\n\
+      \ndef logistic(t, x):\n    return r * x * (1 - x / x_m)\n\n# 求解时间范围：1961到2100年\n\
+      t_span = (0, 139)\nt_eval = np.linspace(0, 139, 140)\nsol = solve_ivp(logistic,\
+      \ t_span, [x0], t_eval=t_eval, method='RK45')\n\n# 绘图\nyears = 1961 + sol.t\n\
+      plt.plot(years, sol.y[0])\nplt.xlabel('Year')\nplt.ylabel('Population')\nplt.title('Logistic\
+      \ Population Growth')\nplt.grid()\nplt.show()"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

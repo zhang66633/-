@@ -1,0 +1,81 @@
+method_card:
+  id: mc_041
+  name: 移动平均法
+  name_en: Moving Average Method
+  category:
+  - 预测
+  - 统计
+  principle: 移动平均法是一种通过计算时间序列中连续若干期数据的平均值来消除随机波动、揭示长期趋势的预测方法。其核心思想是：当时间序列受周期变动和不规则变动影响、起伏较大不易显示发展趋势时，通过逐项推移计算包含一定项数的时序平均数，可以平滑数据，从而分析预测序列的长期趋势。该方法包括简单移动平均法（各期数据权重相等）、加权移动平均法（近期数据赋予较大权重）和趋势移动平均法（通过二次移动平均建立直线趋势模型）三种主要形式。
+  formulas:
+  - name: 一次简单移动平均公式
+    latex: $$M_t^{(1)} = \frac{y_t + y_{t-1} + \cdots + y_{t-N+1}}{N}$$
+    description: 计算t期的一次简单移动平均值，其中N为移动平均的项数。
+  - name: 简单移动平均预测公式
+    latex: $$\hat{y}_{t+1} = M_t^{(1)} = \frac{y_t + y_{t-1} + \cdots + y_{t-N+1}}{N}$$
+    description: 以第t期的一次移动平均值作为第t+1期的预测值。
+  - name: 预测标准误差公式
+    latex: $$S = \sqrt{\frac{\sum_{t=N+1}^{T} (y_t - \hat{y}_t)^2}{T - N}}$$
+    description: 计算预测模型的标准误差，用于评估预测精度。
+  - name: 加权移动平均公式
+    latex: $$M_{tw} = \frac{w_1 y_t + w_2 y_{t-1} + \cdots + w_N y_{t-N+1}}{w_1 +
+      w_2 + \cdots + w_N}$$
+    description: 计算t期的加权移动平均值，其中w_i为各期数据的权重。
+  - name: 二次移动平均公式
+    latex: $$M_t^{(2)} = \frac{M_t^{(1)} + M_{t-1}^{(1)} + \cdots + M_{t-N+1}^{(1)}}{N}$$
+    description: 在一次移动平均的基础上再进行一次移动平均，用于趋势移动平均法。
+  - name: 趋势移动平均平滑系数公式
+    latex: $$\begin{cases} a_t = 2M_t^{(1)} - M_t^{(2)} \\ b_t = \frac{2}{N-1}(M_t^{(1)}
+      - M_t^{(2)}) \end{cases}$$
+    description: 计算直线趋势预测模型中的截距a_t和斜率b_t。
+  - name: 直线趋势预测模型
+    latex: $$\hat{y}_{t+T} = a_t + b_t T, \quad T=1,2,\ldots$$
+    description: 利用平滑系数建立的直线趋势预测模型，T为预测期数。
+  applicable_when:
+  - 时间序列数值受周期变动和不规则变动影响，起伏较大，不易显示发展趋势
+  - 预测目标的基本趋势在某一水平上下波动，无明显趋势变化
+  - 需要消除时间序列中的随机波动，揭示长期趋势
+  - 历史序列的基本趋势变化不大且随机变动成分较多时，N取值应较大
+  - 存在确定的季节变动周期时，移动平均项数应取周期长度
+  not_applicable_when:
+  - 时间序列出现明显的直线增加或减少趋势时，简单移动平均法会产生滞后偏差
+  - 预测目标的发展趋势存在其他复杂变化时
+  - 需要精确反映数据突变或转折点时
+  typical_scenarios:
+  - 企业销售收入预测
+  - 原煤产量预测
+  - 发电总量预测
+  - 经济指标短期预测
+  common_mistakes:
+  - mistake: 在时间序列有明显趋势时仍使用简单移动平均法，导致预测滞后偏差
+    solution: 应采用趋势移动平均法，通过二次移动平均建立直线趋势预测模型进行修正
+  - mistake: 移动平均项数N选择不当，N过大或过小影响预测精度
+    solution: 应比较若干模型的预测误差，选择预测标准误差最小的N值；当随机变动成分多时N取较大值，否则取较小值
+  - mistake: 在加权移动平均法中权重分配不合理
+    solution: 应遵循近期数据权重大、远期数据权重小的原则，具体权重需根据对序列的了解和分析确定
+  code_snippets:
+  - language: python
+    description: 简单移动平均法预测示例（企业销售收入预测）
+    code: "y=[533.8, 574.6, 606.9, 649.8, 705.1, 772.0, 816.4, 892.7, 963.9, 1015.1,\
+      \ 1102.7]\nm=len(y)\nn=[4,5]\nfor i in range(len(n)):\n    yhat=[]\n    for\
+      \ j in range(m-n[i]+1):\n        yhat.append(sum(y[j:j+n[i]])/n[i])\n    y12=yhat[-1]\n\
+      \    s=(sum((y[n[i]:]-yhat[:-1])**2)/(m-n[i]))**0.5\n    print(f'N={n[i]}: y12={y12},\
+      \ s={s}')"
+  - language: python
+    description: 加权移动平均法预测示例（原煤产量预测）
+    code: "y=[6.35, 6.20, 6.22, 6.66, 7.15, 7.89, 8.72, 8.94, 9.28, 9.8]\nw=[1/6,\
+      \ 2/6, 3/6]\nm=len(y)\nn=3\nyhat=[]\nfor i in range(m-n+1):\n    yhat.append(sum([y[i+j]*w[j]\
+      \ for j in range(n)]))\nprint(yhat)\nerr=[abs(y[n+i]-yhat[i])/y[n+i] for i in\
+      \ range(len(yhat)-1)]\nprint(err)\nT_err=1-sum(yhat[:-1])/sum(y[n:])\nprint(T_err)\n\
+      y1989=yhat[-1]/(1-T_err)\nprint(y1989)"
+  - language: python
+    description: 趋势移动平均法预测示例（发电总量预测）
+    code: "y=[676, 825, 774, 716, 940, 1159, 1384, 1524, 1668, 1688, 1958, 2031, 2234,\
+      \ 2566, 2820, 3006, 3093, 3277, 3514, 3770, 4107]\nn=6\nm1=len(y)\nyhat1=[]\n\
+      for i in range(m1-n+1):\n    yhat1.append(sum(y[i:i+n])/n)\nm2=len(yhat1)\n\
+      yhat2=[]\nfor i in range(m2-n+1):\n    yhat2.append(sum(yhat1[i:i+n])/n)\na21=2*yhat1[-1]-yhat2[-1]\n\
+      b21=2*(yhat1[-1]-yhat2[-1])/(n-1)\ny1986=a21+b21\ny1987=a21+2*b21\nprint(f'a21={a21},\
+      \ b21={b21}, y1986={y1986}, y1987={y1987}')"
+  related_cards: []
+  related_papers: []
+  difficulty: 2
+  quality_rating: 4

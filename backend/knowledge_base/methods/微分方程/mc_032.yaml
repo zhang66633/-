@@ -1,0 +1,48 @@
+method_card:
+  id: mc_032
+  name: 改进欧拉法
+  name_en: Improved Euler Method
+  category:
+  - 微分方程
+  - 数值方法
+  principle: 改进欧拉法是一种预测-校正方法，结合了显式欧拉法和梯形公式。先用显式欧拉公式计算预测值，再用梯形公式进行校正，从而获得更高精度的数值解。该方法属于二阶龙格-库塔法的一种特殊形式，局部截断误差为O(h^3)，整体精度为二阶。
+  formulas:
+  - name: 预测公式
+    latex: $$\bar{y}_{n+1} = y_n + h f(x_n, y_n)$$
+    description: 用显式欧拉法计算预测值
+  - name: 校正公式
+    latex: $$y_{n+1} = y_n + \frac{h}{2} [f(x_n, y_n) + f(x_{n+1}, \bar{y}_{n+1})]$$
+    description: 用梯形公式校正得到最终近似值
+  - name: 常用形式
+    latex: $$\begin{cases} y_p = y_n + h f(x_n, y_n) \\ y_q = y_n + h f(x_{n+1}, y_p)
+      \\ y_{n+1} = \frac{1}{2}(y_p + y_q) \end{cases}$$
+    description: 便于编程实现的等价形式
+  applicable_when:
+  - 一阶常微分方程初值问题
+  - 函数f(x,y)满足Lipschitz条件以保证解存在唯一
+  - 需要比欧拉法更高精度但计算量适中的场景
+  - 步长h较小且满足收敛条件时
+  not_applicable_when:
+  - 函数f(x,y)不连续或不满足Lipschitz条件
+  - 需要极高精度时（应使用四阶龙格-库塔法）
+  - 刚性方程（需使用隐式方法）
+  typical_scenarios:
+  - 物理系统的数值模拟（如弹簧振子、电路）
+  - 生物种群增长模型
+  - 化学反应动力学方程
+  common_mistakes:
+  - mistake: 误认为改进欧拉法是无条件稳定的，使用过大步长导致数值发散
+    solution: 应确保步长h满足收敛条件，通常hL/2 < 1，其中L为Lipschitz常数
+  - mistake: 将预测-校正过程迭代多次，误以为能提高精度
+    solution: 改进欧拉法设计为每步只迭代一次，多次迭代会变成梯形公式的迭代解法，增加计算量但精度提升有限
+  code_snippets:
+  - language: python
+    description: 改进欧拉法求解一阶常微分方程初值问题
+    code: "def improved_euler(f, x0, y0, h, n):\n    x = [x0 + i*h for i in range(n+1)]\n\
+      \    y = [0.0]*(n+1)\n    y[0] = y0\n    for i in range(n):\n        y_pred\
+      \ = y[i] + h * f(x[i], y[i])\n        y[i+1] = y[i] + h/2 * (f(x[i], y[i]) +\
+      \ f(x[i+1], y_pred))\n    return x, y"
+  related_cards: []
+  related_papers: []
+  difficulty: 2
+  quality_rating: 4

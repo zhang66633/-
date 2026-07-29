@@ -1,0 +1,104 @@
+method_card:
+  id: mc_038
+  name: 目标规划
+  name_en: Goal Programming
+  category:
+  - 优化
+  principle: 目标规划是一种处理多目标决策问题的数学规划方法，由Charnes和Cooper于1961年提出。其核心思想是为每个目标设定目标值，引入正、负偏差变量表示决策值对目标值的偏离，并根据目标的重要程度赋予不同的优先因子或权系数，将多目标问题转化为按优先级顺序求解的单目标规划问题。通过最小化各目标偏差的加权和，寻求使决策者满意的解。
+  formulas:
+  - name: 目标规划一般模型
+    latex: $$\min z = \sum_{k=1}^{q} P_k \left( \sum_{j=1}^{l} (w_{kj}^- d_j^- + w_{kj}^+
+      d_j^+) \right)$$
+    description: 目标规划的目标函数，其中P_k为优先因子，d_j^-和d_j^+为负、正偏差变量，w为权系数。
+  - name: 目标约束
+    latex: $$\sum_{j=1}^{n} c_{ij} x_j + d_i^- - d_i^+ = g_i, \quad i=1,\dots,l$$
+    description: 柔性目标约束，g_i为目标值，允许正负偏差。
+  - name: 刚性约束
+    latex: $$\sum_{j=1}^{n} a_{ij} x_j \leq (\text{或} =, \geq) b_i, \quad i=1,\dots,m$$
+    description: 必须严格满足的硬约束。
+  - name: 序贯算法子问题
+    latex: $$\min z_k = \sum_{j=1}^{l} (w_{kj}^- d_j^- + w_{kj}^+ d_j^+)$$
+    description: 按优先级依次求解的单目标规划，约束中需包含前级最优目标值约束。
+  applicable_when:
+  - 决策问题涉及多个相互冲突或不同重要程度的目标
+  - 目标可以量化为具体数值，且允许偏离目标值
+  - 存在刚性约束和柔性约束混合的优化问题
+  - 需要按优先级顺序处理目标
+  not_applicable_when:
+  - 所有目标同等重要且无优先级区分
+  - 目标值无法合理确定或主观性过强
+  - 问题本质是单目标优化
+  - 决策变量和约束均为非线性且无法线性化
+  typical_scenarios:
+  - 生产计划中同时考虑利润、设备利用、市场比例等多目标
+  - 资源分配中兼顾成本、效率、环保等多个指标
+  - 项目管理中平衡时间、成本、质量等冲突目标
+  common_mistakes:
+  - mistake: 将刚性约束错误地设为柔性约束，导致不可行解
+    solution: 明确区分必须严格满足的约束（如资源限量）和可偏离的目标约束。
+  - mistake: 优先因子或权系数设置不合理，导致目标顺序颠倒
+    solution: 使用专家评定法或层次分析法（AHP）确定优先等级和权重。
+  - mistake: 忽略偏差变量非负且乘积为零的性质
+    solution: 在模型中明确添加d_i^+ * d_i^- = 0的约束（或通过算法保证）。
+  code_snippets:
+  - language: LINGO
+    description: 序贯算法求解目标规划（例3通用程序）
+    code: 'model:
+
+      sets:
+
+      level/1..3/:p,z,goal;
+
+      variable/1..2/:x;
+
+      h_con_num/1..1/:b;
+
+      s_con_num/1..4/:g,dplus,dminus;
+
+      h_con(h_con_num,variable):a;
+
+      s_con(s_con_num,variable):c;
+
+      obj(level,s_con_num)/1 1,2 2,3 3,3 4/:wplus,wminus;
+
+      endsets
+
+      data:
+
+      ctr=?;
+
+      goal=? ? 0;
+
+      b=12;
+
+      g=1500 0 16 15;
+
+      a=2 2;
+
+      c=200 300 2 -1 4 0 0 5;
+
+      wplus=0 1 3 1;
+
+      wminus=1 1 3 0;
+
+      enddata
+
+      min=@sum(level:p*z);
+
+      p(ctr)=1;
+
+      @for(level(i)|i#ne#ctr:p(i)=0);
+
+      @for(level(i):z(i)=@sum(obj(i,j):wplus(i,j)*dplus(j)+wminus(i,j)*dminus(j)));
+
+      @for(h_con_num(i):@sum(variable(j):a(i,j)*x(j))<b(i));
+
+      @for(s_con_num(i):@sum(variable(j):c(i,j)*x(j))+dminus(i)-dplus(i)=g(i));
+
+      @for(level(i)|i #lt# @size(level):@bnd(0,z(i),goal(i)));
+
+      end'
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

@@ -1,0 +1,65 @@
+method_card:
+  id: mc_039
+  name: 模糊数学模型
+  name_en: Fuzzy Mathematical Model
+  category:
+  - 评价
+  - 统计
+  principle: 模糊数学利用隶属函数描述客观事物差异的中间过渡状态，将经典集合的{0,1}二值逻辑扩展为[0,1]连续值逻辑。核心思想是通过隶属度刻画元素对模糊集合的从属程度，并基于取大（∨）和取小（∧）算子定义模糊集合的并、交、补运算。模糊关系通过模糊矩阵表示，用于处理不确定性、不分明性或亦此亦彼性的决策与评价问题。
+  formulas:
+  - name: 隶属函数定义
+    latex: '$$\mu_A: X \to [0,1], \quad A = \{(x, \mu_A(x)) \mid x \in X\}$$'
+    description: 论域X上的模糊集合A由隶属函数μ_A完全刻画，μ_A(x)表示x对A的隶属度。
+  - name: 模糊集并运算
+    latex: $$\mu_{A \cup B}(x) = \max\{\mu_A(x), \mu_B(x)\} = \mu_A(x) \vee \mu_B(x)$$
+    description: 模糊集A与B的并集隶属度取两者最大值。
+  - name: 模糊集交运算
+    latex: $$\mu_{A \cap B}(x) = \min\{\mu_A(x), \mu_B(x)\} = \mu_A(x) \wedge \mu_B(x)$$
+    description: 模糊集A与B的交集隶属度取两者最小值。
+  - name: 模糊集补运算
+    latex: $$\mu_{A^C}(x) = 1 - \mu_A(x)$$
+    description: 模糊集A的补集隶属度为1减去原隶属度。
+  - name: 模糊矩阵合成
+    latex: $$C = A \circ B, \quad c_{ij} = \bigvee_{k=1}^s (a_{ik} \wedge b_{kj})$$
+    description: 模糊矩阵A（m×s）与B（s×n）的合成运算，先取小后取大。
+  applicable_when:
+  - 研究对象具有不分明性或亦此亦彼性，如高矮、老少、好坏等
+  - 需要处理主观判断或模糊概念的评价问题
+  - 数据存在不确定性但非随机性，缺乏精确边界
+  - 需要将定性描述转化为定量分析的场景
+  not_applicable_when:
+  - 问题具有精确的数学边界和确定性关系
+  - 数据完全随机且需要概率统计处理
+  - 需要严格二值逻辑（是/非）决策
+  - 隶属函数难以合理确定或缺乏先验知识
+  typical_scenarios:
+  - 综合评价（如科研成果等级评定、设备完好率评估）
+  - 模糊控制（如温度、速度的模糊PID控制）
+  - 模式识别（如手写字符、语音的模糊识别）
+  - 决策分析（如干部选拔、项目排序）
+  - 聚类分析（如模糊C均值聚类）
+  common_mistakes:
+  - mistake: 将隶属度等同于概率，认为隶属度之和为1
+    solution: 隶属度描述元素对模糊集合的从属程度，不要求归一化；概率描述随机事件发生的可能性，两者本质不同。
+  - mistake: 随意选择隶属函数形式而不验证合理性
+    solution: 应根据实际问题选择偏小型、偏大型或中间型分布，并通过统计或专家经验调整参数，必要时进行拟合检验。
+  - mistake: 将模糊矩阵合成运算与普通矩阵乘法混淆
+    solution: 模糊矩阵合成使用取小取大算子（∨-∧），而非乘加运算；注意运算顺序和结合律。
+  code_snippets:
+  - language: python
+    description: 模糊集合的隶属函数定义与基本运算示例
+    code: "import numpy as np\n\n# 定义隶属函数（以梯形为例）\ndef trapezoid_mf(x, a, b, c, d):\n\
+      \    if x <= a:\n        return 0.0\n    elif a < x <= b:\n        return (x\
+      \ - a) / (b - a)\n    elif b < x <= c:\n        return 1.0\n    elif c < x <=\
+      \ d:\n        return (d - x) / (d - c)\n    else:\n        return 0.0\n\n# 模糊集并运算\n\
+      def fuzzy_union(mu_A, mu_B):\n    return np.maximum(mu_A, mu_B)\n\n# 模糊集交运算\n\
+      def fuzzy_intersection(mu_A, mu_B):\n    return np.minimum(mu_A, mu_B)\n\n#\
+      \ 模糊集补运算\ndef fuzzy_complement(mu_A):\n    return 1 - mu_A\n\n# 示例：年龄隶属度\nx\
+      \ = np.linspace(0, 100, 101)\nmu_young = np.array([trapezoid_mf(age, 0, 0, 20,\
+      \ 40) for age in x])\nmu_old = np.array([trapezoid_mf(age, 50, 65, 100, 100)\
+      \ for age in x])\nmu_middle = fuzzy_intersection(fuzzy_complement(mu_young),\
+      \ fuzzy_complement(mu_old))"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

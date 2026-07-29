@@ -1,0 +1,110 @@
+method_card:
+  id: mc_043
+  name: 市场清算价格优化模型
+  name_en: Market Clearing Price Optimization Model
+  category:
+  - 优化
+  principle: 通过引入虚拟经销商，将市场均衡问题转化为线性规划问题。虚拟经销商以最低价格从生产商购买产品，以最高价格卖给消费者，追求自身利润最大化，直至无利可图。此时供需平衡约束的影子价格即为市场清算价格。模型可扩展至多生产商、多消费者及考虑运输成本的情形。
+  formulas:
+  - name: 虚拟经销商总利润
+    latex: $$\max \sum_{j=1}^{L} q_j y_j - \sum_{k=1}^{K} p_k x_k$$
+    description: 其中 p_k 为第k段价格，x_k 为对应销售量；q_j 为第j段价格，y_j 为对应购买量。
+  - name: 供需平衡约束
+    latex: $$\sum_{k=1}^{K} x_k = \sum_{j=1}^{L} y_j$$
+    description: 总供应量等于总需求量。
+  - name: 供应能力约束
+    latex: $$0 \leq x_k \leq c_k - c_{k-1}$$
+    description: c_k 为价格区间 [p_k, p_{k+1}) 上的最大供应量。
+  - name: 需求能力约束
+    latex: $$0 \leq y_j \leq d_j - d_{j-1}$$
+    description: d_j 为价格区间 (q_{j+1}, q_j] 上的最大需求量。
+  applicable_when:
+  - 市场供需关系可用阶梯函数描述
+  - 存在多个生产商和/或多个消费者
+  - 需要考虑运输成本或关税等交易成本
+  - 希望求解市场清算价格及交易量
+  not_applicable_when:
+  - 供需函数为连续非线性函数
+  - 市场存在垄断或寡头等非完全竞争行为
+  - 交易成本与交易量非线性相关
+  typical_scenarios:
+  - 单一商品市场均衡分析
+  - 多地区市场交易与运输成本优化
+  - 拍卖与投标中的价格发现
+  - 交通流分配问题
+  common_mistakes:
+  - mistake: 误将影子价格直接作为交易价格，而未理解其经济含义
+    solution: 影子价格表示供需平衡约束右端项微小变化对目标函数的影响，其负值即为清算价格。应结合对偶分析解释结果。
+  - mistake: 忽略阶梯函数中供应/需求能力的累积性，直接使用原始数据作为变量上界
+    solution: 变量上界应为各价格区间的增量能力（c_k - c_{k-1}），而非累计能力。
+  code_snippets:
+  - language: lingo
+    description: 单一生产商、单一消费者情形下的LINGO求解代码
+    code: 'model:
+
+      sets:
+
+      gx/1..4/:c1,c2,x,y;
+
+      endsets
+
+      data:
+
+      c1=1 2 3 4;
+
+      c2=9,4.5,3,2.5;
+
+      enddata
+
+      max=@sum(gx:c2*y-c1*x);
+
+      @sum(gx:x)=@sum(gx:y);
+
+      @for(gx:@bnd(0,x,2);@bnd(0,y,2));
+
+      end'
+  - language: lingo
+    description: 两个生产商、两个消费者且考虑运输成本的LINGO求解代码
+    code: 'model:
+
+      sets:
+
+      num1/1..4/:c1,c2,c3,c4,d1,d2,A,B,X,Y;
+
+      num2/1,2/:AXY,BXY;
+
+      endsets
+
+      data:
+
+      c1=9 4.5 3 2.25;
+
+      c2=15 8 5 3;
+
+      c3=1 2 3 4;
+
+      c4=2 4 6 8;
+
+      d1=1 3 4 4;
+
+      d2=1 2 3 4;
+
+      enddata
+
+      max=@sum(num1:c1*x+c2*y-c3*A-c4*B)-2*BXY(1)-1.5*AXY(2);
+
+      @sum(num1:A)-@sum(num2:AXY)=0;
+
+      @sum(num1:B)-@sum(num2:BXY)=0;
+
+      AXY(1)+BXY(1)-@sum(num1:X)=0;
+
+      AXY(2)+BXY(2)-@sum(num1:Y)=0;
+
+      @for(num1:@bnd(0,A,2);@bnd(0,X,2);@bnd(0,B,d1);@bnd(0,Y,d2));
+
+      end'
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

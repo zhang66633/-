@@ -1,0 +1,19 @@
+problem:
+  id: "prob_022"
+  year: 2010
+  competition: "国赛"
+  problem_id: "A"
+  title: "2010国赛A题"
+  full_text: |
+    X`lt|3
+    !"#$%'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~Root EntryData
+    1Table&､WordDocumentSummaryInformation(DocumentSummaryInformation8CompObjm楍牣獯景晏楦散圠牯坓牯捯圀牯潄畣敭瑮q
+  background: ""
+  objectives: []
+  data_description: ""
+  deliverables: []
+  tags:
+    problem_type: ['优化', '物理建模', '工程']
+    difficulty: "medium"
+  linked_papers: []
+  source_url: ""

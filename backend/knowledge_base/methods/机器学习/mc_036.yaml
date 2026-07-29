@@ -1,0 +1,60 @@
+method_card:
+  id: mc_036
+  name: 反向传播神经网络（BP神经网络）
+  name_en: Back-Propagation Neural Network
+  category:
+  - 机器学习
+  - 预测
+  principle: BP神经网络是一种多层前馈网络，通过误差反向传播算法进行训练。网络由输入层、隐层和输出层组成，每层包含若干神经元，相邻层神经元之间通过权值连接。训练时，输入信号经隐层逐层向前传播得到输出，计算输出与理想输出的误差，然后利用梯度下降法将误差沿网络反向传播，逐层调整各连接权值，使误差函数最小化。激活函数通常采用Sigmoid函数，以保证非线性映射能力。该算法本质上是求解非线性连续可微函数极小值的最速下降法。
+  formulas:
+  - name: 神经元输出
+    latex: $$y_k = \phi\left(\sum_{j=1}^p w_{kj} x_j - \theta_k\right)$$
+    description: 神经元k的输出，其中φ为激活函数，w_{kj}为权值，x_j为输入，θ_k为阈值
+  - name: Sigmoid激活函数
+    latex: $$\phi(v) = \frac{1}{1+\exp(-\alpha v)}$$
+    description: 常用的S型激活函数，α控制斜率
+  - name: 误差函数
+    latex: $$E(W) = \frac{1}{2}\sum_{s,i}(T_i^s - O_i^s)^2$$
+    description: 实际输出与理想输出差的平方和，用于度量网络性能
+  - name: 权值修正量（输出层）
+    latex: $$\Delta w_{ij} = \eta \sum_s \delta_i^s H_j^s$$
+    description: 隐层到输出层权值的修正量，η为学习率，δ_i^s为输出层误差信号
+  - name: 权值修正量（隐层）
+    latex: $$\Delta w_{jk} = \eta \sum_s \delta_j^s I_k^s$$
+    description: 输入层到隐层权值的修正量，δ_j^s为隐层误差信号
+  applicable_when:
+  - 需要从样本中学习输入到输出的非线性映射关系
+  - 分类或回归问题，且样本数量充足
+  - 问题具有连续性，输入输出为实数值
+  - 允许较长的训练时间
+  not_applicable_when:
+  - 样本数量极少（如少于10个）
+  - 需要严格可解释的模型
+  - 对训练时间有严格限制的实时系统
+  - 输入输出为离散符号或结构数据
+  typical_scenarios:
+  - 模式识别（如手写数字识别）
+  - 函数逼近与拟合
+  - 时间序列预测（如金融预测）
+  - 智能控制中的系统建模
+  common_mistakes:
+  - mistake: 隐层节点数选择不当（过多导致过拟合，过少导致欠拟合）
+    solution: 通过交叉验证或经验公式（如隐层节点数=输入层节点数×2+1）确定，也可通过试验逐步调整
+  - mistake: 学习率η设置过大导致不收敛，或过小导致收敛极慢
+    solution: 通常取0.01~0.1之间，可采用自适应学习率或动量项改进
+  - mistake: 未对输入数据进行归一化处理
+    solution: 将输入数据归一化到[0,1]或[-1,1]区间，避免大数值输入主导权值更新
+  - mistake: 认为BP算法一定能找到全局最优解
+    solution: BP算法只能保证收敛到局部极小点，应多次随机初始化或结合模拟退火等全局优化方法
+  code_snippets:
+  - language: matlab
+    description: 蠓虫分类问题的BP神经网络实现（使用Matlab神经网络工具箱）
+    code: "clear\np1=[1.24,1.27;1.36,1.74;1.38,1.64;1.38,1.82;1.38,1.90;\n   1.40,1.70;1.48,1.82;1.54,1.82;1.56,2.08];\n\
+      p2=[1.14,1.82;1.18,1.96;1.20,1.86;1.26,2.00\n   1.28,2.00;1.30,1.96];\np=[p1;p2]';\n\
+      pr=minmax(p);\ngoal=[ones(1,9),zeros(1,6);zeros(1,9),ones(1,6)];\nplot(p1(:,1),p1(:,2),'h',p2(:,1),p2(:,2),'o')\n\
+      net=newff(pr,[3,2],{'logsig','logsig'});\nnet.trainParam.show = 10;\nnet.trainParam.lr\
+      \ = 0.05;\nnet.trainParam.goal = 1e-10;\nnet.trainParam.epochs = 50;"
+  related_cards: []
+  related_papers: []
+  difficulty: 4
+  quality_rating: 4

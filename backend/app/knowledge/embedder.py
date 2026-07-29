@@ -224,6 +224,8 @@ class KBEmbedder:
             rebuilt_docs.extend(self._yaml_file_to_documents(Path(yml_path)))
 
         if rebuilt_docs:
+            for doc in rebuilt_docs:
+                doc.metadata = self._clean_metadata(doc.metadata)
             store.add_documents(rebuilt_docs)
 
         # Save updated hashes
@@ -243,6 +245,8 @@ class KBEmbedder:
         docs = self._yaml_file_to_documents(yaml_path)
         if not docs:
             return 0
+        for doc in docs:
+            doc.metadata = self._clean_metadata(doc.metadata)
         store.add_documents(docs)
         # Update hash records
         hashes = self._load_hashes()
@@ -315,6 +319,8 @@ class KBEmbedder:
         docs += self._papers_to_documents()
         docs += self._templates_to_documents()
         docs += self._problems_to_documents()
+        for doc in docs:
+            doc.metadata = self._clean_metadata(doc.metadata)
         return docs
 
     def _yaml_file_to_documents(self, yaml_path: Path) -> List[Document]:
