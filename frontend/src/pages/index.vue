@@ -70,41 +70,132 @@
       </header>
 
       <!-- ·1 论文工作台 -->
-      <section class="pb-16">
-        <div class="section-rule mb-8">
+      <section class="pb-20">
+        <div class="section-rule mb-10">
           <span class="font-mono text-xs tracking-wider">·1 &nbsp; 论文工作台</span>
-          <span class="font-mono text-[10px] text-muted-foreground/60 ml-3">从问题到论文，一站式输出</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        <!-- 对话 — 主力入口，大卡片 -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
+          <div class="lg:col-span-3 flex flex-col justify-center">
+            <span class="font-mono text-[10px] text-primary tracking-widest uppercase mb-3">核心入口</span>
+            <h2 class="font-display text-3xl font-medium">与智能体对话</h2>
+            <p class="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm">
+              自由对话推进建模讨论。AI 调用知识库检索、数学计算、代码执行，每一次推理都可追溯。
+            </p>
+            <button
+              class="mt-6 inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 transition-all hover:scale-[0.98] w-fit"
+              @click="router.push('/chat')"
+            >
+              开始对话
+              <ArrowRight class="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <aside class="lg:col-span-2 lg:border-l lg:border-border lg:pl-10 flex flex-col justify-center">
+            <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-3">能力范围</p>
+            <pre class="font-mono text-xs leading-relaxed text-muted-foreground/80 whitespace-pre-wrap">🔍 问题分析  →  识别类型与边界
+🧩 模型构建  →  选择最优方法
+💻 求解计算  →  Python 实时执行
+🔬 验证分析  →  灵敏度与鲁棒性
+✍️ 论文写作  →  结构化输出论文</pre>
+          </aside>
+        </div>
+
+        <!-- 方案 + 知识库 — 副入口，左右两卡 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
-            v-for="mod in paperModules"
-            :key="mod.path"
-            class="group flex flex-col items-start gap-2 rounded-lg border border-border bg-card p-5 text-left transition-all hover:border-primary/30 hover:shadow-sm"
-            @click="router.push(mod.path)"
+            class="group flex items-start gap-4 rounded-lg border border-border bg-card p-5 text-left transition-all hover:border-primary/30 hover:shadow-sm"
+            @click="router.push('/solution')"
           >
-            <component :is="mod.icon" class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span class="font-display text-base font-medium">{{ mod.label }}</span>
-            <span class="text-xs text-muted-foreground leading-relaxed">{{ mod.desc }}</span>
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted group-hover:bg-primary/10 transition-colors">
+              <FileText class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <div>
+              <span class="font-display text-base font-medium">方案模式</span>
+              <p class="text-xs text-muted-foreground mt-1 leading-relaxed">结构化输出完整建模方案，含代码与论文导出</p>
+            </div>
+          </button>
+          <button
+            class="group flex items-start gap-4 rounded-lg border border-border bg-card p-5 text-left transition-all hover:border-primary/30 hover:shadow-sm"
+            @click="router.push('/knowledge')"
+          >
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted group-hover:bg-primary/10 transition-colors">
+              <Library class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <div>
+              <span class="font-display text-base font-medium">知识库</span>
+              <p class="text-xs text-muted-foreground mt-1 leading-relaxed">方法卡片 · 真题论文 · 模板套路，支持检索与导入</p>
+            </div>
           </button>
         </div>
       </section>
 
       <!-- ·2 学习中心 -->
       <section class="pb-20">
-        <div class="section-rule mb-8">
+        <div class="section-rule mb-10">
           <span class="font-mono text-xs tracking-wider">·2 &nbsp; 学习中心</span>
-          <span class="font-mono text-[10px] text-muted-foreground/60 ml-3">建模手 · 编程手 · 论文手</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <!-- 三角色入门 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
+          <!-- 建模手 -->
+          <div class="lg:col-span-4 rounded-lg border border-border bg-card p-6 hover:border-primary/20 transition-colors cursor-pointer" @click="router.push('/learn')">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">🧩</span>
+              <span class="font-display font-medium">建模手</span>
+              <span class="font-mono text-[10px] text-muted-foreground ml-auto">方法 + 理论</span>
+            </div>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-4">学模型方法、练问题分析、掌握从优化到评价的完整建模工具箱</p>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">线性规划</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">AHP</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">TOPSIS</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">+7</span>
+            </div>
+          </div>
+          <!-- 编程手 -->
+          <div class="lg:col-span-4 rounded-lg border border-border bg-card p-6 hover:border-primary/20 transition-colors cursor-pointer" @click="router.push('/learn')">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">💻</span>
+              <span class="font-display font-medium">编程手</span>
+              <span class="font-mono text-[10px] text-muted-foreground ml-auto">代码 + 数据</span>
+            </div>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Python 科学计算、算法实现、数据处理与可视化，把模型变成可运行的代码</p>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">NumPy</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">SciPy</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Pandas</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Matplotlib</span>
+            </div>
+          </div>
+          <!-- 论文手 -->
+          <div class="lg:col-span-4 rounded-lg border border-border bg-card p-6 hover:border-primary/20 transition-colors cursor-pointer" @click="router.push('/learn')">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">✍️</span>
+              <span class="font-display font-medium">论文手</span>
+              <span class="font-mono text-[10px] text-muted-foreground ml-auto">写作 + 排版</span>
+            </div>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-4">学术写作规范、图表设计、LaTeX 排版，让你的模型被读懂、被认可</p>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">摘要撰写</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">可视化</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">LaTeX</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">排版</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 学习入口四卡 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <button
             v-for="mod in learnModules"
             :key="mod.path"
-            class="group flex flex-col items-start gap-2 rounded-lg border border-border bg-card p-5 text-left transition-all hover:border-primary/30 hover:shadow-sm"
+            class="group flex flex-col items-start gap-1.5 rounded-md border border-border/60 bg-background p-4 text-left transition-all hover:border-primary/30 hover:bg-accent/30"
             @click="router.push(mod.path)"
           >
-            <component :is="mod.icon" class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span class="font-display text-base font-medium">{{ mod.label }}</span>
-            <span class="text-xs text-muted-foreground leading-relaxed">{{ mod.desc }}</span>
+            <component :is="mod.icon" class="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            <span class="text-sm font-medium">{{ mod.label }}</span>
+            <span class="text-[11px] text-muted-foreground leading-relaxed">{{ mod.desc }}</span>
           </button>
         </div>
       </section>
