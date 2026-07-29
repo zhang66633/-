@@ -26,7 +26,15 @@ _HASH_DB = ".kb_index_hashes.json"
 
 
 class KBEmbedder:
-    """Build and manage ChromaDB vector index from knowledge base YAML files."""
+    """Build and manage ChromaDB vector index from knowledge base YAML files.
+
+    Supports two modes:
+      - Local: ChromaDB embedded in-process (persist_directory on disk)
+      - Remote: ChromaDB HTTP server (e.g. Docker container), configured via
+        CHROMA_HTTP_URL env var
+    """
+
+    _COLLECTION_NAME = "kb_docs"
 
     def __init__(
         self,
@@ -46,6 +54,10 @@ class KBEmbedder:
         self.embedding_provider = provider
         self.embeddings = None
         self._unavailable_reason = ""
+
+        # Remote ChromaDB via HTTP (Docker container) — 独立进程，主进程省内存
+        self._http_url = settings.chroma_http_url
+        self._http_client = None
 
         if provider == "huggingface":
             from langchain_huggingface import HuggingFaceEmbeddings
@@ -125,19 +137,18 @@ class KBEmbedder:
         for doc in documents:
             doc.metadata = self._clean_metadata(doc.metadata)
 
-        # Clear existing persistence
         self.persist_dir.mkdir(parents=True, exist_ok=True)
-        Chroma(
-            embedding_function=self.embeddings,
-            persist_directory=str(self.persist_dir),
-        ).delete_collection()
 
-        # Create fresh
-        Chroma.from_documents(
-            documents=documents,
-            embedding=self.embeddings,
-            persist_directory=str(self.persist_dir),
-        )
+        # Delete existing collection, then rebuild
+        store = self._create_chroma()
+        try:
+            store.delete_collection()
+        except Exception:
+            pass  # collection may not exist yet
+
+        # Create fresh store and add documents
+        store = self._create_chroma()
+        store.add_documents(documents)
 
         # Record hashes
         self._save_hashes(documents)
@@ -257,7 +268,30 @@ class KBEmbedder:
             pass
         return False
 
-    # ── ChromaDB instance ───────────────────────────────────────────
+    # ── ChromaDB instance (local or remote) ───────────────────────────
+
+    def _create_chroma(self, collection_name: str | None = None) -> Chroma:
+        """Create a ChromaDB client — HTTP remote or local embedded."""
+        cn = collection_name or self._COLLECTION_NAME
+        if self._http_url:
+            from urllib.parse import urlparse
+            import chromadb
+            if self._http_client is None:
+                parsed = urlparse(self._http_url)
+                host = parsed.hostname or "localhost"
+                port = parsed.port or 8000
+                self._http_client = chromadb.HttpClient(host=host, port=port)
+            return Chroma(
+                client=self._http_client,
+                collection_name=cn,
+                embedding_function=self.embeddings,
+            )
+        else:
+            return Chroma(
+                persist_directory=str(self.persist_dir),
+                embedding_function=self.embeddings,
+                collection_name=cn,
+            )
 
     def load_existing(self) -> Chroma:
         """Load an existing ChromaDB index (raises if not yet built)."""
@@ -265,10 +299,7 @@ class KBEmbedder:
             raise RuntimeError(
                 getattr(self, "_unavailable_reason", "embedding 未配置")
             )
-        return Chroma(
-            persist_directory=str(self.persist_dir),
-            embedding_function=self.embeddings,
-        )
+        return self._create_chroma()
 
     @staticmethod
     def _clean_metadata(meta: dict) -> dict:

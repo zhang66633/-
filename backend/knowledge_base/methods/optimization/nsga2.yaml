@@ -1,0 +1,80 @@
+method_card:
+  id: "mc_024"
+  name: "NSGA-II 多目标优化"
+  name_en: "NSGA-II (Non-dominated Sorting Genetic Algorithm II)"
+  category: ["优化", "启发式算法"]
+  principle: |
+    NSGA-II 是解决多目标优化问题最著名的进化算法之一，由 Deb 等人于 2002 年提出。
+
+    **多目标优化问题**：
+    min/max {f₁(x), f₂(x), ..., fₘ(x)}，s.t. x ∈ Ω
+    由于目标之间通常冲突，不存在单一最优解，而是得到一组 Pareto 最优解（非支配解集）。
+
+    **核心概念**：
+    - Pareto 支配：解 A 支配解 B，如果 A 在所有目标上不差于 B 且至少一个目标上严格优于 B
+    - Pareto 前沿：所有非支配解在目标空间中的投影
+
+    **NSGA-II 核心机制**：
+    1. 非支配排序：将种群按支配关系分层（Front 1, Front 2, ...），Front 1 是当前最优
+    2. 拥挤度距离：衡量同一 Front 内个体周围的密度，鼓励均匀分布
+    3. 锦标赛选择：优先选低 Front + 同 Front 内选高拥挤度的个体
+    4. 交叉（模拟二进制交叉 SBX）+ 变异（多项式变异）生成子代
+    5. 精英保留：合并父代和子代，按 (Front, 拥挤度) 排序选前 N 个进入下一代
+
+  formulas:
+    - "拥挤度距离: d_i = Σ_{m=1}^M (f_m^{i+1} - f_m^{i-1}) / (f_m^{max} - f_m^{min})"
+    - "SBX 交叉: c1 = 0.5[(1+β)·p1 + (1-β)·p2]"
+    - "多项式变异: c = p + (u-l)·δ_q"
+
+  applicable_when:
+    - "存在 2-3 个相互冲突的优化目标"
+    - "目标函数不可微或非凸，无法用传统多目标方法（如加权求和法）"
+    - "需要完整 Pareto 前沿供决策者选择"
+    - "决策变量为连续或混合类型"
+
+  typical_scenarios:
+    - "投资组合：最大化收益 + 最小化风险"
+    - "物流调度：最小化成本 + 最小化时间 + 最大化满意度"
+    - "工程设计：最小化重量 + 最大化强度 + 最小化成本"
+    - "竞赛中的多目标优化题（需要给出一组方案供选择）"
+    - "参数调优：模型的精度 vs 复杂度权衡"
+
+  common_mistakes:
+    - mistake: "把多目标强行加权求和变成单目标"
+      solution: "除非有明确权重依据，否则应给出 Pareto 前沿供决策者选择"
+    - mistake: "种群太小导致 Pareto 前沿不完整"
+      solution: "一般种群规模 ≥ 100，迭代代数 ≥ 200；用超体积指标（HV）评估收敛性和多样性"
+    - mistake: "目标量纲差异大导致拥挤度计算失效"
+      solution: "先对各目标做归一化（Min-Max 或 Z-score）再计算拥挤度"
+    - mistake: "把 NSGA-II 用于 4+ 目标问题（高维目标空间）"
+      solution: "目标 ≥ 4 时支配关系稀疏，NSGA-II 退化；考虑 NSGA-III 或 MOEA/D"
+
+  code_snippets:
+    - language: "python"
+      description: "pymoo NSGA-II 示例"
+      code: |
+        import numpy as np
+        from pymoo.algorithms.moo.nsga2 import NSGA2
+        from pymoo.operators.crossover.sbx import SBX
+        from pymoo.operators.mutation.pm import PM
+        from pymoo.problems import get_problem
+        from pymoo.optimize import minimize
+
+        def solve_multiobj():
+            problem = get_problem("zdt1")  # 替换为自定义 Problem
+            algorithm = NSGA2(
+                pop_size=100,
+                crossover=SBX(prob=0.9, eta=15),
+                mutation=PM(prob=1.0/30, eta=20),
+            )
+            res = minimize(problem, algorithm, ('n_gen', 200), verbose=False)
+            # res.F: Pareto 前沿目标值; res.X: 对应决策变量
+            return res.F, res.X
+
+  related_cards: ["mc_003", "mc_011"]
+  difficulty: 4
+  quality_rating: 4
+  tags:
+    model_type: ["多目标优化", "进化算法", "启发式"]
+    key_concepts: ["Pareto最优", "非支配排序", "拥挤度", "精英保留"]
+    mathematical_tools: ["进化计算", "多目标优化", "决策分析"]

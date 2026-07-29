@@ -1,10 +1,10 @@
-"""代码沙箱 — subprocess 安全执行 Python 代码。
+"""代码沙箱 — subprocess 或 Docker 安全执行 Python 代码。
 
 安全措施:
-  - 内存/CPU/文件大小限制 (Unix resource.setrlimit)
-  - 网络访问阻断 (socket monkey-patch)
+  - subprocess 模式: 内存/CPU/文件大小限制 (Unix resource.setrlimit) + socket monkey-patch
+  - Docker 模式: --network=none --memory=512m 硬隔离（跨平台，推荐）
   - 环境变量清洗 (不泄露父进程 API key)
-  - 执行超时 (subprocess timeout)
+  - 执行超时
 """
 
 import json
@@ -13,10 +13,17 @@ import sys
 import tempfile
 import os
 import uuid
+import logging
 from pathlib import Path
 from typing import Optional
 
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
+
+# ── Docker 沙箱镜像名 ──────────────────────────────────────────────
+
+SANDBOX_IMAGE = "mathmodel-sandbox"
 
 
 def _make_preexec_fn(max_memory_mb: int, timeout: int):
@@ -24,19 +31,14 @@ def _make_preexec_fn(max_memory_mb: int, timeout: int):
     try:
         import resource
     except ImportError:
-        # Windows 无 resource 模块
         return None
 
     def _set_limits():
         mem_bytes = max_memory_mb * 1024 * 1024
-        # 限制虚拟内存
         resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
-        # 限制 CPU 时间（秒）
         resource.setrlimit(resource.RLIMIT_CPU, (timeout, timeout))
-        # 限制单个文件大小 50MB
         file_limit = 50 * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_FSIZE, (file_limit, file_limit))
-        # 禁止 fork 子进程
         resource.setrlimit(resource.RLIMIT_NPROC, (0, 0))
 
     return _set_limits
@@ -44,14 +46,10 @@ def _make_preexec_fn(max_memory_mb: int, timeout: int):
 
 def _clean_env() -> dict:
     """构建清洗后的子进程环境变量，仅保留 Python 运行必需项。"""
-    # APPDATA / LOCALAPPDATA 必须保留：Windows 用户级 site-packages 位于
-    # %APPDATA%\Python\PythonXYZ\site-packages，pip 安装的 numpy/matplotlib/scipy
-    # 等都在此，清掉会导致沙箱内所有第三方科学计算包 import 失败。
     safe_keys = {"PATH", "PYTHONPATH", "PYTHONIOENCODING", "TEMP", "TMP", "TMPDIR",
                  "HOME", "USERPROFILE", "SYSTEMROOT", "COMSPEC", "APPDATA", "LOCALAPPDATA"}
     env = {k: v for k, v in os.environ.items() if k.upper() in safe_keys}
     env["PYTHONIOENCODING"] = "utf-8"
-    # 显式阻断代理，防止通过 proxy 绕过网络限制
     env.pop("HTTP_PROXY", None)
     env.pop("HTTPS_PROXY", None)
     env.pop("http_proxy", None)
@@ -60,14 +58,22 @@ def _clean_env() -> dict:
 
 
 class SandboxExecutor:
-    """在受限子进程中执行 Python 代码。"""
+    """在受限子进程或 Docker 容器中执行 Python 代码。
+
+    模式选择:
+      - SANDBOX_BACKEND=subprocess (默认): 用 subprocess 在本机执行
+      - SANDBOX_BACKEND=docker: 用 docker run --rm 隔离执行（需先构建镜像）
+    """
 
     def __init__(self, timeout: Optional[int] = None):
         settings = get_settings()
         self.timeout = timeout or settings.sandbox_timeout
         self.max_memory_mb = settings.sandbox_max_memory_mb
+        self.backend = settings.sandbox_backend
         self.output_dir = Path(tempfile.gettempdir()) / "mathmodel_outputs"
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── public API ────────────────────────────────────────────────
 
     def run(self, code: str, extra_files: list[str] | None = None) -> dict:
         """执行代码，返回 stdout、stderr、图片路径列表。
@@ -85,10 +91,17 @@ class SandboxExecutor:
                 try:
                     _shutil.copy2(fpath, str(output_subdir / Path(fpath).name))
                 except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning("复制文件到沙箱失败 %s: %s", fpath, e)
+                    logger.warning("复制文件到沙箱失败 %s: %s", fpath, e)
 
-        # 包装代码：阻断网络 + 自动保存 matplotlib 图表
+        if self.backend == "docker":
+            return self._run_docker(code, output_subdir, run_id)
+        else:
+            return self._run_subprocess(code, output_subdir, run_id)
+
+    # ── subprocess 模式 ──────────────────────────────────────────
+
+    def _run_subprocess(self, code: str, output_subdir: Path, run_id: str) -> dict:
+        """在本机子进程中执行（原有逻辑）。"""
         wrapped_code = self._wrap_code(code, str(output_subdir))
 
         try:
@@ -104,9 +117,7 @@ class SandboxExecutor:
                 preexec_fn=_make_preexec_fn(self.max_memory_mb, self.timeout),
             )
 
-            # 收集生成的图片
             images = sorted(output_subdir.glob("*.png"))
-
             return {
                 "success": result.returncode == 0,
                 "stdout": result.stdout[:5000],
@@ -117,21 +128,81 @@ class SandboxExecutor:
             }
         except subprocess.TimeoutExpired:
             return {
-                "success": False,
-                "stdout": "",
-                "stderr": f"执行超时 ({self.timeout}秒)",
-                "returncode": -1,
-                "images": [],
-                "run_id": run_id,
+                "success": False, "stdout": "", "stderr": f"执行超时 ({self.timeout}秒)",
+                "returncode": -1, "images": [], "run_id": run_id,
             }
         except Exception as e:
             return {
-                "success": False,
-                "stdout": "",
-                "stderr": str(e),
-                "returncode": -1,
-                "images": [],
+                "success": False, "stdout": "", "stderr": str(e),
+                "returncode": -1, "images": [], "run_id": run_id,
+            }
+
+    # ── Docker 模式 ──────────────────────────────────────────────
+
+    def _run_docker(self, code: str, output_subdir: Path, run_id: str) -> dict:
+        """在 Docker 容器中隔离执行。
+
+        安全: --network=none 阻断网络, --memory 硬限制内存,
+              --rm 执行完自动销毁, 不残留文件系统状态。
+        """
+        # 将代码写入临时文件，挂载进容器
+        code_file = output_subdir / "_code.py"
+        code_file.write_text(code, encoding="utf-8")
+
+        # 容器内输出目录
+        container_output = "/output"
+
+        cmd = [
+            "docker", "run", "--rm",
+            "--network=none",
+            f"--memory={self.max_memory_mb}m",
+            f"--memory-swap={self.max_memory_mb}m",  # 禁用 swap
+            "-v", f"{output_subdir}:{container_output}",
+            SANDBOX_IMAGE,
+            f"{container_output}/_code.py",
+            container_output,
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=self.timeout + 10,  # Docker 启动需要额外时间
+                encoding="utf-8",
+                errors="replace",
+            )
+
+            images = sorted(
+                p for p in output_subdir.glob("*.png")
+                if p.name != "_code.py"
+            )
+            return {
+                "success": result.returncode == 0,
+                "stdout": result.stdout[:5000],
+                "stderr": result.stderr[:2000],
+                "returncode": result.returncode,
+                "images": [str(img) for img in images],
                 "run_id": run_id,
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False, "stdout": "", "stderr": f"执行超时 ({self.timeout}秒)",
+                "returncode": -1, "images": [], "run_id": run_id,
+            }
+        except FileNotFoundError:
+            return {
+                "success": False, "stdout": "",
+                "stderr": (
+                    "Docker 未安装或未在 PATH 中。请安装 Docker Desktop，"
+                    "然后执行: docker build -t mathmodel-sandbox -f Dockerfile.sandbox ."
+                ),
+                "returncode": -1, "images": [], "run_id": run_id,
+            }
+        except Exception as e:
+            return {
+                "success": False, "stdout": "", "stderr": str(e),
+                "returncode": -1, "images": [], "run_id": run_id,
             }
 
     def _wrap_code(self, code: str, output_dir: str) -> str:

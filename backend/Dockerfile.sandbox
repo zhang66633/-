@@ -1,0 +1,15 @@
+# MathModelAgent 代码沙箱镜像
+# 预装科学计算库，通过 docker run --rm --network=none --memory=512m 隔离执行
+FROM python:3.11-slim
+
+RUN pip install --no-cache-dir \
+    numpy \
+    scipy \
+    pandas \
+    matplotlib \
+    sympy \
+    cvxpy
+
+COPY sandbox_wrapper.py /wrapper.py
+
+ENTRYPOINT ["python", "/wrapper.py"]

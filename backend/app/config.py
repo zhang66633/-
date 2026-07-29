@@ -68,6 +68,7 @@ class Settings(BaseSettings):
 
     # ---- ChromaDB ----
     chroma_persist_dir: str = "./data/chroma_db"
+    chroma_http_url: str = ""  # 独立容器模式: "http://localhost:8001" 或 "http://chromadb:8000"
 
     # ---- Knowledge Base ----
     kb_root_dir: str = "./knowledge_base"
@@ -75,6 +76,7 @@ class Settings(BaseSettings):
     # ---- Sandbox ----
     sandbox_timeout: int = 60
     sandbox_max_memory_mb: int = 512
+    sandbox_backend: str = "subprocess"  # "subprocess" | "docker"
 
     # ---- GitHub OAuth ----
     github_client_id: str = ""

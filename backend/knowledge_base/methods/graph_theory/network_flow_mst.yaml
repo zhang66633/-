@@ -1,0 +1,118 @@
+method_card:
+  id: "mc_026"
+  name: "网络流与最小生成树"
+  name_en: "Network Flow & Minimum Spanning Tree"
+  category: ["图论", "优化"]
+  principle: |
+    网络流和最小生成树是图论中两个最经典的优化问题，广泛用于物流、通信、交通等领域。
+
+    **网络流问题**：
+    给定一个有向图 G=(V,E)，每条边有容量 c(u,v) 和费用 w(u,v)，
+    求从源点 s 到汇点 t 的最大流量（最大流）或最小费用流。
+
+    - 最大流：Ford-Fulkerson（含 Edmonds-Karp BFS 实现，O(VE²)）/ Dinic（O(V²E)）
+    - 最小费用最大流：在最大流基础上最小化总费用，用 SPFA/Dijkstra 找最短增广路
+    - 关键定理：最大流 = 最小割（Max-Flow Min-Cut Theorem）
+
+    **最小生成树（MST）**：
+    连通无向图中权值和最小的生成树（连接所有顶点且无环）。
+
+    - Prim 算法：贪心加点，O(V²) 或 O(E log V)（二叉堆），适合稠密图
+    - Kruskal 算法：贪心加边（并查集判环），O(E log E)，适合稀疏图
+
+    **常见变体**：
+    - 多源多汇：添加超级源和超级汇
+    - 顶点容量限制：拆点为 u_in → u_out
+    - 二分图匹配：转化为最大流（Hopcroft-Karp）
+    - 度约束 MST、Steiner 树
+
+  formulas:
+    - "流守恒: Σ f(u,v) - Σ f(v,u) = 0，∀v ∉ {s,t}"
+    - "容量约束: 0 ≤ f(u,v) ≤ c(u,v)"
+    - "最大流 = 最小割容量 = min_{S⊂V, s∈S, t∉S} Σ_{u∈S, v∉S} c(u,v)"
+    - "MST 总权 = min_T Σ_{e∈T} w(e)（T 为生成树）"
+
+  applicable_when:
+    - "问题可建模为网络/图的流量、连通性、覆盖"
+    - "物流配送：多个仓库到多个目的地的最优运输"
+    - "管道/电缆/道路网络设计和优化"
+    - "分配问题（可转化为网络流）：人员分配、任务调度"
+
+  typical_scenarios:
+    - "物流优化：最小化运输成本（最小费用流）"
+    - "灾后救援物资分配：最大化到达灾区的物资量（最大流）"
+    - "通信网络设计：用最小成本连通所有基站（MST）"
+    - "竞赛中的图论题：最短路径、最优分配、路线规划"
+    - "二分图匹配：如学生-导师分配、工作-工人匹配"
+
+  common_mistakes:
+    - mistake: "把有向图算法直接用于无向图"
+      solution: "无向图每条边拆为两条反向的有向边，容量相同"
+    - mistake: "负权边用 Dijkstra 求最短路（SPFA/费用流场景）"
+      solution: "存在负权边时必须用 Bellman-Ford 或 SPFA；Dijkstra 要求非负权"
+    - mistake: "MST 中 Kruskal 和 Prim 选错"
+      solution: "稠密图 (E≈V²) 用 Prim (O(V²))；稀疏图 (E≈V) 用 Kruskal (O(E log E))"
+    - mistake: "忽略多源多汇场景的建模"
+      solution: "添加超级源 S 连接所有源（容量∞），超级汇 T 连接所有汇（容量∞）"
+
+  code_snippets:
+    - language: "python"
+      description: "最大流 (Dinic) + MST (Kruskal)"
+      code: |
+        # Kruskal MST（并查集）
+        class UnionFind:
+            def __init__(self, n):
+                self.parent = list(range(n))
+            def find(self, x):
+                if self.parent[x] != x:
+                    self.parent[x] = self.find(self.parent[x])
+                return self.parent[x]
+            def union(self, x, y):
+                self.parent[self.find(x)] = self.find(y)
+
+        def kruskal(n, edges):  # edges = [(u, v, w), ...]
+            uf = UnionFind(n)
+            mst = []
+            for u, v, w in sorted(edges, key=lambda e: e[2]):
+                if uf.find(u) != uf.find(v):
+                    uf.union(u, v)
+                    mst.append((u, v, w))
+            return mst, sum(w for _,_,w in mst)
+
+        # 最大流 (Dinic)
+        from collections import deque
+        def dinic(graph, s, t):  # graph = 邻接表 [[(v, cap, rev_idx), ...]]
+            n = len(graph)
+            flow = 0
+            INF = 10**18
+            while True:
+                level = [-1]*n
+                q = deque([s]); level[s] = 0
+                while q:
+                    v = q.popleft()
+                    for to, cap, _ in graph[v]:
+                        if cap > 0 and level[to] < 0:
+                            level[to] = level[v]+1; q.append(to)
+                if level[t] < 0: break
+                it = [0]*n
+                def dfs(v, f):
+                    if v == t: return f
+                    for i in range(it[v], len(graph[v])):
+                        to, cap, rev = graph[v][i]; it[v] = i
+                        if cap > 0 and level[v] < level[to]:
+                            d = dfs(to, min(f, cap))
+                            if d > 0:
+                                graph[v][i] = (to, cap-d, rev)
+                                graph[to][rev] = (v, graph[to][rev][1]+d, graph[to][rev][2])
+                                return d
+                    return 0
+                while (f := dfs(s, INF)) > 0: flow += f
+            return flow
+
+  related_cards: ["mc_018"]
+  difficulty: 4
+  quality_rating: 4
+  tags:
+    model_type: ["图论", "网络流", "组合优化"]
+    key_concepts: ["最大流", "最小割", "MST", "增广路"]
+    mathematical_tools: ["图论", "组合优化", "数据结构"]

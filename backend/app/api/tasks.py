@@ -130,6 +130,10 @@ async def create_task(
             "url": f"/api/files/{f.file_id}",
         })
 
+    # 初始化工作记忆（问题状态文档 + 检查点目录）
+    from app.services.working_memory import WorkingMemory
+    WorkingMemory(task_id).init_session(full_problem)
+
     # 在独立线程中运行编排器（节点含同步阻塞调用 llm.invoke / subprocess），
     # 以免阻塞事件循环导致 HTTP 响应体无法刷新、WS 进度卡住
     asyncio.create_task(
@@ -137,6 +141,27 @@ async def create_task(
     )
 
     return TaskResponse(**task)
+
+
+@tasks_router.get("/tasks/{task_id}/status")
+async def get_task_status(task_id: str, user: GitHubUser = Depends(require_auth)):
+    """查询方案模式任务的执行进度（用于断点续做判断）。
+
+    返回:
+      - completed_stages: 已完成的阶段列表
+      - latest_stage: 最新完成的阶段
+      - resume_stage: 下一步应执行的阶段（None 表示已完成）
+      - is_active: 是否有未完成的任务
+    """
+    from app.services.working_memory import WorkingMemory
+    wm = WorkingMemory(task_id)
+    return {
+        "task_id": task_id,
+        "completed_stages": wm.get_completed_stages(),
+        "latest_stage": wm.get_latest_stage(),
+        "resume_stage": wm.get_resume_stage(),
+        "is_active": wm.is_active(),
+    }
 
 
 @tasks_router.get("/tasks/{task_id}", response_model=TaskResponse)
@@ -319,6 +344,20 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
             verification_output=result.get("verification_output", ""),
             messages=messages,
         )
+
+        # 情景记忆：保存本次建模经验，供下次类似题召回
+        try:
+            from app.services.episodic_memory import EpisodicMemory
+            em = EpisodicMemory()
+            em.save(
+                session_id=task_id,
+                problem_raw=problem,
+                problem_type=result.get("problem_type", ""),
+                final_output=result.get("final_response", "") or result.get("writing_output", ""),
+            )
+        except Exception:
+            pass  # 情景记忆不阻塞任务完成
+
         # 通知前端任务结束。
         # final_response 可能很长（论文含 LaTeX 全章），不在 WS payload 里塞全文：
         # WS 只推一个轻量级完成信号 + 前 800 字预览；前端再 GET /api/tasks/{id}

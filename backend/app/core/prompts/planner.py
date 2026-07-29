@@ -39,6 +39,9 @@ PLANNER_SYSTEM_PROMPT = """你是数学建模任务的执行规划专家。根�
 ### 相关竞赛真题：
 {problems}
 
+### 历史建模经验（情景记忆）：
+{experiences}
+
 ## 输出格式
 请严格输出 JSON 数组，按执行顺序排列：
 ```json

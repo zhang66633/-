@@ -42,8 +42,27 @@ async def lifespan(app: FastAPI):
         )
 
     # 知识库向量索引：不存在则自动重建（后台线程，不阻塞启动）
-    chroma_db_file = Path(settings.chroma_dir) / "chroma.sqlite3"
-    if not chroma_db_file.exists():
+    _needs_rebuild = False
+    if settings.chroma_http_url:
+        # 远程模式：通过 HTTP 检查 collection 是否存在
+        print(f"[INFO] ChromaDB 远程模式: {settings.chroma_http_url}", flush=True)
+        try:
+            from urllib.parse import urlparse
+            import chromadb
+            parsed = urlparse(settings.chroma_http_url)
+            client = chromadb.HttpClient(host=parsed.hostname or "localhost", port=parsed.port or 8000)
+            collections = client.list_collections()
+            names = [c if isinstance(c, str) else c.name for c in collections]
+            if "kb_docs" not in names:
+                _needs_rebuild = True
+        except Exception as e:
+            print(f"[WARNING] 无法连接远程 ChromaDB ({e})，跳过自动重建检查", flush=True)
+    else:
+        chroma_db_file = Path(settings.chroma_dir) / "chroma.sqlite3"
+        if not chroma_db_file.exists():
+            _needs_rebuild = True
+
+    if _needs_rebuild:
         print("[INFO] 向量索引不存在，后台自动重建...", flush=True)
 
         def _rebuild_index():

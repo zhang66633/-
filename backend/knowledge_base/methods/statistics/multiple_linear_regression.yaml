@@ -1,0 +1,83 @@
+method_card:
+  id: "mc_021"
+  name: "多元线性回归"
+  name_en: "Multiple Linear Regression"
+  category: ["统计分析", "预测"]
+  principle: |
+    多元线性回归研究一个因变量与多个自变量之间的线性关系，是最基础也是最常用的统计建模方法之一。
+
+    **模型形式**: y = β₀ + β₁x₁ + β₂x₂ + ... + βₚxₚ + ε
+
+    其中 β₀ 为截距，βᵢ 为偏回归系数（表示其他变量不变时 xᵢ 每变化 1 单位 y 的平均变化量），
+    ε ~ N(0, σ²) 为随机误差。
+
+    **核心步骤**：
+    1. 参数估计：用最小二乘法（OLS）最小化残差平方和 Σ(yᵢ - ŷᵢ)²，得 β = (XᵀX)⁻¹Xᵀy
+    2. 模型检验：
+       - F 检验：检验回归方程整体显著性（H₀: β₁=β₂=...=βₚ=0）
+       - t 检验：检验每个自变量的显著性
+       - R² / 调整 R²：衡量模型拟合优度（0~1，越接近 1 越好）
+    3. 残差诊断：检验残差的正态性、独立性、同方差性
+    4. 多重共线性诊断：VIF（方差膨胀因子）> 10 表示存在严重共线性
+
+  formulas:
+    - "OLS 估计: β̂ = (XᵀX)⁻¹Xᵀy"
+    - "R² = 1 - SS_res / SS_tot = 1 - Σ(yᵢ-ŷᵢ)² / Σ(yᵢ-ȳ)²"
+    - "调整 R² = 1 - (1-R²)(n-1)/(n-p-1)"
+    - "VIFⱼ = 1 / (1 - R²ⱼ)，其中 R²ⱼ 是 xⱼ 对其余自变量的回归决定系数"
+
+  applicable_when:
+    - "因变量 y 为连续数值型变量"
+    - "y 与各自变量之间近似线性关系（可先做散点图检查）"
+    - "残差满足独立、正态、同方差假设"
+    - "样本量 n 远大于自变量数 p（建议 n ≥ 10p）"
+    - "自变量间不存在严重多重共线性（VIF < 10）"
+
+  typical_scenarios:
+    - "房价预测：根据面积、地段、房龄、楼层等预测房价"
+    - "影响因素分析：探究哪些因素对销售额有显著影响"
+    - "趋势外推：用历史数据建立回归模型预测未来"
+    - "竞赛中的数据分析题（数据量大、变量多、需要量化关系）"
+    - "灵敏度分析：量化各输入参数对输出的影响程度"
+
+  common_mistakes:
+    - mistake: "自变量高度相关（多重共线性）导致系数估计不稳定"
+      solution: "检查 VIF，删除 VIF>10 的变量，或用岭回归、PCA 降维"
+    - mistake: "直接用 R² 判断模型好坏，忽略过拟合"
+      solution: "用调整 R² 或交叉验证的 RMSE 评估；变量越多 R² 天然越大"
+    - mistake: "数据不满足线性假设硬套线性回归"
+      solution: "先做散点图和残差图；非线性关系考虑多项式回归或变换（对数/平方根）"
+    - mistake: "忽略异常值和强影响点"
+      solution: "用 Cook 距离、学生化残差诊断，必要时剔除或稳健回归"
+
+  code_snippets:
+    - language: "python"
+      description: "sklearn 多元线性回归示例"
+      code: |
+        from sklearn.linear_model import LinearRegression
+        from sklearn.model_selection import cross_val_score
+        from sklearn.metrics import r2_score, mean_squared_error
+        import numpy as np
+
+        def mlr_analysis(X, y):
+            model = LinearRegression()
+            model.fit(X, y)
+            # 系数
+            coef = dict(zip([f"x{i}" for i in range(X.shape[1])], model.coef_))
+            # R² 和调整 R²
+            y_pred = model.predict(X)
+            r2 = r2_score(y, y_pred)
+            n, p = X.shape
+            adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
+            # 交叉验证
+            cv_scores = cross_val_score(model, X, y, cv=5)
+            return {"intercept": model.intercept_, "coef": coef,
+                    "r2": r2, "adj_r2": adj_r2, "cv_mean": cv_scores.mean()}
+
+  related_cards: ["mc_022", "mc_014"]
+  difficulty: 2
+  quality_rating: 5
+  tags:
+    model_type: ["统计分析", "回归", "预测"]
+    key_concepts: ["最小二乘法", "残差分析", "多重共线性", "假设检验"]
+    mathematical_tools: ["线性代数", "统计学", "矩阵运算"]

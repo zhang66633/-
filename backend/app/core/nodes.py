@@ -1,5 +1,6 @@
 """图节点函数 — classify / retrieve / plan / agent / format。"""
 
+import asyncio
 import json
 import re
 import time
@@ -68,6 +69,23 @@ def _is_cancelled(task_id: str) -> bool:
         return False
 
 
+def _save_working_memory(session_id: str, stage: str, output: str, extra: dict | None = None):
+    """保存阶段检查点 + 异步更新问题状态文档。
+
+    检查点同步写入（保证断电不丢失），
+    整体重写异步执行（不阻塞工作流）。
+    """
+    try:
+        from app.services.working_memory import WorkingMemory
+        wm = WorkingMemory(session_id)
+        wm.save_checkpoint(stage, output, extra)
+        # LLM 重写放后台线程，不阻塞流水线
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(None, wm.update_problem_doc, stage, output, None)
+    except Exception:
+        pass  # 工作记忆不阻塞主流程
+
+
 # ============================================================
 # 节点 1: 问题分类
 # ============================================================
@@ -92,6 +110,11 @@ def classify_problem(state: AgentState) -> dict:
         "problem_complexity": result.get("problem_complexity", "simple"),
         "summary": result.get("summary", ""),
     })
+
+    # 工作记忆：保存分类结果
+    _save_working_memory(task_id, "classify", json.dumps(result, ensure_ascii=False),
+                         extra={"problem_type": result.get("problem_type", ""),
+                                "complexity": result.get("problem_complexity", "simple")})
 
     return {
         "problem_type": result.get("problem_type", ""),
@@ -226,6 +249,12 @@ def retrieve_knowledge(state: AgentState) -> dict:
         "problems_count": len(problems),
     })
 
+    # 工作记忆：保存检索结果摘要
+    _save_working_memory(task_id, "retrieve",
+                         json.dumps({"methods_count": len(methods),
+                                     "papers_count": len(papers),
+                                     "templates_count": len(templates)}, ensure_ascii=False))
+
     return {
         "kb_methods": methods,
         "kb_papers": papers,
@@ -249,6 +278,22 @@ def plan_execution(state: AgentState) -> dict:
     task_id = state["session_id"]
     _pub_event(task_id, "node_start", "plan_execution")
     llm = get_llm("planner", state.get("api_key_config"))
+
+    # 情景记忆：召回历史相似题的经验
+    experiences_str = "（无历史经验）"
+    if state["mode"] == "execute":
+        try:
+            from app.services.episodic_memory import EpisodicMemory
+            em = EpisodicMemory()
+            exps = em.recall(
+                query=state["problem_raw"],
+                problem_type=state.get("problem_type", ""),
+                k=3,
+            )
+            if exps:
+                experiences_str = "\n".join(f"- {e}" for e in exps)
+        except Exception:
+            pass
 
     # 构建知识库上下文
     methods_str = "\n".join(
@@ -274,6 +319,7 @@ def plan_execution(state: AgentState) -> dict:
         templates=templates_str,
         papers=papers_str,
         problems=problems_str,
+        experiences=experiences_str,
     )
 
     user_prompt = PLANNER_USER_TEMPLATE.format(
@@ -365,6 +411,9 @@ def analysis_agent_node(state: AgentState) -> dict:
         "output_length": len(analysis_output),
     })
 
+    if state["mode"] == "execute":
+        _save_working_memory(task_id, "analysis", analysis_output)
+
     return {
         "analysis_output": analysis_output,
         "current_step_index": idx,
@@ -427,6 +476,9 @@ def modeling_agent_node(state: AgentState) -> dict:
         "step": idx + 1,
         "output_length": len(model_output),
     })
+
+    if state["mode"] == "execute":
+        _save_working_memory(task_id, "modeling", model_output)
 
     return {
         "model_output": model_output,
@@ -610,6 +662,10 @@ def solving_agent_node(state: AgentState) -> dict:
         "images_count": len(all_images),
     })
 
+    if state["mode"] == "execute":
+        _save_working_memory(task_id, "solving", final_output,
+                             extra={"images_count": len(all_images)})
+
     return {
         "solving_output": final_output,
         "current_step_index": idx,
@@ -692,6 +748,10 @@ def verification_agent_node(state: AgentState) -> dict:
         "passed": passed,
         "rollback_target": rollback if not passed else None,
     })
+
+    if state["mode"] == "execute":
+        _save_working_memory(task_id, "verification", full_text,
+                             extra={"passed": passed})
 
     return {
         "verification_passed": passed,
@@ -860,6 +920,10 @@ def writing_agent_node(state: AgentState) -> dict:
         "output_length": len(writing_output),
         "red_team": "PASS" if "PASS" in critique.upper().split("\n")[0] else "REVISED",
     })
+
+    if state["mode"] == "execute":
+        _save_working_memory(task_id, "writing", writing_output[:5000],
+                             extra={"total_length": len(writing_output)})
 
     return {
         "writing_output": writing_output,

@@ -12,6 +12,7 @@ from .apikeys import apikeys_router
 from .tasks import tasks_router
 from .files import files_router
 from .export_routes import export_router
+from .knowledge_import_routes import import_router
 from .schemas.response import HealthResponse
 from ..config import get_settings
 from ..services.session import get_session_manager
@@ -26,6 +27,7 @@ api_router.include_router(apikeys_router)
 api_router.include_router(tasks_router)
 api_router.include_router(files_router)
 api_router.include_router(export_router)
+api_router.include_router(import_router)
 
 # ── Auth（内联，轻量 OAuth）──
 
@@ -50,7 +52,9 @@ async def github_callback(code: str = Query(...)):
         token_resp = await client.post(
             "https://github.com/login/oauth/access_token",
             data={"client_id": settings.github_client_id,
-                  "client_secret": settings.github_client_secret, "code": code},
+                  "client_secret": settings.github_client_secret,
+                  "code": code,
+                  "redirect_uri": settings.github_redirect_uri},
             headers={"Accept": "application/json"},
         )
         if token_resp.status_code != 200:
@@ -69,7 +73,7 @@ async def github_callback(code: str = Query(...)):
     login = gh_user.get("login", "")
     if login.lower() not in {c.lower() for c in ALLOWED_CONTRIBUTORS}:
         raise HTTPException(status_code=403, detail=f"仅项目贡献者可登录，当前: {login}")
-    from .auth.dependencies import create_jwt
+    from ..auth.dependencies import create_jwt
 
     token = create_jwt(GitHubUser(
         id=gh_user.get("id", 0),
