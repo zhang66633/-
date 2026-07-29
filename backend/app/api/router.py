@@ -13,6 +13,8 @@ from .tasks import tasks_router
 from .files import files_router
 from .export_routes import export_router
 from .knowledge_import_routes import import_router
+from .learning_routes import learning_router
+from .profile_routes import profile_router
 from .schemas.response import HealthResponse
 from ..config import get_settings
 from ..services.session import get_session_manager
@@ -28,6 +30,8 @@ api_router.include_router(tasks_router)
 api_router.include_router(files_router)
 api_router.include_router(export_router)
 api_router.include_router(import_router)
+api_router.include_router(learning_router)
+api_router.include_router(profile_router)
 
 # ── Auth（内联，轻量 OAuth）──
 
