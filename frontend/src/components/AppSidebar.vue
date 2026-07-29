@@ -115,8 +115,52 @@
     </div>
 
     <nav :class="sessionList.length > 0 ? 'py-3 shrink-0' : 'flex-1 py-6'">
+      <!-- 首页 — 始终可见 -->
       <button
-        v-for="(item, i) in navItems"
+        :class="[NAV_ITEM, isNavActive('/') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']"
+        @click="navigate('/')"
+      >
+        <span v-if="isNavActive('/')" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
+        <Home class="h-4 w-4 shrink-0" />
+        <span :class="isNavActive('/') ? 'font-display font-medium' : ''">首页</span>
+      </button>
+
+      <!-- 分组导航 -->
+      <div v-for="group in visibleGroups" :key="group.label" class="mt-1">
+        <button
+          class="flex items-center gap-2 w-full px-5 py-1.5 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+          @click="toggleGroup(group.label)"
+        >
+          <ChevronRight
+            class="h-3 w-3 shrink-0 transition-transform"
+            :class="{ 'rotate-90': expandedGroups.has(group.label) }"
+          />
+          <component :is="group.icon" class="h-3.5 w-3.5 shrink-0" />
+          {{ group.label }}
+        </button>
+
+        <div v-show="expandedGroups.has(group.label)" class="space-y-0.5">
+          <button
+            v-for="(item, i) in group.items"
+            :key="item.path"
+            :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']"
+            @click="navigate(item.path)"
+          >
+            <span
+              v-if="isNavActive(item.path)"
+              class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary"
+            />
+            <component :is="item.icon" class="h-4 w-4 shrink-0 opacity-60" />
+            <span :class="isNavActive(item.path) ? 'font-display font-medium' : ''">{{ item.label }}</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- 底部固定项 -->
+    <div class="border-t py-2 shrink-0">
+      <button
+        v-for="item in bottomItems"
         :key="item.path"
         :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']"
         @click="navigate(item.path)"
@@ -124,12 +168,11 @@
         <span
           v-if="isNavActive(item.path)"
           class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary"
-          aria-hidden="true"
         />
-        <span class="font-mono text-[10px] text-muted-foreground/70 w-5 shrink-0">§{{ i + 1 }}</span>
+        <component :is="item.icon" class="h-4 w-4 shrink-0 opacity-60" />
         <span :class="isNavActive(item.path) ? 'font-display font-medium' : ''">{{ item.label }}</span>
       </button>
-    </nav>
+    </div>
 
     <div class="border-t px-3 py-3 shrink-0">
       <VersionSwitcher />
@@ -138,11 +181,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { X, Pencil, Check } from "lucide-vue-next";
+import { X, Pencil, Check, ChevronRight, Home } from "lucide-vue-next";
 import { APP_NAME } from "@/types/const";
-import { navItems } from "@/config/navItems";
+import { paperGroup, learnGroup, bottomItems, paperPaths, learnPaths } from "@/config/navItems";
 import { NAV_ITEM } from "@/config/styles";
 import VersionSwitcher from "@/components/VersionSwitcher.vue";
 import { useChatSessionStore, type SessionMode } from "@/stores/chatSession";
@@ -155,6 +198,49 @@ const archiveStore = useArchiveStore();
 
 const editingId = ref<string | null>(null);
 const editingTitle = ref("");
+
+// ── 导航分组逻辑 ─────────────────────────────────────
+
+const allGroups = [paperGroup, learnGroup];
+
+// 当前页面属于哪个组
+const activeGroup = computed(() => {
+  const path = route.path;
+  if (path === "/") return null; // 首页两个组都展开
+  for (const p of paperPaths) {
+    if (path.startsWith(p)) return paperGroup.label;
+  }
+  for (const p of learnPaths) {
+    if (path.startsWith(p)) return learnGroup.label;
+  }
+  return null;
+});
+
+const expandedGroups = ref<Set<string>>(new Set([paperGroup.label, learnGroup.label]));
+
+// 路由变化时自动展开当前组、折叠另一个组（首页两个都展开）
+watch(activeGroup, (group) => {
+  if (!group) {
+    // 首页: 两个都展开
+    expandedGroups.value = new Set([paperGroup.label, learnGroup.label]);
+  } else {
+    expandedGroups.value = new Set([group]);
+  }
+}, { immediate: true });
+
+function toggleGroup(label: string) {
+  const next = new Set(expandedGroups.value);
+  if (next.has(label)) {
+    next.delete(label);
+  } else {
+    next.add(label);
+  }
+  expandedGroups.value = next;
+}
+
+const visibleGroups = computed(() => allGroups);
+
+// ── 会话逻辑 ─────────────────────────────────────────
 
 const currentMode = computed<SessionMode>(() => {
   if (route.path.startsWith("/teach")) return "teach";
