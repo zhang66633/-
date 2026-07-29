@@ -179,10 +179,7 @@ class HybridRetriever(BaseRetriever):
                 all_vector_ranked + all_bm25_ranked,
                 k=fetch_k,
             )
-            for d in fused_docs:
-                did = d.metadata.get("id", "")
-                if did:
-                    seen.add(did)
+
 
         # Tag results: prepend (highest confidence), deduplicate
         final_docs: list[Document] = []
