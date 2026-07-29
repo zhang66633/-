@@ -316,7 +316,7 @@ async function downloadExport(format: "md" | "docx") {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const ext = format === "latex" ? "tex" : format;
+    const ext = format;
     a.download = `paper.${ext}`;
     a.click();
     URL.revokeObjectURL(url);

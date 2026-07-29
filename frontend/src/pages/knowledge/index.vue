@@ -141,7 +141,7 @@
 
             <!-- File drop zone -->
             <div class="relative rounded-md border border-dashed border-border p-6 text-center cursor-pointer transition-colors"
-              :class="dragOver ? 'border-primary bg-primary/5' : impFile ? 'border-primary/50 bg-primary/5' : 'hover:border-muted-foreground/50'"
+              :class="dragOver ? 'border-primary bg-primary/5' : impFiles ? 'border-primary/50 bg-primary/5' : 'hover:border-muted-foreground/50'"
               @click="triggerFileInput" @dragover.prevent="dragOver = true" @dragleave.prevent="dragOver = false" @drop.prevent="onDrop">
               <input ref="fileRef" type="file" multiple accept=".txt,.md,.pdf,.doc,.docx,.tex,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.gif,.webp,.bmp" class="hidden" @change="onFileSel" />
               <template v-if="impFiles.length > 0">

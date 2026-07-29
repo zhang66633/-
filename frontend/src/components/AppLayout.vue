@@ -1,5 +1,6 @@
 <template>
   <div class="flex h-screen w-full overflow-hidden bg-background">
+    <SkipToContent />
     <!-- 侧栏:桌面固定 -->
     <AppSidebar class="hidden lg:flex" />
 
@@ -45,7 +46,7 @@
       </header>
 
       <!-- 内容区 -->
-      <main class="flex-1 overflow-hidden">
+      <main id="main-content" class="flex-1 overflow-hidden">
         <router-view />
       </main>
     </div>
@@ -59,6 +60,7 @@ import { Menu } from "lucide-vue-next";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import AppSidebar from "@/components/AppSidebar.vue";
 import NavUser from "@/components/NavUser.vue";
+import SkipToContent from "@/components/SkipToContent.vue";
 import ServiceStatus from "@/components/ServiceStatus.vue";
 import ThemeToggle from "@/components/ThemeToggle.vue";
 import { APP_NAME } from "@/types/const";

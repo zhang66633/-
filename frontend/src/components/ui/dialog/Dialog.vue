@@ -3,11 +3,8 @@ import { computed } from "vue";
 import {
   DialogClose,
   DialogContent,
-  DialogContentImpl,
-  DialogContentModal,
   DialogDescription,
   DialogOverlay,
-  DialogOverlayImpl,
   DialogPortal,
   DialogRoot,
   DialogTitle,
@@ -27,7 +24,6 @@ export interface DialogProps {
 }
 
 const props = withDefaults(defineProps<DialogProps>(), {
-  open: undefined,
   onOpenChange: undefined,
   modal: true,
 });

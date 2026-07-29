@@ -119,7 +119,7 @@ import { ArrowLeft, Key, Plus, Trash2, Loader2, Check } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getApiKeys, addApiKey, deleteApiKey, setDefaultApiKey, type ApiKeyItem } from "@/apis/apiKeyApi";
-import { SCALE_PRESS } from "@/config/styles";
+import { SCALE_PRESS, SCALE_PRESS_ONLY } from "@/config/styles";
 
 const router = useRouter();
 const keys = ref<ApiKeyItem[]>([]);

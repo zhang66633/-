@@ -19,18 +19,22 @@ const routes: RouteRecordRaw[] = [
       {
         path: "",
         component: () => import("@/pages/index.vue"),
+        meta: { keepAlive: true },
       },
       {
         path: "chat",
         component: () => import("@/pages/chat/index.vue"),
+        meta: { keepAlive: true },
       },
       {
         path: "teach",
         component: () => import("@/pages/teach/index.vue"),
+        meta: { keepAlive: true },
       },
       {
         path: "solution",
         component: () => import("@/pages/solution/index.vue"),
+        meta: { keepAlive: true },
       },
       {
         path: "archive/:id",
@@ -56,6 +60,9 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior() {
+    return { top: 0 };
+  },
 });
 
 export default router;

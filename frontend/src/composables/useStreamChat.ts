@@ -65,7 +65,8 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
     function ensureAgentMsg(): string {
       if (!agentMsgId) {
         agentMsgId = generateId();
-        chatSession.addMessage(sessionMode, sessionId, {
+      // sessionId is guaranteed to be non-null after createSession above
+      chatSession.addMessage(sessionMode, sessionId!, {
           id: agentMsgId,
           msg_type: "agent",
           content: "",

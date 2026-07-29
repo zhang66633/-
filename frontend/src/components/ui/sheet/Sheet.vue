@@ -10,7 +10,6 @@ export interface SheetProps {
 }
 
 const props = withDefaults(defineProps<SheetProps>(), {
-  open: undefined,
   onOpenChange: undefined,
   side: "right",
 });
