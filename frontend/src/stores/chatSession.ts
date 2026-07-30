@@ -2,7 +2,7 @@ import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import type { Message } from "@/types/response";
 
-export type SessionMode = "chat" | "teach" | "solution";
+export type SessionMode = "chat" | "teach" | "solution" | "learning";
 
 export interface ChatSession {
   id: string;
@@ -27,10 +27,12 @@ export const useChatSessionStore = defineStore(
     const chatSessions = ref<ChatSession[]>([]);
     const teachSessions = ref<ChatSession[]>([]);
     const solutionSessions = ref<ChatSession[]>([]);
+    const learningSessions = ref<ChatSession[]>([]);
 
     const activeChatId = ref<string | null>(null);
     const activeTeachId = ref<string | null>(null);
     const activeSolutionId = ref<string | null>(null);
+    const activeLearningId = ref<string | null>(null);
 
     /** 当前正在运行的模式（仅允许一个，避免三页互串）。null = 空闲。 */
     const runningMode = ref<SessionMode | null>(null);
@@ -47,6 +49,7 @@ export const useChatSessionStore = defineStore(
         case "chat": return chatSessions;
         case "teach": return teachSessions;
         case "solution": return solutionSessions;
+        case "learning": return learningSessions;
       }
     }
 
@@ -55,6 +58,7 @@ export const useChatSessionStore = defineStore(
         case "chat": return activeChatId;
         case "teach": return activeTeachId;
         case "solution": return activeSolutionId;
+        case "learning": return activeLearningId;
       }
     }
 
@@ -63,6 +67,7 @@ export const useChatSessionStore = defineStore(
         case "chat": activeChatId.value = id; break;
         case "teach": activeTeachId.value = id; break;
         case "solution": activeSolutionId.value = id; break;
+        case "learning": activeLearningId.value = id; break;
       }
     }
 
@@ -75,12 +80,16 @@ export const useChatSessionStore = defineStore(
     const sortedSolutionSessions = computed(() =>
       [...solutionSessions.value].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
     );
+    const sortedLearningSessions = computed(() =>
+      [...learningSessions.value].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    );
 
     function getSortedSessions(mode: SessionMode) {
       switch (mode) {
         case "chat": return sortedChatSessions;
         case "teach": return sortedTeachSessions;
         case "solution": return sortedSolutionSessions;
+        case "learning": return sortedLearningSessions;
       }
     }
 
@@ -93,24 +102,30 @@ export const useChatSessionStore = defineStore(
     const activeSolutionSession = computed(() =>
       solutionSessions.value.find((s) => s.id === activeSolutionId.value) ?? null,
     );
+    const activeLearningSession = computed(() =>
+      learningSessions.value.find((s) => s.id === activeLearningId.value) ?? null,
+    );
 
     function getActiveSession(mode: SessionMode) {
       switch (mode) {
         case "chat": return activeChatSession;
         case "teach": return activeTeachSession;
         case "solution": return activeSolutionSession;
+        case "learning": return activeLearningSession;
       }
     }
 
     const activeChatMessages = computed(() => activeChatSession.value?.messages ?? []);
     const activeTeachMessages = computed(() => activeTeachSession.value?.messages ?? []);
     const activeSolutionMessages = computed(() => activeSolutionSession.value?.messages ?? []);
+    const activeLearningMessages = computed(() => activeLearningSession.value?.messages ?? []);
 
     function getActiveMessages(mode: SessionMode) {
       switch (mode) {
         case "chat": return activeChatMessages;
         case "teach": return activeTeachMessages;
         case "solution": return activeSolutionMessages;
+        case "learning": return activeLearningMessages;
       }
     }
 
@@ -120,6 +135,7 @@ export const useChatSessionStore = defineStore(
         chat: "新对话",
         teach: "新学习",
         solution: "新方案",
+        learning: "新学习",
       };
       const session: ChatSession = {
         id,
@@ -171,6 +187,7 @@ export const useChatSessionStore = defineStore(
         chat: "新对话",
         teach: "新学习",
         solution: "新方案",
+        learning: "新学习",
       };
       if (session.title === defaultTitle[mode] && msg.msg_type === "user" && msg.content) {
         session.title = msg.content.slice(0, 30) + (msg.content.length > 30 ? "..." : "");
@@ -200,12 +217,12 @@ export const useChatSessionStore = defineStore(
     }
 
     return {
-      chatSessions, teachSessions, solutionSessions,
-      activeChatId, activeTeachId, activeSolutionId,
+      chatSessions, teachSessions, solutionSessions, learningSessions,
+      activeChatId, activeTeachId, activeSolutionId, activeLearningId,
       runningMode,
-      sortedChatSessions, sortedTeachSessions, sortedSolutionSessions,
-      activeChatSession, activeTeachSession, activeSolutionSession,
-      activeChatMessages, activeTeachMessages, activeSolutionMessages,
+      sortedChatSessions, sortedTeachSessions, sortedSolutionSessions, sortedLearningSessions,
+      activeChatSession, activeTeachSession, activeSolutionSession, activeLearningSession,
+      activeChatMessages, activeTeachMessages, activeSolutionMessages, activeLearningMessages,
       createSession, switchSession, deleteSession, renameSession,
       addMessage, updateMessage, clearActive,
       getSessions, getActiveId, getSortedSessions, getActiveSession, getActiveMessages,
@@ -216,7 +233,7 @@ export const useChatSessionStore = defineStore(
     persist: {
       key: "mma-chat-sessions",
       storage: localStorage,
-      pick: ["chatSessions", "teachSessions", "solutionSessions", "activeChatId", "activeTeachId", "activeSolutionId"],
+      pick: ["chatSessions", "teachSessions", "solutionSessions", "learningSessions", "activeChatId", "activeTeachId", "activeSolutionId", "activeLearningId"],
     },
   },
 );

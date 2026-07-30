@@ -35,10 +35,12 @@ class ChatRequest(BaseModel):
     """自由问答请求。无状态：前端携带完整历史，后端滑动窗口截断。"""
     messages: list[ChatMessage]
     use_rag: bool = False  # 预留：后续挂知识库检索
-    # 对话模式：chat=自由问答（直接给结论），teach=教学模式（苏格拉底式引导，不直接给答案）
-    mode: Literal["chat", "teach"] = "chat"
+    # 对话模式：chat=自由问答（直接给结论），teach=教学模式（苏格拉底式引导），learning=学习中心（单元感知）
+    mode: Literal["chat", "teach", "learning"] = "chat"
     # 本轮附带的文件（已上传），LLM 可在 run_code 中引用
     files: list[ChatFileRef] = []
+    # 学习模式专用：当前学习单元的上下文信息
+    unit_context: dict | None = None
 
 
 class ApiKeyCreate(BaseModel):

@@ -70,12 +70,14 @@
 
         <!-- ChatArea 对话式学习 -->
         <ChatArea
-          :messages="messages"
-          :is-running="false"
+          :messages="chatSession.activeLearningMessages"
+          :is-running="chatSession.getIsRunning('learning')"
           :empty-text="`开始学习: ${unit.title}`"
           :empty-subtext="`${agentName}将用对话方式为你讲解这个知识点`"
           :input-placeholder="`向${agentName}提问...`"
+          cancellable
           @send="handleSend"
+          @cancel="cancelStream"
         />
       </div>
     </div>
@@ -83,16 +85,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { ArrowLeft, Loader2 } from "lucide-vue-next";
 import ChatArea from "@/components/ChatArea.vue";
 import { useLearningStore } from "@/stores/learning";
-import type { Message } from "@/types/response";
+import { useChatSessionStore } from "@/stores/chatSession";
+import { useStreamChat } from "@/composables/useStreamChat";
 
 const route = useRoute();
 const store = useLearningStore();
-const messages = ref<Message[]>([]);
+const chatSession = useChatSessionStore();
+const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat("learning", "learning");
 
 const unit = computed(() => store.currentUnit);
 
@@ -123,11 +127,27 @@ const difficultyBadge = computed(() => {
   return m[unit.value?.difficulty ?? "beginner"] ?? "";
 });
 
+// 学习单元上下文，传给后端让 LLM 感知当前教学内容
+const unitContext = computed(() => {
+  const u = unit.value;
+  if (!u) return undefined;
+  return {
+    title: u.title,
+    unit_type: u.type === "knowledge" ? "知识讲解" : u.type === "practice" ? "练习" : "综合项目",
+    difficulty: u.difficulty,
+    method_category: u.method_category || "通用",
+    tags: u.tags?.join(", ") ?? "",
+    primary_agent: u.primary_agent ?? "modeler",
+    estimated_minutes: String(u.estimated_minutes ?? 30),
+  };
+});
+
 onMounted(() => {
   const unitId = route.params.unitId as string;
   if (unitId) {
     store.loadUnit(unitId);
   }
+  restoreLatestSession();
 });
 
 watch(() => route.params.unitId, (newId) => {
@@ -140,12 +160,6 @@ function retry() {
 }
 
 function handleSend(text: string) {
-  const msg: Message = {
-    id: `msg_${Date.now()}`,
-    msg_type: "user",
-    content: text,
-    created_at: new Date().toISOString(),
-  };
-  messages.value.push(msg);
+  handleUserSend(text, undefined, unitContext.value);
 }
 </script>

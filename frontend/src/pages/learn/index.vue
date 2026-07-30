@@ -37,12 +37,14 @@
         <!-- 右侧智能体对话区 -->
         <div class="flex-1 flex flex-col min-w-0">
           <ChatArea
-            :messages="messages"
-            :is-running="false"
+            :messages="chatSession.activeLearningMessages"
+            :is-running="chatSession.getIsRunning('learning')"
             empty-text="从左侧技能树选择一个知识点"
             empty-subtext="智能体将用对话方式为你讲解"
             input-placeholder="向智能体提问..."
+            cancellable
             @send="handleSend"
+            @cancel="cancelStream"
           />
         </div>
       </div>
@@ -51,16 +53,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import ChatArea from "@/components/ChatArea.vue";
 import SkillGraph from "@/components/SkillGraph.vue";
 import { useLearningStore, type AgentRole } from "@/stores/learning";
-import type { Message } from "@/types/response";
+import { useChatSessionStore } from "@/stores/chatSession";
+import { useStreamChat } from "@/composables/useStreamChat";
 
 const router = useRouter();
 const store = useLearningStore();
-const messages = ref<Message[]>([]);
+const chatSession = useChatSessionStore();
+const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat("learning", "learning");
 
 const roleLabel = computed(() => {
   const labels: Record<AgentRole, string> = { modeler: "建模手", programmer: "编程手", writer: "论文手" };
@@ -69,6 +73,7 @@ const roleLabel = computed(() => {
 
 onMounted(() => {
   store.loadPath();
+  restoreLatestSession();
 });
 
 function handleUnitSelect(unitId: string) {
@@ -76,12 +81,6 @@ function handleUnitSelect(unitId: string) {
 }
 
 function handleSend(text: string) {
-  const msg: Message = {
-    id: `msg_${Date.now()}`,
-    msg_type: "user",
-    content: text,
-    created_at: new Date().toISOString(),
-  };
-  messages.value.push(msg);
+  handleUserSend(text);
 }
 </script>

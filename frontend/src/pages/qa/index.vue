@@ -24,12 +24,14 @@
       <div class="flex-1 min-h-0 flex">
         <div class="flex-1">
           <ChatArea
-            :messages="messages"
-            :is-running="false"
+            :messages="chatSession.activeChatMessages"
+            :is-running="chatSession.getIsRunning('chat')"
             empty-text="智能答疑"
             empty-subtext="输入 @智能体名 召唤指定智能体回答，联网推荐外部资源"
             input-placeholder="输入问题，或 @分析师/@建模师 指定智能体..."
+            cancellable
             @send="handleSend"
+            @cancel="cancelStream"
           />
         </div>
 
@@ -71,9 +73,11 @@
 import { ref } from "vue";
 import { ImageIcon } from "lucide-vue-next";
 import ChatArea from "@/components/ChatArea.vue";
-import type { Message } from "@/types/response";
+import { useChatSessionStore } from "@/stores/chatSession";
+import { useStreamChat } from "@/composables/useStreamChat";
 
-const messages = ref<Message[]>([]);
+const chatSession = useChatSessionStore();
+const { handleUserSend, cancelStream } = useStreamChat("chat", "chat");
 
 const agents = ref([
   { name: "分析师", emoji: "🔍", active: false },
@@ -85,12 +89,6 @@ const agents = ref([
 ]);
 
 function handleSend(text: string) {
-  const msg: Message = {
-    id: `msg_${Date.now()}`,
-    msg_type: "user",
-    content: text,
-    created_at: new Date().toISOString(),
-  };
-  messages.value.push(msg);
+  handleUserSend(text);
 }
 </script>

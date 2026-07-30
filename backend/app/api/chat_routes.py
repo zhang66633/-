@@ -111,15 +111,59 @@ TEACH_SYSTEM_PROMPT = f"""# 数学建模引导式导师
 
 {MARKDOWN_RULES}"""
 
+LEARNING_SYSTEM_PROMPT = f"""# 数学建模学习导师
 
-def _system_prompt(mode: str) -> str:
-    return TEACH_SYSTEM_PROMPT if mode == "teach" else CHAT_SYSTEM_PROMPT
+你是一位专业的数学建模学习导师，负责在"学习工位"中为学生讲解知识点、
+引导练习、批改答案。你的教学风格是对话式、互动式、鼓励式的。
+
+## 教学原则
+- 从学生当前正在学习的单元内容出发，围绕该单元的知识点展开讲解
+- 用通俗易懂的语言解释概念，配合实际例子帮助学生理解
+- 对练习类单元，主动出题并批改学生的答案，给出具体反馈
+- 对知识类单元，帮助梳理知识框架，用类比和图示辅助理解
+- 鼓励学生提问，耐心解答疑惑
+
+## 引导方法
+{TEACH_SHARED_RULES}
+
+## 工具使用规则
+- 可以调用知识库工具查找参考资料（search_method_cards / search_similar_papers / get_analysis_template），
+  把查到的关键信息用通俗的语言转述给学生
+- `run_code`：需要数值验证或画图辅助讲解时调用
+- `ask_user`：需要确认学生理解程度或选择讲解方向时调用
+- `web_search`：需要查找最新案例或教程时调用
+
+{MARKDOWN_RULES}"""
+
+# 当前学习单元上下文模板（注入到系统消息中）
+LEARNING_UNIT_CTX_TEMPLATE = """## 当前学习单元
+- 标题: {title}
+- 类型: {unit_type}
+- 难度: {difficulty}
+- 方法分类: {method_category}
+- 标签: {tags}
+- 关联智能体: {primary_agent}
+- 预计学习时长: {estimated_minutes} 分钟
+
+请围绕以上单元内容展开教学。如果单元类型是"练习"，请主动出题并批改学生的答案。
+如果单元类型是"知识讲解"，请系统性地讲解该知识点，并适时提问检验理解程度。"""
 
 
-def _to_lc_messages(req: ChatRequest) -> list:
+def _system_prompt(mode: str, unit_context: dict | None = None) -> str:
+    if mode == "teach":
+        return TEACH_SYSTEM_PROMPT
+    if mode == "learning":
+        prompt = LEARNING_SYSTEM_PROMPT
+        if unit_context:
+            prompt += "\n\n" + LEARNING_UNIT_CTX_TEMPLATE.format(**unit_context)
+        return prompt
+    return CHAT_SYSTEM_PROMPT
+
+
+def _to_lc_messages(req: ChatRequest, unit_context: dict | None = None) -> list:
     """把请求中的消息历史转成 LangChain 消息，并做滑动窗口截断。"""
     history = req.messages[-MAX_HISTORY_MESSAGES:]
-    msgs = [SystemMessage(content=_system_prompt(req.mode))]
+    msgs = [SystemMessage(content=_system_prompt(req.mode, unit_context))]
 
     # 如果本轮有附件，注入文件上下文供 LLM 参考
     if req.files:
@@ -225,7 +269,7 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
         tool_map = {t.name: t for t in tools}
         llm_with_tools = llm.bind_tools(tools)
 
-        messages = _to_lc_messages(req)
+        messages = _to_lc_messages(req, unit_context=getattr(req, 'unit_context', None))
 
         # ── RAG 预检索：如果用户开启了 use_rag，先查知识库并注入上下文 ──
         if req.use_rag:

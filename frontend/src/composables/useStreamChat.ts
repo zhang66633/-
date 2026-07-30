@@ -12,7 +12,7 @@ function generateId() {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teach") {
+export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teach" | "learning") {
   const chatSession = useChatSessionStore();
   const abortController = ref<AbortController | null>(null);
 
@@ -36,7 +36,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
       }));
   }
 
-  async function handleUserSend(text: string, files?: ChatFileRef[]) {
+  async function handleUserSend(text: string, files?: ChatFileRef[], unitContext?: Record<string, unknown>) {
     let sessionId = chatSession.getActiveId(sessionMode).value;
     if (!sessionId) {
       sessionId = chatSession.createSession(sessionMode);
@@ -80,6 +80,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
     await streamChat(buildHistory(), {
       mode: chatMode,
       files,
+      unitContext,
       signal: controller.signal,
       onDelta(delta) {
         acc += delta;

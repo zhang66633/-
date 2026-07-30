@@ -58,10 +58,12 @@ export interface StreamChatOptions {
   /** 可选：外部中止 */
   signal?: AbortSignal;
   useRag?: boolean;
-  /** 对话模式：chat=自由问答（默认），teach=教学模式（引导式） */
-  mode?: "chat" | "teach";
+  /** 对话模式：chat=自由问答（默认），teach=教学模式（引导式），learning=学习中心（单元感知） */
+  mode?: "chat" | "teach" | "learning";
   /** 本轮附带的文件引用 */
   files?: ChatFileRef[];
+  /** 学习模式专用：当前学习单元的上下文 */
+  unitContext?: Record<string, unknown>;
 }
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -98,7 +100,7 @@ export async function streamChat(
   messages: ChatHistoryMessage[],
   opts: StreamChatOptions,
 ): Promise<void> {
-  const { onDelta, onToolCall, onToolResult, onClarify, onCodeExec, onThinking, onDone, onError, signal, useRag = false, mode = "chat", files } = opts;
+  const { onDelta, onToolCall, onToolResult, onClarify, onCodeExec, onThinking, onDone, onError, signal, useRag = false, mode = "chat", files, unitContext } = opts;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -115,7 +117,7 @@ export async function streamChat(
     response = await fetch(`${BASE_URL}/chat`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ messages, use_rag: useRag, mode, files: files ?? [] }),
+      body: JSON.stringify({ messages, use_rag: useRag, mode, files: files ?? [], ...(unitContext ? { unit_context: unitContext } : {}) }),
       signal,
     });
   } catch (e: any) {

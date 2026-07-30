@@ -245,6 +245,7 @@ const visibleGroups = computed(() => allGroups);
 const currentMode = computed<SessionMode>(() => {
   if (route.path.startsWith("/teach")) return "teach";
   if (route.path.startsWith("/solution")) return "solution";
+  if (route.path.startsWith("/learn") || route.path.startsWith("/practice")) return "learning";
   return "chat";
 });
 
@@ -253,6 +254,7 @@ const sessionListTitle = computed(() => {
     chat: "最近对话",
     teach: "最近学习",
     solution: "最近方案",
+    learning: "学习对话",
   };
   return titles[currentMode.value];
 });
