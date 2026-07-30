@@ -19,17 +19,6 @@
         <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @mousedown.prevent="doAddNote">
           <StickyNote class="h-3.5 w-3.5" />笔记
         </button>
-        <div class="relative" @mousedown.prevent>
-          <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @mousedown.prevent="showColorPicker = !showColorPicker">
-            <Highlighter class="h-3.5 w-3.5" />高亮
-            <span class="ml-0.5 h-2.5 w-2.5 rounded-full inline-block" :style="{ background: selectedColor }" />
-          </button>
-          <div v-if="showColorPicker" class="absolute top-full left-0 mt-1 flex gap-1 rounded-md border border-border bg-card shadow-lg p-1.5 z-50">
-            <button v-for="c in highlightColors" :key="c" class="h-5 w-5 rounded-full border-2 hover:scale-110 transition-all"
-              :class="selectedColor === c ? 'border-primary' : 'border-transparent'"
-              :style="{ background: c }" @mousedown.prevent="doHighlight(c)" />
-          </div>
-        </div>
         <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @mousedown.prevent="doAskAI">
           <MessageCircleQuestion class="h-3.5 w-3.5" />问AI
         </button>
@@ -40,19 +29,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
-import { StickyNote, Highlighter, MessageCircleQuestion } from "lucide-vue-next";
+import { StickyNote, MessageCircleQuestion } from "lucide-vue-next";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 
-const props = defineProps<{
-  markdown: string;
-  highlights: { text: string; color: string }[];
-  unitId: string;
-}>();
+const props = defineProps<{ markdown: string; unitId: string }>();
 
 const emit = defineEmits<{
   addNote: [text: string, sectionTitle: string];
-  toggleHighlight: [text: string, color: string];
   askAI: [text: string, sectionTitle: string];
   headingsChange: [headings: { id: string; text: string; level: number }[]];
   scrollSection: [id: string];
@@ -61,11 +45,6 @@ const emit = defineEmits<{
 const docRoot = ref<HTMLElement>();
 const contentRef = ref<HTMLElement>();
 const progressPercent = ref(0);
-const selectedColor = ref("#fde047");
-const showColorPicker = ref(false);
-const highlightColors = ["#fde047", "#fca5a5", "#86efac", "#93c5fd", "#d8b4fe", "#fdba74"];
-
-// ── Markdown ────────────────────────────────────────
 
 const renderedHtml = computed(() => {
   if (!props.markdown) return "<p class='text-muted-foreground'>暂无学习资料</p>";
@@ -84,38 +63,13 @@ function extractHeadings() {
 }
 watch(renderedHtml, () => setTimeout(extractHeadings, 0));
 
-// ── 高亮渲染 (文本搜索, 渲染后回填) ─────────────────
-
-watch(() => [renderedHtml.value, props.highlights] as const, () => setTimeout(applyHighlights, 100));
-
-function applyHighlights() {
-  if (!contentRef.value || !props.highlights.length) return;
-  const walker = document.createTreeWalker(contentRef.value, NodeFilter.SHOW_TEXT);
-  const texts: Text[] = [];
-  while (walker.nextNode()) texts.push(walker.currentNode as Text);
-  for (const hl of props.highlights) {
-    for (const tn of texts) {
-      if (!tn.textContent) continue;
-      const i = tn.textContent.indexOf(hl.text);
-      if (i === -1) continue;
-      const s = document.createElement("span");
-      s.style.cssText = `background:${hl.color};border-radius:2px;`;
-      s.textContent = hl.text;
-      const after = tn.splitText(i);
-      after.splitText(hl.text.length);
-      after.parentNode?.replaceChild(s, after);
-      break;
-    }
-  }
-}
-
 // ── 选区 + Toolbar ──────────────────────────────────
 
 const toolbar = ref({ visible: false, x: 0, y: 0 });
 let selectedText = "";
 let selectedSection = "";
 
-function onDocMouseDown() { toolbar.value.visible = false; showColorPicker.value = false; }
+function onDocMouseDown() { toolbar.value.visible = false; }
 
 function onGlobalMouseUp() {
   setTimeout(() => {
@@ -130,32 +84,14 @@ function onGlobalMouseUp() {
       if (n.nodeName?.match(/^H[1-4]$/)) { selectedSection = n.textContent || ""; break; }
       n = n.parentElement as any;
     }
-    const r = sel.getRangeAt(0).getBoundingClientRect();
-    toolbar.value = { visible: true, x: Math.max(10, r.left + r.width / 2 - 90), y: Math.max(10, r.top - 44) };
+    const rc = sel.getRangeAt(0).getBoundingClientRect();
+    toolbar.value = { visible: true, x: Math.max(10, rc.left + rc.width / 2 - 70), y: Math.max(10, rc.top - 44) };
   }, 10);
-}
-
-function doHighlight(color: string) {
-  if (!selectedText) return;
-  // 用 Range 直接包裹
-  const sel = window.getSelection();
-  if (sel && !sel.isCollapsed) {
-    const r = sel.getRangeAt(0);
-    if (r.collapsed) return;
-    try {
-      const span = document.createElement("span");
-      span.style.cssText = `background:${color};border-radius:2px;`;
-      r.surroundContents(span);
-    } catch { /* 跨元素选区可能失败, fallback 到 emit */ }
-  }
-  emit("toggleHighlight", selectedText, color);
-  clearSelection();
 }
 
 function doAddNote() { if (selectedText) emit("addNote", selectedText, selectedSection); clearSelection(); }
 function doAskAI() { if (selectedText) emit("askAI", selectedText, selectedSection); clearSelection(); }
-
-function clearSelection() { toolbar.value.visible = false; showColorPicker.value = false; window.getSelection()?.removeAllRanges(); }
+function clearSelection() { toolbar.value.visible = false; window.getSelection()?.removeAllRanges(); }
 
 // ── 滚动 ────────────────────────────────────────────
 
