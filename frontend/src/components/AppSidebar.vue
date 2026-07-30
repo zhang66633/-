@@ -1,11 +1,16 @@
 <template>
-  <aside class="flex flex-col border-r bg-background h-screen sticky top-0 w-64 shrink-0">
-    <div class="flex h-14 items-center border-b px-5 shrink-0">
+  <aside :class="collapsed ? 'w-12' : 'w-64'" class="flex flex-col border-r bg-background h-screen sticky top-0 shrink-0 transition-all duration-200">
+    <div v-if="!collapsed" class="flex h-14 items-center border-b px-5 shrink-0">
       <div class="flex items-center gap-2.5">
         <div class="flex h-7 w-7 items-center justify-center border border-border rounded-sm">
           <span class="font-display text-sm font-medium leading-none">M</span>
         </div>
         <span class="font-display text-sm font-medium tracking-tight">{{ APP_NAME }}</span>
+      </div>
+    </div>
+    <div v-else class="flex h-14 items-center justify-center border-b shrink-0">
+      <div class="flex h-7 w-7 items-center justify-center border border-border rounded-sm">
+        <span class="font-display text-sm font-medium leading-none">M</span>
       </div>
     </div>
 
@@ -114,42 +119,23 @@
       </div>
     </div>
 
-    <nav :class="sessionList.length > 0 ? 'py-3 shrink-0' : 'flex-1 py-6'">
-      <!-- 首页 — 始终可见 -->
-      <button
-        :class="[NAV_ITEM, isNavActive('/') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']"
-        @click="navigate('/')"
-      >
+    <!-- 展开态: 完整导航 -->
+    <nav v-if="!collapsed" :class="sessionList.length > 0 ? 'py-3 shrink-0' : 'flex-1 py-6'">
+      <button :class="[NAV_ITEM, isNavActive('/') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate('/')">
         <span v-if="isNavActive('/')" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
         <Home class="h-4 w-4 shrink-0" />
         <span :class="isNavActive('/') ? 'font-display font-medium' : ''">首页</span>
       </button>
-
-      <!-- 分组导航 -->
       <div v-for="group in visibleGroups" :key="group.label" class="mt-1">
-        <button
-          class="flex items-center gap-2 w-full px-5 py-1.5 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-          @click="toggleGroup(group.label)"
-        >
-          <ChevronRight
-            class="h-3 w-3 shrink-0 transition-transform"
-            :class="{ 'rotate-90': expandedGroups.has(group.label) }"
-          />
+        <button class="flex items-center gap-2 w-full px-5 py-1.5 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60 hover:text-muted-foreground transition-colors" @click="toggleGroup(group.label)">
+          <ChevronRight class="h-3 w-3 shrink-0 transition-transform" :class="{ 'rotate-90': expandedGroups.has(group.label) }" />
           <component :is="group.icon" class="h-3.5 w-3.5 shrink-0" />
           {{ group.label }}
         </button>
-
         <div v-show="expandedGroups.has(group.label)" class="space-y-0.5">
-          <button
-            v-for="(item, i) in group.items"
-            :key="item.path"
-            :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']"
-            @click="navigate(item.path)"
-          >
-            <span
-              v-if="isNavActive(item.path)"
-              class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary"
-            />
+          <button v-for="(item, i) in group.items" :key="item.path"
+            :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate(item.path)">
+            <span v-if="isNavActive(item.path)" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
             <component :is="item.icon" class="h-4 w-4 shrink-0 opacity-60" />
             <span :class="isNavActive(item.path) ? 'font-display font-medium' : ''">{{ item.label }}</span>
           </button>
@@ -157,25 +143,36 @@
       </div>
     </nav>
 
+    <!-- 折叠态: 仅图标 -->
+    <nav v-else class="flex-1 py-4 flex flex-col items-center gap-2">
+      <button v-for="item in collapsedNavItems" :key="item.path"
+        class="flex h-8 w-8 items-center justify-center rounded-md transition-colors"
+        :class="isNavActive(item.path) ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
+        :title="item.label" @click="navigate(item.path)">
+        <component :is="item.icon" class="h-4 w-4" />
+      </button>
+    </nav>
+
     <!-- 底部固定项 -->
-    <div class="border-t py-2 shrink-0">
-      <button
-        v-for="item in bottomItems"
-        :key="item.path"
-        :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']"
-        @click="navigate(item.path)"
-      >
-        <span
-          v-if="isNavActive(item.path)"
-          class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary"
-        />
+    <div v-if="!collapsed" class="border-t py-2 shrink-0">
+      <button v-for="item in bottomItems" :key="item.path"
+        :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate(item.path)">
+        <span v-if="isNavActive(item.path)" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
         <component :is="item.icon" class="h-4 w-4 shrink-0 opacity-60" />
         <span :class="isNavActive(item.path) ? 'font-display font-medium' : ''">{{ item.label }}</span>
       </button>
     </div>
 
-    <div class="border-t px-3 py-3 shrink-0">
+    <div v-if="!collapsed" class="border-t px-3 py-3 shrink-0">
       <VersionSwitcher />
+    </div>
+
+    <!-- 折叠/展开按钮 -->
+    <div class="border-t py-2 shrink-0 flex justify-center">
+      <button class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" :title="collapsed ? '展开侧栏' : '折叠侧栏'" @click="collapsed = !collapsed">
+        <PanelLeftOpen v-if="!collapsed" class="h-3.5 w-3.5" />
+        <PanelLeftClose v-else class="h-3.5 w-3.5" />
+      </button>
     </div>
   </aside>
 </template>
@@ -183,7 +180,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { X, Pencil, Check, ChevronRight, Home } from "lucide-vue-next";
+import { X, Pencil, Check, ChevronRight, Home, PanelLeftOpen, PanelLeftClose } from "lucide-vue-next";
 import { APP_NAME } from "@/types/const";
 import { paperGroup, learnGroup, bottomItems, paperPaths, learnPaths } from "@/config/navItems";
 import { NAV_ITEM } from "@/config/styles";
@@ -198,6 +195,17 @@ const archiveStore = useArchiveStore();
 
 const editingId = ref<string | null>(null);
 const editingTitle = ref("");
+const collapsed = ref(false);
+
+// ── 折叠态导航项（所有页面入口） ──────────────────────
+const collapsedNavItems = computed(() => {
+  const items: { label: string; path: string; icon: any }[] = [
+    { label: "首页", path: "/", icon: Home },
+    ...paperGroup.items,
+    ...learnGroup.items,
+  ];
+  return items;
+});
 
 // ── 导航分组逻辑 ─────────────────────────────────────
 
