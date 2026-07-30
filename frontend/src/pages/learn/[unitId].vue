@@ -93,7 +93,7 @@
         <!-- 右侧聊天区 (可折叠) -->
         <div
           v-show="chatOpen"
-          class="w-80 shrink-0 border-l flex flex-col min-h-0"
+          class="w-80 shrink-0 border-l flex flex-col min-h-0 overflow-hidden"
         >
           <ChatArea
             :messages="chatSession.activeLearningMessages"
@@ -155,7 +155,7 @@ const docRef = ref<InstanceType<typeof LearningDoc>>();
 const chatOpen = ref(true);
 const headings = ref<{ id: string; text: string; level: number }[]>([]);
 const activeHeading = ref("");
-const highlights = ref<string[]>([]);
+const highlights = ref<{ text: string; color: string }[]>([]);
 const notes = ref<NoteItem[]>([]);
 const lastSelectedText = ref("");
 const lastSelectedSection = ref("");
@@ -260,18 +260,19 @@ function loadNotes() {
 
 // ── 高亮逻辑 ──────────────────────────────────────────
 
-function handleToggleHighlight(text: string) {
-  const idx = highlights.value.indexOf(text);
+function handleToggleHighlight(text: string, color: string) {
+  const idx = highlights.value.findIndex(h => h.text === text);
   if (idx === -1) {
-    highlights.value.push(text);
+    highlights.value.push({ text, color });
   } else {
     highlights.value.splice(idx, 1);
   }
-  try {
-    localStorage.setItem(`hl_${unitId.value}`, JSON.stringify(highlights.value));
-  } catch {}
+  saveHighlights();
 }
 
+function saveHighlights() {
+  try { localStorage.setItem(`hl_${unitId.value}`, JSON.stringify(highlights.value)); } catch {}
+}
 function loadHighlights() {
   try {
     const raw = localStorage.getItem(`hl_${unitId.value}`);
