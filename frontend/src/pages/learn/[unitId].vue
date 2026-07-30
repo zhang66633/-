@@ -167,9 +167,7 @@ onBeforeUnmount(() => {
 
 function handleAskAI(text: string, section: string) {
   chatOpen.value = true;
-  const question = `关于「${section || unit.value?.title || ''}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
-  prefillText.value = question;
-  setTimeout(() => { handleUserSend(question, undefined, unitContext.value); }, 50);
+  prefillText.value = `关于「${section || unit.value?.title || ''}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
 }
 
 // ── 笔记 ───────────────────────────────────────────
