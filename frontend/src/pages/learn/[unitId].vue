@@ -38,7 +38,7 @@
       <div v-else-if="unit" class="flex-1 flex min-h-0">
         <div class="flex-1 min-w-0 min-h-0">
           <LearningDoc ref="docRef" :markdown="docMarkdown" :unit-id="unit.unit_id"
-            @add-note="openNoteEditor" @ask-ai="handleAskAI"
+            :on-add-note="openNoteEditor" :on-ask-a-i="handleAskAI"
             @headings-change="headings = $event" @scroll-section="activeHeading = $event" />
         </div>
         <div v-show="chatOpen" class="w-80 shrink-0 border-l flex flex-col min-h-0 overflow-hidden">
@@ -114,7 +114,11 @@ const prefillText = ref("");
 
 function handleAskAI(text: string, section: string) {
   chatOpen.value = true;
-  prefillText.value = `关于「${section || unit.value?.title || ''}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
+  // 双保险：预填输入框 + 直接发送
+  const question = `关于「${section || unit.value?.title || ''}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
+  prefillText.value = question;
+  // 延迟确保 chatOpen 已生效
+  setTimeout(() => { handleUserSend(question, undefined, unitContext.value); }, 50);
 }
 
 // ── 笔记 ───────────────────────────────────────────
