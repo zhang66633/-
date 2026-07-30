@@ -76,9 +76,10 @@ def check_paper(text: str) -> dict:
     dup = {h for h in h2 if h2.count(h) > 1}
     add("合规", "无重复章节", not dup, f"重复标题: {dup}" if dup else "无重复")
 
-    # A5 假设不重复（检查"假设"列表条目前缀重复）
-    add("合规", "假设章节唯一", len(re.findall(r"模型假设", text)) <= 2,
-        "假设在多处重复展开" if len(re.findall(r"模型假设", text)) > 2 else "假设集中定义")
+    # A5 假设不重复（检查"模型假设"作为独立章节标题是否只出现一次）
+    assumption_headings = len(re.findall(r"##\s*三[、\s].*模型假设", text))
+    add("合规", "假设章节唯一", assumption_headings <= 1,
+        "假设在多处重复展开" if assumption_headings > 1 else "假设集中定义")
 
     # A6 图表引用有效（有 ![...](...) 且为 /api/images 或 http）
     imgs = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text)

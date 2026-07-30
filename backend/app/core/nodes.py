@@ -190,6 +190,8 @@ def retrieve_knowledge(state: AgentState) -> dict:
                 "problem_id": prob.problem_id,
                 "background": prob.background[:300],
                 "objectives": prob.objectives,
+                "data_description": prob.data_description,
+                "data_files": prob.data_files,
                 "page_content": pc[:500],
             })
 
@@ -237,6 +239,8 @@ def retrieve_knowledge(state: AgentState) -> dict:
                     "problem_id": meta.get("problem_id", ""),
                     "background": "",
                     "objectives": [],
+                    "data_description": meta.get("data_description", ""),
+                    "data_files": meta.get("data_files", []),
                     "page_content": doc.page_content[:500],
                 })
     except Exception:
@@ -255,16 +259,35 @@ def retrieve_knowledge(state: AgentState) -> dict:
                                      "papers_count": len(papers),
                                      "templates_count": len(templates)}, ensure_ascii=False))
 
+    # ── 数据文件发现：找到匹配问题对应的本地数据文件目录 ──
+    data_files_list: List[dict] = []
+    data_files_dir = ""
+    for p in problems:
+        files = p.get("data_files") or []
+        if files:
+            data_files_list.extend(files)
+            # 尝试在 data/problems/ 下查找对应目录
+            year = p.get("year")
+            pid = p.get("problem_id")
+            if year and pid:
+                candidate = settings.project_root / "data" / "problems" / f"{year}{pid}"
+                if candidate.exists():
+                    data_files_dir = str(candidate.resolve())
+                    break
+
     return {
         "kb_methods": methods,
         "kb_papers": papers,
         "kb_templates": templates,
         "kb_problems": problems,
+        "data_files": data_files_list,
+        "data_files_dir": data_files_dir,
         "messages": [
             SystemMessage(
                 content=f"知识库检索: 找到 {len(methods)} 个方法, "
                         f"{len(papers)} 篇论文, {len(templates)} 个模板, "
                         f"{len(problems)} 道竞赛真题"
+                        + (f", 数据文件 {len(data_files_list)} 个" if data_files_list else "")
             )
         ],
     }
@@ -576,14 +599,31 @@ def solving_agent_node(state: AgentState) -> dict:
         }
 
     # ── execute 模式：多轮 tool loop ──
+    # 注入数据文件目录到 RunCodeTool
+    run_code_tool = RunCodeTool()
+    run_code_tool.data_files_dir = state.get("data_files_dir", "")
+
     tools = (
-        [RunCodeTool()]
+        [run_code_tool]
         + create_math_tools()
         + create_kb_tools()
         + create_web_search_tools()
     )
     tool_map = {t.name: t for t in tools}
     llm_with_tools = llm.bind_tools(tools)
+
+    # 构建数据文件上下文（供 LLM 了解有哪些文件可用）
+    data_files_list = state.get("data_files") or []
+    data_files_context = ""
+    if data_files_list:
+        lines = ["\n## 可用数据文件（已挂载到工作目录，代码中直接用文件名读取）"]
+        for df in data_files_list:
+            lines.append(
+                f"- `{df.get('filename', '?')}`: "
+                f"{df.get('rows', '?')}行, "
+                f"列: {', '.join(df.get('columns', []))}"
+            )
+        data_files_context = "\n".join(lines)
 
     system_prompt = SOLVING_TOOL_SYSTEM_PROMPT.format(model_info=model_text)
     user_prompt = SOLVING_TOOL_USER_TEMPLATE.format(
@@ -592,11 +632,35 @@ def solving_agent_node(state: AgentState) -> dict:
     )
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt),
+        HumanMessage(content=user_prompt + data_files_context),
     ]
 
     all_images: list[str] = []
     max_rounds = 10  # 工具调用轮数上限（每轮可并发多个工具）
+
+    # 工具结果截断目录（借鉴 cc-haha maxResultSizeChars）
+    from ..config import get_settings
+    _settings = get_settings()
+    _persist_dir = _settings.project_root / "data" / "task_files" / task_id
+    _persist_dir.mkdir(parents=True, exist_ok=True)
+
+    MAX_TOOL_RESULT_CHARS = 3000
+
+    def _truncate_tool_result(result_text: str, tool_name: str) -> str:
+        """截断超长工具结果，完整内容写入磁盘（借鉴 cc-haha）。"""
+        if len(result_text) <= MAX_TOOL_RESULT_CHARS:
+            return result_text
+        import uuid as _uuid
+        persist_path = _persist_dir / f"_tool_{tool_name}_{_uuid.uuid4().hex[:8]}.txt"
+        try:
+            persist_path.write_text(result_text, encoding="utf-8")
+        except Exception:
+            pass
+        return (
+            result_text[:MAX_TOOL_RESULT_CHARS]
+            + f"\n\n…（结果已截断，共 {len(result_text)} 字符。"
+            + f"完整结果已保存至 {persist_path}）"
+        )
 
     for _ in range(max_rounds):
         response = llm_with_tools.invoke(messages)
@@ -618,6 +682,9 @@ def solving_agent_node(state: AgentState) -> dict:
                     result_text = tool.invoke(tool_args)
                 except Exception as e:  # noqa: BLE001
                     result_text = f"工具执行失败: {e}"
+
+            # 截断超长工具结果（借鉴 cc-haha maxResultSizeChars）
+            result_text = _truncate_tool_result(result_text, tool_name)
 
             # 收集 run_code 产出的图表 URL
             if tool_name == "run_code":
@@ -780,23 +847,38 @@ PAPER_SECTIONS: list[tuple[str, str]] = [
      "不要罗列假设（假设在第三章），不要堆砌空话。"),
     ("三、模型假设与符号说明",
      "假设用有序列表，每条一句话，共 4-6 条，不给每条配冗长展开。"
-     "符号说明用 Markdown 表格（符号 | 含义 | 单位）。假设与符号全文只在此处定义一次。"),
-    ("四、模型的建立与求解",
-     "核心章，占全文 50% 以上篇幅。按题目子问题分 ### 4.1 / 4.2 等小节。"
-     "每个子问题必须包含：①原理与方法（为什么用、适用条件）②目标函数与约束（$$...$$ 公式块）"
-     "③求解算法与过程 ④真实求解结果（具体数值，来自求解材料，禁止编造）⑤结果检验与分析。"
-     "每个结论必须配证据（数值/表格/图），图表引用材料中真实的 /api/images/ 链接并配'图1 xxx'说明。"),
+     "符号说明用 Markdown 表格（符号 | 含义 | 单位）。"
+     "**铁律：假设和符号全文只在此处定义一次。本章之前和之后的任何章节不得再出现假设列表或符号定义。**"),
+    # 核心章拆成 4 个子节，每节单独调用 LLM（deepseek-chat 单次输出限制 8192 tokens）
+    ("四、模型的建立与求解 — 4.1 问题1分析",
+     "### 4.1 问题1：各品类销售分布规律分析\n"
+     "严格按此结构：①原理与方法 ②数据预处理 ③求解结果（含表格）④结果检验。"
+     "**必须输出完整小节，不要截断。**"),
+    ("四、模型的建立与求解 — 4.2 问题2建模",
+     "### 4.2 问题2：品类级定价与补货优化\n"
+     "严格按此结构：①需求函数估计（含参数表格）②目标函数与约束（$$公式块$$）"
+     "③求解算法 ④求解结果（最优定价表+补货量表+利润表）⑤结果检验。"
+     "**必须输出完整小节，不要截断。**"),
+    ("四、模型的建立与求解 — 4.3 问题3建模",
+     "### 4.3 问题3：单品级定价与补货优化\n"
+     "严格按此结构：①单品选择模型（含0-1变量）②目标函数与约束 ③求解算法"
+     "④求解结果（单品选择表+定价表+利润表）⑤结果检验。"
+     "**必须输出完整小节，不要截断。**"),
+    ("四、模型的建立与求解 — 4.4 问题4",
+     "### 4.4 问题4：数据收集建议\n"
+     "列出需要收集的数据类型，说明理由和可行性。"
+     "**必须输出完整小节，不要截断。**"),
     ("五、模型检验与灵敏度分析",
-     "独立成章（竞赛显式给分项）。①模型正确性检验（量纲、边界、与常识对比、误差分析）"
-     "②对 1-2 个关键参数做灵敏度分析：参数如何变化、结果如何响应，用表格或图呈现，"
-     "并给出'模型是否稳健'的结论。"),
+     "独立成章。①模型正确性检验（量纲、边界、与常识对比、误差分析）"
+     "②对 1-2 个关键参数做灵敏度分析，用表格呈现，给出'模型是否稳健'的结论。"),
     ("六、模型评价与改进",
-     "优点 2-3 条、不足与改进方向 2-3 条，各一句话，具体不空泛。"),
+     "优点 2-3 条、不足与改进方向 2-3 条，各一句话，具体不空泛。"
+     "**本章必须完整写完。**"),
     ("参考文献",
-     "用 `[1] 作者. 文献名. 来源, 年份.` 格式列 3-5 条与建模方法相关的文献。"
-     "**只引用你确定真实存在的经典文献**（如本领域公认的经典教材、专著、奠基性论文）；"
-     "若输入材料（知识库检索/网络搜索结果）中含有真实文献，优先引用它们；"
-     "严禁编造不知名论文的具体卷期页码——宁可只写'作者. 文献名. 年份'也不虚构出版细节。"),
+     "用 `[1] 作者. 文献名. 来源, 年份.` 格式列 3-5 条。"
+     "**只引用你确定真实存在的经典文献**（如姜启源《数学模型》、司守奎《数学建模算法与应用》等）；"
+     "严禁编造。"
+     "**本章必须完整写完，以最后一条文献结束。**"),
 ]
 
 
@@ -844,14 +926,13 @@ def writing_agent_node(state: AgentState) -> dict:
         }
 
     # ── execute 模式：分章节流水线 ──
-    # 上下文 1M，各章共享完整材料，保证跨章一致与联想。
-    # 按调用类型绑定合理的 max_tokens：单次只写一章/一段，无需 384K 全量预算，
-    # 否则模型会放开了写超长内容，11 次串行调用慢到无法迭代。
-    llm_outline = llm.bind(max_tokens=4096)
-    llm_section = llm.bind(max_tokens=12000)
-    llm_abstract = llm.bind(max_tokens=2048)
-    llm_redteam = llm.bind(max_tokens=4096)
-    llm_revise = llm.bind(max_tokens=65536)  # 修订会重生整篇，给足余量
+    # v4-pro 支持 384K 输出，给足预算
+    llm_outline = llm.bind(max_tokens=8192)
+    llm_section = llm.bind(max_tokens=32768)      # 普通章 32K
+    llm_core_section = llm.bind(max_tokens=131072) # 核心章 128K
+    llm_abstract = llm.bind(max_tokens=8192)
+    llm_redteam = llm.bind(max_tokens=8192)
+    llm_revise = llm.bind(max_tokens=196608)       # 修订可能重生整篇
 
     materials = {
         "problem": state["problem_raw"],
@@ -873,12 +954,15 @@ def writing_agent_node(state: AgentState) -> dict:
     if first_line.startswith("#"):
         paper_title = first_line.lstrip("#").strip() or paper_title
 
-    # 2) 逐章生成
+    # 2) 逐章生成（核心章拆成4个子节，每节单独调用LLM，避免单次输出超限）
     section_texts: list[str] = []
     for i, (title, requirements) in enumerate(PAPER_SECTIONS):
         _pub_event(task_id, "node_progress", "writing_agent",
                    {"stage": "section", "title": title, "index": i + 1})
-        sec = _clean_md(llm_section.invoke([HumanMessage(
+        # 第四章子节和核心章都用大 token 预算
+        is_core = "四、模型" in title
+        llm_for_section = llm_core_section if is_core else llm_section
+        sec = _clean_md(llm_for_section.invoke([HumanMessage(
             content=WRITING_SECTION_PROMPT.format(
                 outline=outline, section_title=title,
                 section_requirements=requirements, **materials,

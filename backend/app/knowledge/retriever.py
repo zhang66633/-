@@ -711,6 +711,13 @@ class HybridRetriever(BaseRetriever):
             parts.extend(f"  - {o}" for o in prob.objectives)
         if prob.data_description:
             parts.append(f"数据描述: {prob.data_description}")
+        if prob.data_files:
+            parts.append("附件数据文件:")
+            for df in prob.data_files:
+                parts.append(
+                    f"  - {df.get('filename', '?')} "
+                    f"({df.get('rows', '?')}行, 列: {', '.join(df.get('columns', []))})"
+                )
         if prob.deliverables:
             parts.append("提交要求:")
             parts.extend(f"  - {d}" for d in prob.deliverables)
@@ -727,6 +734,8 @@ class HybridRetriever(BaseRetriever):
                 "problem_id": prob.problem_id,
                 "title": prob.title,
                 "linked_papers": prob.linked_papers,
+                "data_description": prob.data_description,
+                "data_files": prob.data_files,
             },
         )
 

@@ -11,10 +11,14 @@
 ### 核心能力
 
 - **代码执行**: 沙箱内运行 Python（matplotlib/numpy/scipy/pandas/sympy/cvxpy），图表自动内联显示
+- **竞赛数据文件**: 真题附件（xlsx/csv）自动提取表结构+复制到本地，沙箱内 `pd.read_parquet()` 秒级加载
+- **预计算加速**: 87.8万行销售数据 → 品类/单品/周内效应预聚合 parquet，加载时间从 42s 降到 0.03s
 - **文件上传**: CSV/Excel/TXT/PDF 上传后沙箱内直接读取
 - **Web 搜索**: DuckDuckGo 免费搜索，无需 API Key
 - **澄清交互**: LLM 自主判断信息不足时弹出选项卡片，用户选择后继续
-- **知识库**: 方法卡片/真题论文/框架模板，多路召回 + RRF 融合 + LLM 精排
+- **知识库**: 方法卡片/真题论文/框架模板/竞赛真题，多路召回 + RRF 融合 + MMR 重排 + LLM 精排
+- **工具结果截断**: 借鉴 cc-haha `maxResultSizeChars`，超长结果写磁盘防撑爆上下文
+- **工具基类工厂**: 借鉴 cc-haha `buildTool` 模式，统一安全默认值 + 并发安全标记
 - **用户认证**: GitHub OAuth + JWT（7天过期）+ 访客模式
 
 另有知识库管理（`/knowledge`）、API Key 管理（`/apikeys`）、设置（`/settings`）页面。
@@ -79,15 +83,34 @@ math_agent/
 │   │   ├── config.py          # 配置（各 agent 角色模型、沙箱参数）
 │   │   ├── api/
 │   │   │   ├── chat_routes.py # POST /api/chat — SSE 流式对话
+│   │   │   ├── tasks.py       # 任务编排（附件提取、后台流水线）
 │   │   │   ├── files.py       # 文件上传/下载 + 图片服务
 │   │   │   ├── ws.py          # WebSocket 任务进度
 │   │   │   └── knowledge_routes.py
 │   │   ├── core/              # LangGraph 编排 + prompts
-│   │   ├── knowledge/         # 混合检索（向量+BM25+RRF+LLM精排）
-│   │   ├── sandbox/           # 代码沙箱（subprocess + 网络阻断）
-│   │   ├── tools/             # KB/数学/交互/搜索工具
-│   │   └── services/          # Redis PubSub（fakeredis 回退）
-│   └── knowledge_base/        # 知识数据（YAML 真源，入库 git）
+│   │   │   ├── nodes.py       # 8 节点（分类/检索/规划/分析/建模/求解/验证/写作）
+│   │   │   ├── state.py       # AgentState（含 data_files 数据文件字段）
+│   │   │   ├── workflow.py    # LangGraph StateGraph 拓扑
+│   │   │   └── prompts/       # 各 Agent 系统提示词
+│   │   ├── knowledge/         # 混合检索（向量+BM25+RRF+MMR+LLM精排+时间衰减）
+│   │   ├── sandbox/           # 代码沙箱（subprocess + 网络阻断 + 数据文件自动挂载）
+│   │   ├── tools/             # KB/数学/交互/搜索工具 + base.py（build_tool 工厂）
+│   │   ├── learning/          # 学习工位系统（知识图谱 + 掌握度追踪）
+│   │   └── services/          # Redis PubSub（fakeredis 回退）+ 工作记忆 + 情景记忆
+│   ├── knowledge_base/        # 知识数据（YAML 真源，入库 git）
+│   │   ├── methods/           # 方法卡片（47张）
+│   │   ├── papers/            # 优秀论文拆解
+│   │   ├── problems/          # 竞赛真题（含 data_files 附件信息）
+│   │   └── templates/         # 解题框架模板
+│   ├── data/                  # 运行时数据（gitignore）
+│   │   ├── problems/          # 竞赛真题附件数据文件（如 2023C/附件1-4.xlsx）
+│   │   ├── chroma_db/         # ChromaDB 向量索引
+│   │   └── uploads/           # 用户上传文件
+│   └── scripts/               # 工具脚本
+│       ├── run_c_problem_test.py  # 2023C 端到端测试（含数据文件发现）
+│       ├── precompute_2023C.py    # 预计算聚合数据（品类/单品/周内效应）
+│       ├── import_problems.py     # 导入竞赛真题（含附件提取+复制）
+│       └── paper_quality_check.py # 论文质检（12项评分）
 │
 └── frontend/                  # Vue 3 + Vite + TailwindCSS
     └── src/
@@ -103,10 +126,12 @@ math_agent/
 - **前端**: Vue 3 + Vite 6 + TypeScript + TailwindCSS + Pinia + lucide-vue-next
 - **后端**: FastAPI + LangGraph + LangChain + uvicorn
 - **实时**: SSE（对话流式）+ WebSocket（任务进度，Redis PubSub / fakeredis）
-- **知识库**: YAML 真源 + ChromaDB（多路召回 + RRF + LLM rerank + 时间衰减）
-- **沙箱**: subprocess + socket 阻断 + rlimit（Unix）+ matplotlib Agg 自动保存
-- **LLM**: DeepSeek（默认）/ 任意 OpenAI 兼容接口，按 agent 角色配置模型
+- **知识库**: YAML 真源 + ChromaDB（多路召回 + RRF + MMR + LLM rerank + 时间衰减）
+- **数据文件**: xlsx/csv → parquet 预计算 + 列名标准化，沙箱秒级加载
+- **沙箱**: subprocess + socket 阻断 + rlimit（Unix）+ matplotlib Agg 自动保存 + 数据文件自动挂载
+- **LLM**: DeepSeek（默认）/ 任意 OpenAI 兼容接口，按 agent 角色配置模型，写作节点 384K max_tokens
 - **安全**: DOMPurify（XSS）+ 路径校验 + JWT 7天过期 + 环境清洗
+- **借鉴模式**: cc-haha 的 buildTool 工厂 / maxResultSizeChars 截断 / History Snip 上下文压缩
 
 ## 备注
 

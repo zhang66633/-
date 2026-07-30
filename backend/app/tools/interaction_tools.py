@@ -8,6 +8,7 @@ run_code:
     复用 SandboxExecutor 在受限子进程中执行 Python 代码，
     返回 stdout + 生成的图片路径。供 chat/teach 模式使用。
     支持 file_ids：将用户上传的文件复制到沙箱工作目录。
+    支持 data_files_dir：自动挂载题目数据文件目录到沙箱。
 """
 
 from __future__ import annotations
@@ -21,6 +22,8 @@ from typing import ClassVar, List, Optional, Type
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from .base import TOOL_DEFAULTS
 
 logger = logging.getLogger(__name__)
 
@@ -93,13 +96,21 @@ class RunCodeTool(BaseTool):
     name: ClassVar[str] = "run_code"
     description: ClassVar[str] = (
         "执行 Python 代码进行数值计算、数据分析或绘图。"
-        "适用场景：验证公式、数值求解、画函数图/统计图、处理用户上传的数据文件。"
+        "适用场景：验证公式、数值求解、画函数图/统计图、处理数据文件。"
         "代码中可用: numpy, scipy, matplotlib, pandas, sympy, cvxpy。"
         "matplotlib 图表会自动保存并返回路径。"
-        "如果用户上传了文件（CSV/Excel/TXT 等），在 file_ids 中传入对应 ID，"
-        "文件会被复制到工作目录，代码中直接用文件名读取（如 pd.read_csv('data.csv')）。"
+        "**数据文件已自动挂载到工作目录，直接用 pd.read_parquet('文件名') 读取，不需要传 file_ids。**"
     )
     args_schema: Type[BaseModel] = RunCodeInput
+
+    # ── 安全默认值（借鉴 cc-haha）──
+    is_concurrency_safe: bool = False   # 代码执行有副作用，不可并发
+    is_read_only: bool = False
+    is_destructive: bool = False
+    max_result_chars: int = TOOL_DEFAULTS["max_result_chars"]
+
+    # ── 可选：题目数据文件目录（由求解节点注入）──
+    data_files_dir: str = ""
 
     def _run(
         self,
@@ -124,6 +135,17 @@ class RunCodeTool(BaseTool):
                 else:
                     logger.warning("file_id %s 在上传目录中未找到", fid)
 
+        # 自动挂载题目数据文件（如果设置了 data_files_dir）
+        if self.data_files_dir:
+            data_dir = Path(self.data_files_dir)
+            if data_dir.exists():
+                for f in data_dir.iterdir():
+                    if f.is_file() and f.suffix.lower() in (
+                        ".xlsx", ".xls", ".csv", ".tsv", ".txt", ".json", ".dat"
+                    ):
+                        extra_files.append(str(f))
+                        logger.info("自动挂载数据文件: %s", f.name)
+
         result = executor.run(code, extra_files=extra_files or None)
 
         parts = []
@@ -132,7 +154,6 @@ class RunCodeTool(BaseTool):
         if result["stderr"] and not result["success"]:
             parts.append(f"错误:\n{result['stderr']}")
         if result["images"]:
-            # 返回可访问的图片 URL 而非原始路径
             img_urls = []
             for img_path in result["images"]:
                 p = Path(img_path)

@@ -50,6 +50,10 @@ class AgentState(TypedDict):
     # --- 用户 API Key 配置 ---
     api_key_config: Optional[dict]
 
+    # --- 题目数据附件 ---
+    data_files: List[dict]          # 本题关联的数据文件信息 [{filename, columns, rows, ...}]
+    data_files_dir: str             # 数据文件在磁盘上的目录路径
+
     # --- 最终输出 ---
     final_response: Optional[str]
 
@@ -59,6 +63,8 @@ def create_initial_state(
     mode: Literal["teach", "execute"] = "execute",
     session_id: str = "default",
     api_key_config: dict | None = None,
+    data_files: list | None = None,
+    data_files_dir: str = "",
 ) -> AgentState:
     """创建初始状态，填好默认值。"""
     return AgentState(
@@ -86,5 +92,7 @@ def create_initial_state(
         verification_feedback=None,
         rollback_target=None,
         api_key_config=api_key_config,
+        data_files=data_files or [],
+        data_files_dir=data_files_dir,
         final_response=None,
     )

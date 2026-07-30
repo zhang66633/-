@@ -110,6 +110,7 @@ class Problem(BaseModel):
     background: str = ""           # 问题背景简述
     objectives: List[str] = Field(default_factory=list)   # 求解目标列表
     data_description: str = ""     # 提供的附件数据说明
+    data_files: List[dict] = Field(default_factory=list)  # 附件数据文件信息
     deliverables: List[str] = Field(default_factory=list) # 需要提交的内容
     tags: dict = Field(default_factory=lambda: {
         "problem_type": [],
