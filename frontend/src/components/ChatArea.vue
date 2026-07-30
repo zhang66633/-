@@ -63,6 +63,7 @@
       :is-running="isRunning"
       :input-placeholder="inputPlaceholder"
       :messages-count="messages.length"
+      :prefill="prefillText"
       @send="(text, files) => $emit('send', text, files)"
       @export="$emit('export')"
     />
@@ -87,6 +88,7 @@ const props = withDefaults(
     emptyText?: string;
     emptySubtext?: string;
     inputPlaceholder?: string;
+    prefillText?: string;
     cancellable?: boolean;
     cancelling?: boolean;
   }>(),
@@ -95,6 +97,7 @@ const props = withDefaults(
     emptyText: "开始对话",
     emptySubtext: "在下方输入你的问题",
     inputPlaceholder: "输入消息...",
+    prefillText: "",
     cancellable: false,
     cancelling: false,
   },

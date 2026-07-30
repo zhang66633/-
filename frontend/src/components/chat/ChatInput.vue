@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch, nextTick } from "vue";
 import { Send, Loader2, Paperclip, X, Download } from "lucide-vue-next";
 import { uploadChatFile, type ChatFileRef } from "@/apis/chatApi";
 
@@ -7,10 +7,12 @@ const props = withDefaults(defineProps<{
   isRunning?: boolean;
   inputPlaceholder?: string;
   messagesCount?: number;
+  prefill?: string;
 }>(), {
   isRunning: false,
   inputPlaceholder: "输入消息...",
   messagesCount: 0,
+  prefill: "",
 });
 
 const emit = defineEmits<{
@@ -20,6 +22,9 @@ const emit = defineEmits<{
 
 const inputText = ref("");
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+
+// 接收外部预填文本
+watch(() => props.prefill, (v) => { if (v) { inputText.value = v; nextTick(() => { textareaRef.value?.focus(); autoResize(); }); } });
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const attachedFiles = ref<ChatFileRef[]>([]);
 const uploading = ref(false);

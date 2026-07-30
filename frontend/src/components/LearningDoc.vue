@@ -1,5 +1,5 @@
 <template>
-  <div ref="docRoot" class="learning-doc relative h-full overflow-y-auto" @scroll="onScroll" @mousedown="onDocMouseDown">
+  <div ref="docRoot" class="learning-doc relative h-full overflow-y-auto" @scroll="onScroll" @mousedown="onDocMouseDown" @contextmenu.prevent>
     <div class="sticky top-0 left-0 right-0 h-0.5 bg-border z-10">
       <div class="h-full bg-primary transition-all duration-150" :style="{ width: progressPercent + '%' }" />
     </div>
@@ -75,6 +75,12 @@ function onGlobalMouseUp() {
   setTimeout(() => {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) return;
+    // 限制选区必须在文档内容内
+    if (!contentRef.value) return;
+    const anchorInDoc = contentRef.value.contains(sel.anchorNode);
+    const focusInDoc = contentRef.value.contains(sel.focusNode);
+    if (!anchorInDoc || !focusInDoc) return;
+
     const t = sel.toString().trim();
     if (t.length < 1) return;
     selectedText = t;

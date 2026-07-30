@@ -47,6 +47,7 @@
             :is-running="chatSession.getIsRunning('learning')"
             :empty-text="`${agentName} 在此答疑`" :empty-subtext="'选中文档文字 → 点「问AI」快速提问'"
             :input-placeholder="`向${agentName}提问...`"
+            :prefill-text="prefillText"
             cancellable @send="handleSend" @cancel="cancelStream" />
         </div>
       </div>
@@ -107,13 +108,13 @@ const chatOpen = ref(true);
 const headings = ref<{ id: string; text: string; level: number }[]>([]);
 const activeHeading = ref("");
 const notes = ref<NoteItem[]>([]);
+const prefillText = ref("");
 
-// ── 问AI — 直接发送 ────────────────────────────────
+// ── 问AI — 预填到聊天框 ─────────────────────────────
 
 function handleAskAI(text: string, section: string) {
   chatOpen.value = true;
-  const question = `关于「${section || unit.value?.title || ''}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
-  handleUserSend(question, undefined, unitContext.value);
+  prefillText.value = `关于「${section || unit.value?.title || ''}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
 }
 
 // ── 笔记 ───────────────────────────────────────────
