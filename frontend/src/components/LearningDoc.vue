@@ -16,10 +16,10 @@
         class="fixed z-50 flex items-center gap-0.5 rounded-md border border-border bg-card shadow-lg px-1.5 py-1.5"
         :style="{ left: toolbar.x + 'px', top: toolbar.y + 'px' }"
       >
-        <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @mousedown.prevent="doAddNote">
+        <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @click.stop="doAddNote">
           <StickyNote class="h-3.5 w-3.5" />笔记
         </button>
-        <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @mousedown.prevent="doAskAI">
+        <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @click.stop="doAskAI">
           <MessageCircleQuestion class="h-3.5 w-3.5" />问AI
         </button>
       </div>
@@ -69,7 +69,7 @@ const toolbar = ref({ visible: false, x: 0, y: 0 });
 let selectedText = "";
 let selectedSection = "";
 
-function onDocMouseDown() { toolbar.value.visible = false; }
+function onDocMouseDown() { setTimeout(() => { toolbar.value.visible = false; }, 150); }
 
 function onGlobalMouseUp() {
   setTimeout(() => {
