@@ -1,34 +1,42 @@
 <template>
   <div class="flex h-full bg-background">
-    <!-- 左侧: 目录 + 笔记 -->
-    <div class="w-56 shrink-0 border-r flex flex-col">
-      <div class="flex-1 overflow-y-auto min-h-0">
-        <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground px-3 py-2.5 border-b">📑 目录</p>
-        <div class="py-1">
-          <button v-for="h in headings" :key="h.id"
-            class="block w-full text-left px-3 py-1 text-xs transition-colors hover:bg-accent/50 truncate"
-            :class="activeHeading === h.id ? 'text-primary font-medium bg-primary/5' : 'text-muted-foreground'"
-            :style="{ paddingLeft: (h.level * 8) + 'px' }" @click="scrollToHeading(h.id)">{{ h.text }}</button>
-          <div v-if="headings.length === 0" class="px-3 py-4 text-[11px] text-muted-foreground text-center">暂无目录</div>
+    <!-- 左侧栏: 可折叠 -->
+    <div :class="leftOpen ? 'w-56' : 'w-10'" class="shrink-0 border-r flex flex-col transition-all duration-200">
+      <!-- 折叠按钮 -->
+      <button class="flex items-center justify-center py-2 border-b hover:bg-accent/50 transition-colors" @click="leftOpen = !leftOpen" :title="leftOpen ? '折叠侧栏' : '展开侧栏'">
+        <PanelLeftOpen v-if="leftOpen" class="h-3.5 w-3.5 text-muted-foreground" />
+        <PanelLeft v-else class="h-3.5 w-3.5 text-muted-foreground" />
+      </button>
+
+      <template v-if="leftOpen">
+        <div class="flex-1 overflow-y-auto min-h-0">
+          <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground px-3 py-2.5 border-b">📑 目录</p>
+          <div class="py-1">
+            <button v-for="h in headings" :key="h.id"
+              class="block w-full text-left px-3 py-1 text-xs transition-colors hover:bg-accent/50 truncate"
+              :class="activeHeading === h.id ? 'text-primary font-medium bg-primary/5' : 'text-muted-foreground'"
+              :style="{ paddingLeft: (h.level * 8) + 'px' }" @click="scrollToHeading(h.id)">{{ h.text }}</button>
+            <div v-if="headings.length === 0" class="px-3 py-4 text-[11px] text-muted-foreground text-center">暂无目录</div>
+          </div>
         </div>
-      </div>
-      <div class="h-52 shrink-0 border-t">
-        <NotePanel :notes="notes" @add-blank="openNoteEditor('', '')" @update="updateNote" @remove="removeNote" @jump-to="scrollToHeading" />
-      </div>
+        <div class="h-52 shrink-0 border-t">
+          <NotePanel :notes="notes" @add-blank="openNoteEditor('', '')" @update="updateNote" @remove="removeNote" @jump-to="scrollToHeading" />
+        </div>
+      </template>
     </div>
 
     <!-- 中间+右侧 -->
     <div class="flex-1 flex flex-col min-w-0 min-h-0">
-      <div class="flex items-center justify-between border-b px-6 py-2.5 shrink-0 bg-muted/20">
-        <div class="flex items-center gap-3">
-          <button class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" @click="$router.push('/learn')"><ArrowLeft class="h-4 w-4" />返回</button>
+      <div class="flex items-center justify-between border-b px-4 py-2 shrink-0 bg-muted/20">
+        <div class="flex items-center gap-2">
+          <button class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground" @click="$router.push('/learn')"><ArrowLeft class="h-4 w-4" />返回</button>
           <span class="text-muted-foreground text-sm">/</span>
-          <span class="font-display font-medium text-sm">{{ unit?.title ?? '加载中...' }}</span>
-          <span v-if="unit" class="font-mono text-[10px] px-2 py-0.5 rounded border" :class="difficultyBadge">{{ difficultyLabel }}</span>
+          <span class="font-display font-medium text-sm truncate">{{ unit?.title ?? '加载中...' }}</span>
+          <span v-if="unit" class="font-mono text-[10px] px-1.5 py-0.5 rounded border shrink-0" :class="difficultyBadge">{{ difficultyLabel }}</span>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="font-mono text-[10px] text-muted-foreground">⏱ {{ unit?.estimated_minutes ?? '--' }}分钟</span>
-          <button class="font-mono text-[10px] text-muted-foreground hover:text-foreground" @click="chatOpen = !chatOpen">{{ chatOpen ? '收起助手 →' : '💬 助手' }}</button>
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="font-mono text-[10px] text-muted-foreground hidden sm:inline">⏱ {{ unit?.estimated_minutes ?? '--' }}分钟</span>
+          <button class="font-mono text-[10px] text-muted-foreground hover:text-foreground" @click="chatOpen = !chatOpen">{{ chatOpen ? '收起助手' : '💬 助手' }}</button>
         </div>
       </div>
 
@@ -36,12 +44,24 @@
       <div v-else-if="store.error" class="flex-1 flex items-center justify-center"><p class="text-sm text-destructive">{{ store.error }}</p></div>
 
       <div v-else-if="unit" class="flex-1 flex min-h-0">
+        <!-- 文档区 -->
         <div class="flex-1 min-w-0 min-h-0">
           <LearningDoc ref="docRef" :markdown="docMarkdown" :unit-id="unit.unit_id"
             :on-add-note="openNoteEditor" :on-ask-a-i="handleAskAI"
             @headings-change="headings = $event" @scroll-section="activeHeading = $event" />
         </div>
-        <div v-show="chatOpen" class="w-80 shrink-0 border-l flex flex-col min-h-0 overflow-hidden">
+
+        <!-- 拖拽分隔条 -->
+        <div
+          v-if="chatOpen"
+          class="w-1.5 shrink-0 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors relative group"
+          @mousedown="startResize"
+        >
+          <div class="absolute inset-y-0 -left-1 -right-1" />
+        </div>
+
+        <!-- 聊天区 -->
+        <div v-show="chatOpen" class="shrink-0 border-l flex flex-col min-h-0 overflow-hidden" :style="{ width: chatWidth + 'px' }">
           <ChatArea
             :messages="chatSession.activeLearningMessages"
             :is-running="chatSession.getIsRunning('learning')"
@@ -87,9 +107,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
-import { ArrowLeft, Loader2, CheckCircle, StickyNote } from "lucide-vue-next";
+import { ArrowLeft, Loader2, CheckCircle, StickyNote, PanelLeftOpen, PanelLeft } from "lucide-vue-next";
 import ChatArea from "@/components/ChatArea.vue";
 import LearningDoc from "@/components/LearningDoc.vue";
 import NotePanel from "@/components/NotePanel.vue";
@@ -105,39 +125,63 @@ const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat("le
 
 const docRef = ref<InstanceType<typeof LearningDoc>>();
 const chatOpen = ref(true);
+const chatWidth = ref(400);
+const leftOpen = ref(true);
 const headings = ref<{ id: string; text: string; level: number }[]>([]);
 const activeHeading = ref("");
 const notes = ref<NoteItem[]>([]);
 const prefillText = ref("");
 
-// ── 问AI — 预填到聊天框 ─────────────────────────────
+// ── 拖拽调整聊天区宽度 ─────────────────────────────
+
+let resizeStartX = 0;
+let resizeStartWidth = 0;
+
+function startResize(e: MouseEvent) {
+  resizeStartX = e.clientX;
+  resizeStartWidth = chatWidth.value;
+  document.addEventListener("mousemove", onResize);
+  document.addEventListener("mouseup", stopResize);
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+}
+
+function onResize(e: MouseEvent) {
+  const delta = resizeStartX - e.clientX;
+  chatWidth.value = Math.max(280, Math.min(700, resizeStartWidth + delta));
+}
+
+function stopResize() {
+  document.removeEventListener("mousemove", onResize);
+  document.removeEventListener("mouseup", stopResize);
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+}
+
+onBeforeUnmount(() => {
+  document.removeEventListener("mousemove", onResize);
+  document.removeEventListener("mouseup", stopResize);
+});
+
+// ── 问AI ───────────────────────────────────────────
 
 function handleAskAI(text: string, section: string) {
   chatOpen.value = true;
-  // 双保险：预填输入框 + 直接发送
   const question = `关于「${section || unit.value?.title || ''}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
   prefillText.value = question;
-  // 延迟确保 chatOpen 已生效
   setTimeout(() => { handleUserSend(question, undefined, unitContext.value); }, 50);
 }
 
 // ── 笔记 ───────────────────────────────────────────
 
 const noteEditor = ref({ visible: false, isNew: true, title: "", quote: "", comment: "", section: "", headingId: "" });
-
-function openNoteEditor(quote: string, section: string) {
-  noteEditor.value = { visible: true, isNew: true, title: quote.slice(0, 30), quote, comment: "", section, headingId: activeHeading.value };
-}
+function openNoteEditor(quote: string, section: string) { noteEditor.value = { visible: true, isNew: true, title: quote.slice(0, 30), quote, comment: "", section, headingId: activeHeading.value }; }
 function closeNoteEditor() { noteEditor.value.visible = false; }
 function saveNote() {
   const e = noteEditor.value;
-  if (e.isNew) {
-    notes.value.push({ title: e.title || "未命名笔记", quote: e.quote, section: e.section, comment: e.comment, headingId: e.headingId });
-  }
-  saveNotes();
-  noteEditor.value.visible = false;
+  if (e.isNew) notes.value.push({ title: e.title || "未命名笔记", quote: e.quote, section: e.section, comment: e.comment, headingId: e.headingId });
+  saveNotes(); noteEditor.value.visible = false;
 }
-
 function updateNote(i: number, note: NoteItem) { notes.value[i] = note; saveNotes(); }
 function removeNote(i: number) { notes.value.splice(i, 1); saveNotes(); }
 function saveNotes() { try { localStorage.setItem(`notes_${unitId.value}`, JSON.stringify(notes.value)); } catch {} }
@@ -163,7 +207,6 @@ function retry() { if (unitId.value) store.loadUnit(unitId.value); }
 onMounted(() => { if (unitId.value) store.loadUnit(unitId.value); restoreLatestSession(); loadNotes(); });
 watch(() => route.params.unitId, (id) => { if (id) { store.loadUnit(id as string); loadNotes(); headings.value = []; activeHeading.value = ""; } });
 
-// ── 文档 ──────────────────────────────────────────
 const docMarkdown = computed(() => {
   const id = unitId.value;
   if (id === "prog_py_01") return `# Python科学计算入门\n\n## 为什么学?\n数学建模竞赛中，编程手需要快速将数学模型转化为可执行的代码。Python 凭借其丰富的科学计算生态，已成为数学建模最主流的编程语言之一。\n\n**核心优势：**\n- NumPy 提供高性能数组运算\n- SciPy 封装了优化、积分、统计等常用算法\n- 语法简洁，学习曲线平缓\n\n## NumPy 基础\n\n### 创建数组\n\n\`\`\`python\nimport numpy as np\narr = np.array([1, 2, 3, 4, 5])\nzeros = np.zeros((3, 4))\nlinear = np.linspace(0, 1, 100)\n\`\`\`\n\n### 向量化运算\n\n\`\`\`python\na = np.array([1, 2, 3])\nb = np.array([4, 5, 6])\nprint(a + b)   # [5 7 9]\nprint(a * b)   # [4 10 18]\n\`\`\`\n\n### 矩阵运算\n\n\`\`\`python\nA = np.array([[1, 2], [3, 4]])\nB = np.array([[5, 6], [7, 8]])\nC = A @ B\ninv_A = np.linalg.inv(A)\n\`\`\`\n\n## 小结\nNumPy 是 Python 科学计算的基石。`;
