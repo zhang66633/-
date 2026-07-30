@@ -7,6 +7,17 @@
       <div ref="contentRef" class="prose prose-sm prose-gray dark:prose-invert max-w-none" v-html="renderedHtml" />
     </div>
     <div class="h-64" />
+
+    <!-- 仿浏览器蓝色选区覆盖层 -->
+    <Teleport to="body">
+      <div v-if="fakeSel.visible" class="fixed inset-0 pointer-events-none z-40">
+        <div v-for="(r, i) in fakeSel.rects" :key="i"
+          class="absolute" style="background: rgba(0,102,204,0.25);"
+          :style="{ left: r.left + 'px', top: r.top + window.scrollY + 'px', width: r.width + 'px', height: r.height + 'px' }" />
+      </div>
+    </Teleport>
+
+    <!-- Mini Toolbar -->
     <Teleport to="body">
       <div v-if="toolbar.visible" class="fixed z-50 flex items-center gap-0.5 rounded-md border border-border bg-card shadow-lg px-1.5 py-1.5" :style="{ left: toolbar.x + 'px', top: toolbar.y + 'px' }">
         <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @mousedown.stop.prevent="doAddNote">
@@ -27,8 +38,7 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 
 const props = defineProps<{
-  markdown: string;
-  unitId: string;
+  markdown: string; unitId: string;
   onAddNote?: (text: string, section: string) => void;
   onAskAI?: (text: string, section: string) => void;
 }>();
@@ -57,13 +67,22 @@ function extractHeadings() {
 }
 watch(renderedHtml, () => setTimeout(extractHeadings, 0));
 
+// ── 选区 ────────────────────────────────────────────
+
 const toolbar = ref({ visible: false, x: 0, y: 0 });
+const fakeSel = ref<{ visible: boolean; rects: DOMRect[] }>({ visible: false, rects: [] });
 let selectedText = "";
 let selectedSection = "";
+const window = { scrollY: 0 };
 
-function onDocMouseDown() { setTimeout(() => { toolbar.value.visible = false; }, 200); }
+function updateScrollY() { window.scrollY = globalThis.scrollY || 0; }
+
+function onDocMouseDown() {
+  setTimeout(() => { toolbar.value.visible = false; fakeSel.value.visible = false; }, 200);
+}
 
 function onGlobalMouseUp() {
+  updateScrollY();
   const sel = document.getSelection ? document.getSelection() : null;
   if (!sel || sel.isCollapsed) return;
   if (!contentRef.value) return;
@@ -79,15 +98,29 @@ function onGlobalMouseUp() {
     if (n.nodeName?.match(/^H[1-4]$/)) { selectedSection = n.textContent || ""; break; }
     n = n.parentElement as any;
   }
+
+  // 保存选区矩形 → 仿蓝色高亮
+  const rects: DOMRect[] = [];
+  try {
+    for (let i = 0; i < sel.rangeCount; i++) {
+      const r = sel.getRangeAt(i).getClientRects();
+      for (let j = 0; j < r.length; j++) rects.push(r[j].toJSON());
+    }
+  } catch {}
+  fakeSel.value = { visible: true, rects };
+
+  // 用第一个矩形定位 toolbar
   const rc = sel.getRangeAt(0).getBoundingClientRect();
   toolbar.value = { visible: true, x: Math.max(10, rc.left + rc.width / 2 - 70), y: Math.max(10, rc.top - 44) };
 
-  // 立即清除浏览器选区，防止弹出浏览器原生菜单
+  // 清浏览器选区 → 蓝高亮由 fakeSel 维持
   sel.removeAllRanges();
 }
 
-function doAddNote() { if (selectedText && props.onAddNote) props.onAddNote(selectedText, selectedSection); toolbar.value.visible = false; }
-function doAskAI() { if (selectedText && props.onAskAI) props.onAskAI(selectedText, selectedSection); toolbar.value.visible = false; }
+function doAddNote() { if (selectedText && props.onAddNote) props.onAddNote(selectedText, selectedSection); toolbar.value.visible = false; fakeSel.value.visible = false; }
+function doAskAI() { if (selectedText && props.onAskAI) props.onAskAI(selectedText, selectedSection); toolbar.value.visible = false; fakeSel.value.visible = false; }
+
+// ── 滚动 ────────────────────────────────────────────
 
 function onScroll() {
   if (!docRoot.value) return;
@@ -98,12 +131,21 @@ function onScroll() {
   let id = "";
   contentRef.value.querySelectorAll("h1,h2,h3").forEach((h) => { if (h.getBoundingClientRect().top <= 120) id = h.id; });
   if (id) emit("scrollSection", id);
+
+  // 滚动时隐藏仿高亮
+  fakeSel.value.visible = false;
 }
 function scrollToHeading(id: string) { contentRef.value?.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }
 defineExpose({ scrollToHeading });
 
-onMounted(() => document.addEventListener("mouseup", onGlobalMouseUp));
-onBeforeUnmount(() => document.removeEventListener("mouseup", onGlobalMouseUp));
+onMounted(() => {
+  document.addEventListener("mouseup", onGlobalMouseUp);
+  globalThis.addEventListener("scroll", updateScrollY, true);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("mouseup", onGlobalMouseUp);
+  globalThis.removeEventListener("scroll", updateScrollY, true);
+});
 </script>
 
 <style scoped>
