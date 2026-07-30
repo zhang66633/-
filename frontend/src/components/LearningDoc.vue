@@ -63,8 +63,7 @@ let selectedSection = "";
 
 function onDocMouseDown() { setTimeout(() => { toolbar.value.visible = false; }, 200); }
 
-function onGlobalMouseUp(e: MouseEvent) {
-  // 手册方式检测选区（绕过 selectstart prevent）
+function onGlobalMouseUp() {
   const sel = document.getSelection ? document.getSelection() : null;
   if (!sel || sel.isCollapsed) return;
   if (!contentRef.value) return;
@@ -82,11 +81,13 @@ function onGlobalMouseUp(e: MouseEvent) {
   }
   const rc = sel.getRangeAt(0).getBoundingClientRect();
   toolbar.value = { visible: true, x: Math.max(10, rc.left + rc.width / 2 - 70), y: Math.max(10, rc.top - 44) };
+
+  // 立即清除浏览器选区，防止弹出浏览器原生菜单
+  sel.removeAllRanges();
 }
 
-function doAddNote() { if (selectedText && props.onAddNote) props.onAddNote(selectedText, selectedSection); clearSelection(); }
-function doAskAI() { if (selectedText && props.onAskAI) props.onAskAI(selectedText, selectedSection); clearSelection(); }
-function clearSelection() { toolbar.value.visible = false; window.getSelection()?.removeAllRanges(); }
+function doAddNote() { if (selectedText && props.onAddNote) props.onAddNote(selectedText, selectedSection); toolbar.value.visible = false; }
+function doAskAI() { if (selectedText && props.onAskAI) props.onAskAI(selectedText, selectedSection); toolbar.value.visible = false; }
 
 function onScroll() {
   if (!docRoot.value) return;
