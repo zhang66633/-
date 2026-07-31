@@ -54,26 +54,39 @@ export const useTaskStore = defineStore("task", () => {
         tool_name: data.data?.tool_name ?? "run_code",
         input: data.data?.input ?? null,
         output: data.data?.output ?? null,
+        status: "success",
         created_at: now(),
       } as Message);
       return;
     }
 
-    // 节点完成：追加一条进度 system 消息 + 更新当前步骤
-    // 优先用 summary（节点实际产出）替代空泛的 desc，让用户看到"做了什么"
+    // 节点完成：追加一条 agent 消息，思考内容放入 thinking 字段
+    // 这样 BubbleAgent + ThinkingBlock 可以渲染可折叠的思考过程
     if (event === "node_end") {
       const stage = data.data?.stage ?? "";
       const title = data.data?.title ?? stage;
-      const desc = data.data?.desc ?? "";
       const summary: string = (data.data?.summary ?? "").trim();
-      const content = summary
-        ? `[${title}] ${desc}\n\n${summary}${summary.length >= 800 ? "…" : ""}`
-        : `[${title}] ${desc}…`;
+      const outputLength = data.data?.output_length ?? 0;
+      const passed = data.data?.passed;
+      const imagesCount = data.data?.images_count ?? 0;
+
+      // 构建给用户看的摘要
+      let content = "";
+      if (passed !== undefined) {
+        content = passed ? "✅ 验证通过" : "❌ 验证不通过";
+      } else if (imagesCount > 0) {
+        content = `求解完成，输出 ${outputLength} 字，图表 ${imagesCount} 张`;
+      } else if (outputLength > 0) {
+        content = `输出 ${outputLength} 字`;
+      }
+
       appendMessage(taskId, {
         id: data.id ?? genId(),
-        msg_type: "system",
-        type: "info",
+        msg_type: "agent",
         content,
+        agent_type: undefined,
+        thinking: summary || `[${title}] 分析完成`,
+        streaming: false,
         created_at: now(),
       } as Message);
       currentStep.value = stage || currentStep.value;

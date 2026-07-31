@@ -108,7 +108,10 @@ def classify_problem(state: AgentState) -> dict:
     _pub_event(task_id, "node_end", "classify", {
         "problem_type": result.get("problem_type", ""),
         "problem_complexity": result.get("problem_complexity", "simple"),
-        "summary": result.get("summary", ""),
+        "summary": result.get("summary", "") or json.dumps(result, ensure_ascii=False),
+        "output_length": len(json.dumps(result, ensure_ascii=False)),
+        "title": "问题分类",
+        "desc": result.get("problem_type", "") + " · " + result.get("problem_complexity", "simple"),
     })
 
     # 工作记忆：保存分类结果
@@ -251,6 +254,10 @@ def retrieve_knowledge(state: AgentState) -> dict:
         "papers_count": len(papers),
         "templates_count": len(templates),
         "problems_count": len(problems),
+        "summary": f"检索到 {len(methods)} 个方法, {len(papers)} 篇论文, {len(templates)} 个模板, {len(problems)} 道真题",
+        "title": "知识检索",
+        "desc": f"方法 {len(methods)} · 论文 {len(papers)} · 模板 {len(templates)} · 真题 {len(problems)}",
+        "output_length": len(methods) + len(papers) + len(templates) + len(problems),
     })
 
     # 工作记忆：保存检索结果摘要
@@ -432,6 +439,9 @@ def analysis_agent_node(state: AgentState) -> dict:
     _pub_event(task_id, "node_end", "analysis_agent", {
         "step": idx + 1,
         "output_length": len(analysis_output),
+        "summary": analysis_output[:800],
+        "title": "问题分析",
+        "desc": f"深度分析问题结构，输出 {len(analysis_output)} 字",
     })
 
     if state["mode"] == "execute":
@@ -498,6 +508,9 @@ def modeling_agent_node(state: AgentState) -> dict:
     _pub_event(task_id, "node_end", "modeling_agent", {
         "step": idx + 1,
         "output_length": len(model_output),
+        "summary": model_output[:800],
+        "title": "模型构建",
+        "desc": f"建立数学模型，输出 {len(model_output)} 字",
     })
 
     if state["mode"] == "execute":
@@ -591,6 +604,9 @@ def solving_agent_node(state: AgentState) -> dict:
             "step": idx + 1,
             "output_length": len(final_output),
             "images_count": 0,
+            "summary": final_output[:800],
+            "title": "求解计算",
+            "desc": f"输出 {len(final_output)} 字（教学模式）",
         })
         return {
             "solving_output": final_output,
@@ -727,6 +743,9 @@ def solving_agent_node(state: AgentState) -> dict:
         "step": idx + 1,
         "output_length": len(final_output),
         "images_count": len(all_images),
+        "summary": final_output[:800],
+        "title": "求解计算",
+        "desc": f"输出 {len(final_output)} 字" + (f"，图表 {len(all_images)} 张" if all_images else ""),
     })
 
     if state["mode"] == "execute":
@@ -814,6 +833,10 @@ def verification_agent_node(state: AgentState) -> dict:
         "step": idx + 1,
         "passed": passed,
         "rollback_target": rollback if not passed else None,
+        "summary": full_text[:800],
+        "title": "验证分析",
+        "desc": "✅ 通过" if passed else "❌ 不通过，回退到 " + rollback,
+        "output_length": len(full_text),
     })
 
     if state["mode"] == "execute":
@@ -1003,6 +1026,9 @@ def writing_agent_node(state: AgentState) -> dict:
         "step": idx + 1,
         "output_length": len(writing_output),
         "red_team": "PASS" if "PASS" in critique.upper().split("\n")[0] else "REVISED",
+        "summary": writing_output[:800],
+        "title": "论文写作",
+        "desc": f"论文 {len(writing_output)} 字" + (" · 红队审校通过" if "PASS" in critique.upper().split("\n")[0] else " · 红队修订完成"),
     })
 
     if state["mode"] == "execute":
