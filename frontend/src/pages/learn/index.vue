@@ -1,3 +1,51 @@
+<script setup lang="ts">
+import { computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import ChatArea from "@/components/ChatArea.vue";
+import SkillGraph from "@/components/SkillGraph.vue";
+import OnboardingWizard from "@/components/onboarding/OnboardingWizard.vue";
+import { useLearningStore, type AgentRole } from "@/stores/learning";
+import { useChatSessionStore } from "@/stores/chatSession";
+import { useStreamChat } from "@/composables/useStreamChat";
+import { useOnboardingStore } from "@/stores/onboarding";
+import { useProfileStore } from "@/stores/profile";
+
+const router = useRouter();
+const store = useLearningStore();
+const chatSession = useChatSessionStore();
+const onboardingStore = useOnboardingStore();
+const profileStore = useProfileStore();
+const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat("learning", "learning");
+
+const roleLabel = computed(() => {
+  const labels: Record<AgentRole, string> = { modeler: "建模手", programmer: "编程手", writer: "论文手" };
+  return labels[store.currentRole] ?? "建模手";
+});
+
+onMounted(async () => {
+  await profileStore.checkProfile();
+  if (!profileStore.hasProfile) {
+    onboardingStore.start();
+  }
+  store.loadPath();
+  restoreLatestSession();
+});
+
+async function onDiagnoseFinish(payload: any) {
+  await profileStore.runDiagnose(payload);
+  // 诊断完成后用诊断结果生成学习路径
+  await store.generateNewPath(payload.role, "beginner", payload.goal);
+}
+
+function handleUnitSelect(unitId: string) {
+  router.push(`/learn/${unitId}`);
+}
+
+function handleSend(text: string) {
+  handleUserSend(text);
+}
+</script>
+
 <template>
   <div class="flex h-full bg-background">
     <div class="flex-1 min-w-0 flex flex-col">
@@ -42,45 +90,17 @@
             empty-text="从左侧技能树选择一个知识点"
             empty-subtext="智能体将用对话方式为你讲解"
             input-placeholder="向智能体提问..."
+            :session-title="chatSession.activeLearningSession?.title"
             cancellable
             @send="handleSend"
             @cancel="cancelStream"
+            @new-session="chatSession.newSession('learning')"
           />
         </div>
       </div>
     </div>
+
+    <!-- 诊断向导 -->
+    <OnboardingWizard @finish="onDiagnoseFinish" />
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import ChatArea from "@/components/ChatArea.vue";
-import SkillGraph from "@/components/SkillGraph.vue";
-import { useLearningStore, type AgentRole } from "@/stores/learning";
-import { useChatSessionStore } from "@/stores/chatSession";
-import { useStreamChat } from "@/composables/useStreamChat";
-
-const router = useRouter();
-const store = useLearningStore();
-const chatSession = useChatSessionStore();
-const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat("learning", "learning");
-
-const roleLabel = computed(() => {
-  const labels: Record<AgentRole, string> = { modeler: "建模手", programmer: "编程手", writer: "论文手" };
-  return labels[store.currentRole] ?? "建模手";
-});
-
-onMounted(() => {
-  store.loadPath();
-  restoreLatestSession();
-});
-
-function handleUnitSelect(unitId: string) {
-  router.push(`/learn/${unitId}`);
-}
-
-function handleSend(text: string) {
-  handleUserSend(text);
-}
-</script>

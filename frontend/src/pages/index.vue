@@ -233,8 +233,6 @@ import {
   MessageSquare, FileText, Library, BookOpen, Dumbbell, MessageCircleQuestion, TrendingUp,
 } from "lucide-vue-next";
 import { getKBStats } from "@/apis/knowledgeApi";
-import { getApiKeys } from "@/apis/apiKeyApi";
-import { BTN_PRIMARY } from "@/config/styles";
 import request from "@/utils/request";
 
 const router = useRouter();
@@ -279,12 +277,6 @@ async function activateKey() {
 }
 
 const statsReady = ref(false);
-
-const paperModules = [
-  { label: "对话", desc: "与智能体自由对话，实时推进建模讨论", path: "/chat", icon: MessageSquare },
-  { label: "方案", desc: "结构化输出完整建模方案与论文", path: "/solution", icon: FileText },
-  { label: "知识库", desc: "方法卡片、真题论文与模板套路", path: "/knowledge", icon: Library },
-];
 
 const learnModules = [
   { label: "学习工位", desc: "技能树导航，智能体对话式教学", path: "/learn", icon: BookOpen },

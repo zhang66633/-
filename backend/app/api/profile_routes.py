@@ -78,15 +78,55 @@ async def update_roles(roles: list[dict]):
 
 @profile_router.get("/progress", response_model=dict)
 async def get_progress():
-    """获取各角色学习进度."""
+    """获取各角色学习进度 + 成就 + 待复习列表。"""
     from ..learning.mastery_tracker import get_mastery_tracker
+    from ..services.achievement_service import get_achievement_service
+
     tracker = get_mastery_tracker()
+    achievement_service = get_achievement_service()
+
+    # 应用艾宾浩斯遗忘衰减
+    needs_review = tracker.apply_decay("default")
+
     return {
         "modeler": tracker.get_role_overall("default", []),
         "programmer": tracker.get_role_overall("default", []),
         "writer": tracker.get_role_overall("default", []),
         "weakest": [
-            {"skill_id": s.skill_id, "name": s.name, "mastery": s.mastery}
+            {"skill_id": s.skill_id, "name": s.name, "mastery": round(s.mastery, 2)}
             for s in tracker.get_weakest_skills("default", top_n=5)
         ],
+        "needs_review": [
+            {"skill_id": sid, "retention": round(ret, 2)}
+            for sid, ret in needs_review.items()
+        ],
+        "achievements": achievement_service.check_all("default"),
+        "stats": {
+            "total_units": 45,  # TODO: 从学习路径统计
+            "completed_units": sum(
+                1 for s in tracker.skills.get("default", {}).values()
+                if s.mastery >= 0.6
+            ),
+            "streak_days": _calc_streak_from_tracker(tracker, "default"),
+        },
     }
+
+
+def _calc_streak_from_tracker(tracker, user_id: str) -> int:
+    """从掌握度追踪器计算连续学习天数。"""
+    if user_id not in tracker.skills:
+        return 0
+    dates = sorted(
+        {s.last_practiced_at.date() for s in tracker.skills[user_id].values()
+         if s.last_practiced_at},
+        reverse=True,
+    )
+    if not dates:
+        return 0
+    streak = 1
+    for i in range(1, len(dates)):
+        if (dates[i - 1] - dates[i]).days == 1:
+            streak += 1
+        else:
+            break
+    return streak

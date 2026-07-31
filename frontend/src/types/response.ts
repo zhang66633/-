@@ -4,6 +4,9 @@ import type { AgentType } from "./enum";
 /** 系统消息类型 */
 export type SystemMessageType = "info" | "warning" | "success" | "error";
 
+/** 工具执行状态 */
+export type ToolStatus = "running" | "success" | "error";
+
 /** 消息基础接口 */
 export interface BaseMessage {
   id: string;
@@ -20,6 +23,10 @@ export interface ToolMessage extends BaseMessage {
   tool_name: string;
   input: Record<string, unknown> | null;
   output: unknown[] | null;
+  /** 执行状态 */
+  status?: ToolStatus;
+  /** 错误信息（status === "error" 时） */
+  error?: string;
 }
 
 /** 系统通知消息 */
@@ -38,6 +45,8 @@ export interface AgentMessage extends BaseMessage {
   msg_type: "agent";
   /** 流水线 agent 类型；纯对话（chat/teach）消息无此字段 */
   agent_type?: AgentType;
+  /** 思考过程 / 推理链内容（SSE thinking 事件累积） */
+  thinking?: string;
 }
 
 /** 澄清问题选项 */
@@ -60,6 +69,45 @@ export interface ClarifyMessage extends BaseMessage {
   content: string;
   /** 用户是否已作答 */
   answered?: boolean;
+}
+
+// ── 工具输出接口 ──────────────────────────────
+
+/** 代码执行工具输出 */
+export interface RunCodeOutput {
+  name: "run_code";
+  preview: string;
+  stdout?: string;
+  images?: string[];
+  error?: string;
+}
+
+/** 搜索结果条目 */
+export interface SearchResultItem {
+  title: string;
+  snippet: string;
+  url?: string;
+}
+
+/** 搜索工具输出 */
+export interface SearchOutput {
+  name: string;
+  preview: string;
+  results?: SearchResultItem[];
+}
+
+/** 数学计算工具输出 */
+export interface MathToolOutput {
+  name: "sympy_compute" | "solve_optimization";
+  preview: string;
+  latex?: string;
+  result?: string;
+}
+
+/** 通用工具输出（回退类型） */
+export interface GenericToolOutput {
+  name: string;
+  preview: string;
 }
 
 /** 所有消息类型的联合类型 */

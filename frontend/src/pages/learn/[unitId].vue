@@ -68,7 +68,9 @@
             :empty-text="`${agentName} 在此答疑`" :empty-subtext="'选中文档文字 → 点「问AI」快速提问'"
             :input-placeholder="`向${agentName}提问...`"
             :prefill-text="prefillText"
-            cancellable @send="handleSend" @cancel="cancelStream" />
+            :session-title="chatSession.activeLearningSession?.title"
+            cancellable @send="handleSend" @cancel="cancelStream"
+            @new-session="chatSession.newSession('learning')" />
         </div>
       </div>
 
@@ -198,9 +200,15 @@ const difficultyBadge = computed(() => ({ beginner: "border-emerald-200 text-eme
 const unitContext = computed(() => { const u = unit.value; if (!u) return undefined; return { title: u.title, unit_type: u.type === "knowledge" ? "知识讲解" : "练习", difficulty: u.difficulty, method_category: u.method_category || "通用", tags: u.tags?.join(", ") ?? "", primary_agent: u.primary_agent ?? "modeler", estimated_minutes: String(u.estimated_minutes ?? 30) }; });
 
 function handleSend(text: string) { handleUserSend(text, undefined, unitContext.value); }
-function markComplete() { alert("已标记完成！"); }
+function markComplete() {
+  if (!unit.value) return;
+  store.markComplete(unit.value.unit_id).then(() => {
+    alert("已标记完成！掌握度已更新。");
+  }).catch(() => {
+    alert("标记失败，请重试");
+  });
+}
 function scrollToHeading(id: string) { docRef.value?.scrollToHeading(id); activeHeading.value = id; }
-function retry() { if (unitId.value) store.loadUnit(unitId.value); }
 
 onMounted(() => { if (unitId.value) store.loadUnit(unitId.value); restoreLatestSession(); loadNotes(); });
 watch(() => route.params.unitId, (id) => { if (id) { store.loadUnit(id as string); loadNotes(); headings.value = []; activeHeading.value = ""; } });

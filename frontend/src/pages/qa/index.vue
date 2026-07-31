@@ -24,14 +24,16 @@
       <div class="flex-1 min-h-0 flex">
         <div class="flex-1">
           <ChatArea
-            :messages="chatSession.activeChatMessages"
-            :is-running="chatSession.getIsRunning('chat')"
+            :messages="chatSession.activeQaMessages"
+            :is-running="chatSession.getIsRunning('qa')"
             empty-text="智能答疑"
             empty-subtext="输入 @智能体名 召唤指定智能体回答，联网推荐外部资源"
             input-placeholder="输入问题，或 @分析师/@建模师 指定智能体..."
+            :session-title="chatSession.activeQaSession?.title"
             cancellable
             @send="handleSend"
             @cancel="cancelStream"
+            @new-session="chatSession.newSession('qa')"
           />
         </div>
 
@@ -77,7 +79,7 @@ import { useChatSessionStore } from "@/stores/chatSession";
 import { useStreamChat } from "@/composables/useStreamChat";
 
 const chatSession = useChatSessionStore();
-const { handleUserSend, cancelStream } = useStreamChat("chat", "chat");
+const { handleUserSend, cancelStream } = useStreamChat("qa", "qa");
 
 const agents = ref([
   { name: "分析师", emoji: "🔍", active: false },

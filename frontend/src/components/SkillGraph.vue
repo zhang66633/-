@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { Search, ChevronRight } from "lucide-vue-next";
 import { Skeleton } from "@/components/ui/skeleton";
 

@@ -1,13 +1,18 @@
 """学习 API — 学习路径、学习单元、推荐."""
 
+from datetime import datetime
+import uuid
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..learning.schemas import (
     AgentRole, LearningPath, LearningUnit, LearningPhase,
-    UnitStatus, UnitType, UserLevel,
+    UnitStatus, UnitType, UserLevel, LearningEvent,
 )
 from ..learning.path_generator import generate_learning_path, get_unit_detail
+from ..learning.mastery_tracker import get_mastery_tracker
+from ..services.achievement_service import get_achievement_service
 
 learning_router = APIRouter(prefix="/learning", tags=["Learning"])
 
@@ -65,8 +70,41 @@ class UnitCompleteRequest(BaseModel):
 
 @learning_router.post("/units/{unit_id}/complete")
 async def complete_unit(unit_id: str, req: UnitCompleteRequest):
-    """标记学习单元为完成."""
-    return {"status": "ok", "message": f"单元 {unit_id} 已标记完成"}
+    """标记学习单元为完成，并更新贝叶斯掌握度。"""
+    unit = get_unit_detail(unit_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"学习单元 {unit_id} 不存在")
+
+    # 更新掌握度追踪
+    tracker = get_mastery_tracker()
+    skill_ids = unit.tags or [unit_id]
+    event = LearningEvent(
+        event_id=f"evt_{uuid.uuid4().hex[:8]}",
+        user_id=req.user_id,
+        unit_id=unit_id,
+        skill_ids=skill_ids,
+        event_type="learn",
+        score=1.0,  # 标记完成视为满分
+        created_at=datetime.utcnow(),
+    )
+    tracker.update_from_event(req.user_id, event)
+
+    # 记录到成就系统
+    achievement_service = get_achievement_service()
+    achievement_service.add_event(event)
+
+    # 更新单元状态
+    unit.status = UnitStatus.COMPLETED
+    unit.mastery_score = tracker.get_role_overall(
+        req.user_id,
+        skill_ids,
+    )
+
+    return {
+        "status": "ok",
+        "message": f"单元 {unit_id} 已标记完成",
+        "mastery": unit.mastery_score,
+    }
 
 
 # ── 下一步推荐 ────────────────────────────────────────

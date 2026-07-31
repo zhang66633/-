@@ -47,6 +47,7 @@
 
       <!-- 内容区 -->
       <main id="main-content" class="flex-1 overflow-hidden">
+        <SessionStorageAlert />
         <router-view />
       </main>
     </div>
@@ -59,6 +60,7 @@ import { useRoute } from "vue-router";
 import { Menu } from "lucide-vue-next";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import AppSidebar from "@/components/AppSidebar.vue";
+import SessionStorageAlert from "@/components/chat/SessionStorageAlert.vue";
 import NavUser from "@/components/NavUser.vue";
 import SkipToContent from "@/components/SkipToContent.vue";
 import ServiceStatus from "@/components/ServiceStatus.vue";
@@ -71,10 +73,12 @@ const route = useRoute();
 const currentSection = computed(() => {
   const p = route.path;
   if (p.startsWith("/chat")) return { num: "§2", label: "对话" };
-  if (p.startsWith("/teach")) return { num: "§2", label: "教学" };
   if (p.startsWith("/solution")) return { num: "§2", label: "方案" };
-  if (p.startsWith("/task")) return { num: "§3", label: "任务" };
-  if (p.startsWith("/archive")) return { num: "§3.1", label: "归档" };
+  if (p.startsWith("/learn")) return { num: "§3", label: "学习中心" };
+  if (p.startsWith("/practice")) return { num: "§3", label: "训练场" };
+  if (p.startsWith("/qa")) return { num: "§3", label: "答疑室" };
+  if (p.startsWith("/progress")) return { num: "§3", label: "成长档案" };
+  if (p.startsWith("/task")) return { num: "§4", label: "任务" };
   if (p.startsWith("/knowledge")) return { num: "§4", label: "知识库" };
   return { num: "§1", label: "首页" };
 });

@@ -1,7 +1,8 @@
-/** 流式对话组合式函数 — /chat 与 /teach 页共用。
+/** 流式对话组合式函数 — 对话/学习/答疑/练习页共用。
  *
  * 负责：会话创建/复用、用户消息与 agent 占位消息写入、
- * 调 SSE 接口并流式就地累加、工具调用可视化、运行态管理、最新会话恢复。
+ * 调 SSE 接口并流式就地累加、工具调用可视化、运行态管理、最新会话恢复、
+ * SSE 断连自动重试（指数退避，最多 3 次）。
  */
 import { ref } from "vue";
 import { useChatSessionStore, type SessionMode } from "@/stores/chatSession";
@@ -12,7 +13,7 @@ function generateId() {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teach" | "learning") {
+export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "learning" | "qa" | "practice") {
   const chatSession = useChatSessionStore();
   const abortController = ref<AbortController | null>(null);
 
@@ -92,7 +93,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
         const id = ensureAgentMsg();
         chatSession.updateMessage(sessionMode, sessionId, id, {
           thinking: thinkingAcc,
-        } as any);
+        });
       },
       onToolCall(event) {
         const toolMsg: Message = {
@@ -101,19 +102,21 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
           tool_name: event.name,
           input: event.args,
           output: null,
+          status: "running",
           created_at: new Date().toISOString(),
         };
         chatSession.addMessage(sessionMode, sessionId, toolMsg);
       },
       onToolResult(event) {
-        // 找到最近一条同名 tool 消息，更新其 output
+        // 找到最近一条同名 tool 消息，更新其 output 与 status
         const msgs = chatSession.getActiveMessages(sessionMode).value;
         for (let i = msgs.length - 1; i >= 0; i--) {
           const m = msgs[i];
           if (m.msg_type === "tool" && (m as any).tool_name === event.name && !(m as any).output) {
             chatSession.updateMessage(sessionMode, sessionId, m.id, {
               output: [{ name: event.name, preview: event.preview }],
-            } as any);
+              status: "success",
+            });
             break;
           }
         }
@@ -128,7 +131,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
           content: JSON.stringify(event.questions),
           answered: false,
           created_at: new Date().toISOString(),
-        } as any;
+        };
         chatSession.addMessage(sessionMode, sessionId, clarifyMsg);
       },
       onCodeExec(event) {
@@ -140,7 +143,8 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
             if (event.status === "running") {
               chatSession.updateMessage(sessionMode, sessionId, m.id, {
                 output: [{ name: "run_code", preview: "代码执行中…" }],
-              } as any);
+                status: "running",
+              });
             } else if (event.status === "done") {
               const parts = [];
               if (event.stdout) parts.push(`输出:\n${event.stdout}`);
@@ -151,7 +155,8 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
                   preview: parts.join("\n") || "执行完成",
                   images: event.images ?? [],
                 }],
-              } as any);
+                status: "success",
+              });
             }
             break;
           }
@@ -195,6 +200,26 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
         chatSession.setRunning(null);
       },
     });
+
+    // 返回后检查是否需要重试（SSE 断连自动重连）
+    return { retry: false };
+  }
+
+  /** SSE 断连自动重试（指数退避，最多 3 次） */
+  async function handleUserSendWithRetry(text: string, files?: ChatFileRef[], unitContext?: Record<string, unknown>) {
+    let retries = 0;
+    const maxRetries = 3;
+    while (retries <= maxRetries) {
+      try {
+        await handleUserSend(text, files, unitContext);
+        return;
+      } catch (e: any) {
+        if (retries >= maxRetries || e?.name === "AbortError") throw e;
+        retries++;
+        const delay = Math.min(1000 * 2 ** retries, 8000);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
   }
 
   /** 无激活会话时，切到最近一条会话（供 onMounted 调用）。 */
@@ -204,7 +229,11 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "teac
     if (!active && sorted.length > 0) {
       chatSession.switchSession(sessionMode, sorted[0].id);
     }
+    // 如果 sessionMode 从未有过任何会话，自动创建一个
+    if (sorted.length === 0) {
+      chatSession.createSession(sessionMode);
+    }
   }
 
-  return { handleUserSend, restoreLatestSession, cancelStream };
+  return { handleUserSend, handleUserSendWithRetry, restoreLatestSession, cancelStream };
 }

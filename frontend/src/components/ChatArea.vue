@@ -1,5 +1,14 @@
 <template>
   <div class="flex flex-col h-full relative">
+    <!-- 顶部工具栏 -->
+    <ChatToolbar
+      v-if="showToolbar"
+      :title="sessionTitle"
+      :messages-count="messages.length"
+      @new-session="$emit('new-session')"
+      @export="$emit('export')"
+    />
+
     <!-- 消息区域 — 虚拟滚动 -->
     <div ref="scrollRef" class="flex-1 overflow-y-auto px-4 sm:px-8 py-6">
       <slot name="progress" />
@@ -78,6 +87,7 @@ import Bubble from "@/components/Bubble.vue";
 import ChatThinking from "@/components/chat/ChatThinking.vue";
 import ChatScrollButton from "@/components/chat/ChatScrollButton.vue";
 import ChatInput from "@/components/chat/ChatInput.vue";
+import ChatToolbar from "@/components/chat/ChatToolbar.vue";
 import type { Message } from "@/types/response";
 import type { ChatFileRef } from "@/apis/chatApi";
 
@@ -89,6 +99,8 @@ const props = withDefaults(
     emptySubtext?: string;
     inputPlaceholder?: string;
     prefillText?: string;
+    sessionTitle?: string;
+    showToolbar?: boolean;
     cancellable?: boolean;
     cancelling?: boolean;
   }>(),
@@ -98,19 +110,22 @@ const props = withDefaults(
     emptySubtext: "在下方输入你的问题",
     inputPlaceholder: "输入消息...",
     prefillText: "",
+    sessionTitle: "",
+    showToolbar: true,
     cancellable: false,
     cancelling: false,
   },
 );
 
-defineEmits<{
+const emit = defineEmits<{
   send: [text: string, files?: ChatFileRef[]];
   cancel: [];
   export: [];
+  "new-session": [];
 }>();
 
-// 提供给 ClarifyCard 注入的发送函数
-provide("chatSendHandler", (text: string) => {});
+// 提供给 ClarifyCard 注入的发送函数，让用户选择后可以直接发送消息
+provide("chatSendHandler", (text: string) => emit("send", text));
 
 const taskStore = useTaskStore();
 

@@ -28,14 +28,16 @@
         <!-- 每日推荐 -->
         <div v-if="activeTab === 'daily'" class="flex-1 flex flex-col min-h-0">
           <ChatArea
-            :messages="chatSession.activeLearningMessages"
-            :is-running="chatSession.getIsRunning('learning')"
+            :messages="chatSession.activePracticeMessages"
+            :is-running="chatSession.getIsRunning('practice')"
             empty-text="开始练习"
             empty-subtext="智能体将为你出题并批改答案"
             input-placeholder="请智能体出题，或描述你想练习的知识点..."
+            :session-title="chatSession.activePracticeSession?.title"
             cancellable
             @send="(text: string) => handleUserSend(text, undefined, { unit_type: '练习', title: '自由练习', difficulty: 'beginner', method_category: '通用', tags: '自由练习', primary_agent: 'verifier', estimated_minutes: '30' })"
             @cancel="cancelStream"
+            @new-session="chatSession.newSession('practice')"
           />
         </div>
 
@@ -57,7 +59,7 @@ import { useChatSessionStore } from "@/stores/chatSession";
 import { useStreamChat } from "@/composables/useStreamChat";
 
 const chatSession = useChatSessionStore();
-const { handleUserSend, cancelStream } = useStreamChat("learning", "learning");
+const { handleUserSend, cancelStream } = useStreamChat("practice", "practice");
 
 const activeTab = ref("daily");
 const tabs = [

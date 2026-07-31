@@ -72,53 +72,6 @@
       </TransitionGroup>
     </div>
 
-    <div class="border-b py-2 shrink-0">
-      <div class="flex items-center justify-between px-5 py-1.5">
-        <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">归档</p>
-        <span class="font-mono text-[9px] text-muted-foreground/40">{{ archiveCount }}</span>
-      </div>
-      <div class="flex items-center gap-0.5 px-4 pb-1.5">
-        <button
-          v-for="tab in archiveTabs"
-          :key="tab.value"
-          class="font-mono text-[10px] px-2.5 py-1 rounded transition-colors"
-          :class="activeArchiveTab === tab.value
-            ? 'bg-accent text-foreground'
-            : 'text-muted-foreground/60 hover:text-muted-foreground'"
-          @click="activeArchiveTab = tab.value"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-      <div class="overflow-y-auto" style="max-height: 200px;">
-        <div v-if="currentArchiveList.length === 0" class="px-5 py-3">
-          <p class="text-[10px] text-muted-foreground/50 font-mono">暂无归档</p>
-        </div>
-        <div
-          v-for="item in currentArchiveList"
-          :key="item.id"
-          class="group relative flex w-full items-center gap-2 py-1.5 pr-2 pl-5 text-sm cursor-pointer transition-all duration-200"
-          :class="isActiveArchive(item.id) ? 'text-foreground bg-accent/50' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
-          @click="openArchive(item.id)"
-        >
-          <Transition name="indicator">
-            <div
-              v-if="isActiveArchive(item.id)"
-              class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 bg-primary rounded-r"
-            />
-          </Transition>
-          <span class="truncate flex-1 text-xs">{{ item.title }}</span>
-          <button
-            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
-            @click.stop="archiveStore.deleteArchive(item.id)"
-            title="删除归档"
-          >
-            <X class="h-3 w-3" />
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- 展开态: 完整导航 -->
     <nav v-if="!collapsed" :class="sessionList.length > 0 ? 'py-3 shrink-0' : 'flex-1 py-6'">
       <button :class="[NAV_ITEM, isNavActive('/') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate('/')">
@@ -186,12 +139,10 @@ import { paperGroup, learnGroup, bottomItems, paperPaths, learnPaths } from "@/c
 import { NAV_ITEM } from "@/config/styles";
 import VersionSwitcher from "@/components/VersionSwitcher.vue";
 import { useChatSessionStore, type SessionMode } from "@/stores/chatSession";
-import { useArchiveStore } from "@/stores/archive";
 
 const router = useRouter();
 const route = useRoute();
 const chatSession = useChatSessionStore();
-const archiveStore = useArchiveStore();
 
 const editingId = ref<string | null>(null);
 const editingTitle = ref("");
@@ -251,18 +202,20 @@ const visibleGroups = computed(() => allGroups);
 // ── 会话逻辑 ─────────────────────────────────────────
 
 const currentMode = computed<SessionMode>(() => {
-  if (route.path.startsWith("/teach")) return "teach";
   if (route.path.startsWith("/solution")) return "solution";
-  if (route.path.startsWith("/learn") || route.path.startsWith("/practice")) return "learning";
+  if (route.path.startsWith("/learn")) return "learning";
+  if (route.path.startsWith("/practice")) return "practice";
+  if (route.path.startsWith("/qa")) return "qa";
   return "chat";
 });
 
 const sessionListTitle = computed(() => {
   const titles: Record<SessionMode, string> = {
     chat: "最近对话",
-    teach: "最近学习",
     solution: "最近方案",
     learning: "学习对话",
+    qa: "答疑记录",
+    practice: "练习记录",
   };
   return titles[currentMode.value];
 });
@@ -304,28 +257,6 @@ function confirmRename() {
 function cancelRename() {
   editingId.value = null;
   editingTitle.value = "";
-}
-
-const activeArchiveTab = ref<"solution" | "teaching">("solution");
-const archiveTabs = [
-  { label: "方案", value: "solution" as const },
-  { label: "教学", value: "teaching" as const },
-];
-
-const archiveCount = computed(() => archiveStore.sortedItems.length);
-
-const currentArchiveList = computed(() =>
-  activeArchiveTab.value === "solution"
-    ? archiveStore.solutionItems.slice(0, 20)
-    : archiveStore.teachingItems.slice(0, 20),
-);
-
-function isActiveArchive(id: string): boolean {
-  return route.path === `/archive/${id}`;
-}
-
-function openArchive(id: string) {
-  router.push(`/archive/${id}`);
 }
 
 function isNavActive(path: string): boolean {

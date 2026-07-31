@@ -1,9 +1,8 @@
 """API 路由入口 — 注册子路由 + Auth/Health 内联路由。"""
-import logging, os
+import logging
 from fastapi import APIRouter, HTTPException, Query, Depends
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import JSONResponse
 import httpx
-import jwt
 
 from .chat_routes import chat_router
 from .ws import ws_router
@@ -15,6 +14,7 @@ from .export_routes import export_router
 from .knowledge_import_routes import import_router
 from .learning_routes import learning_router
 from .profile_routes import profile_router
+from .session_routes import session_router
 from .schemas.response import HealthResponse
 from ..config import get_settings
 from ..services.session import get_session_manager
@@ -32,6 +32,7 @@ api_router.include_router(export_router)
 api_router.include_router(import_router)
 api_router.include_router(learning_router)
 api_router.include_router(profile_router)
+api_router.include_router(session_router)
 
 # ── Auth（内联，轻量 OAuth）──
 

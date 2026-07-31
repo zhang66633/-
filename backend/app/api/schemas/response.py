@@ -53,23 +53,3 @@ class ApiKeyResponse(BaseModel):
     is_default: bool = False
     base_url: str = ""
     purpose: str = "chat"
-
-
-# ── Knowledge Base ──────────────────────────────────────────────
-
-class KnowledgeUploadResponse(BaseModel):
-    """知识上传 + LLM 提取响应。"""
-    success: bool
-    entry_id: str = ""
-    entry_type: str = ""
-    yaml_content: str = ""
-    file_path: str = ""
-    indexed: bool = False
-    message: str = ""
-
-
-class KnowledgeCrudResponse(BaseModel):
-    """知识条目 CRUD 操作响应。"""
-    success: bool
-    entry_id: str = ""
-    message: str = ""

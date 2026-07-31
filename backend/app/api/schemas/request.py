@@ -1,6 +1,6 @@
 """REST API 请求模型。"""
 
-from typing import Literal, Optional
+from typing import Literal
 from pydantic import BaseModel
 
 
@@ -16,11 +16,6 @@ class CreateTaskRequest(BaseModel):
     mode: Literal["teach", "execute"] = "execute"
     # 附件引用（已上传到 /files/upload 的文件），内容会被提取进问题上下文
     files: list[ChatFileRef] = []
-
-
-class CancelTaskRequest(BaseModel):
-    """取消任务请求。"""
-    task_id: str
 
 
 # ── Chat (自由问答) ─────────────────────────────────────────────
@@ -61,29 +56,3 @@ class ApiKeyQuickCreate(BaseModel):
     model_name: str = ""
     base_url: str = ""
     purpose: str = "chat"
-
-
-class FileUploadRequest(BaseModel):
-    """文件上传请求。"""
-    filename: Optional[str] = None
-
-
-# ── Knowledge Base ──────────────────────────────────────────────
-
-class KnowledgeUploadRequest(BaseModel):
-    """知识上传 + LLM 提取请求。"""
-    text: str
-    kb_type: Literal["method", "paper", "template"]
-    name: str = ""
-
-
-class KnowledgeCreateRequest(BaseModel):
-    """手动创建知识条目请求。"""
-    kb_type: Literal["method", "paper", "template"]
-    data: dict  # 根据 type 不同，字段不同
-
-
-class KnowledgeUpdateRequest(BaseModel):
-    """更新知识条目请求。"""
-    kb_type: Literal["method", "paper", "template"]
-    data: dict

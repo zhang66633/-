@@ -1,7 +1,7 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import type { LearningPath, LearningUnit, LearningPhase } from "@/apis/learningApi";
-import { fetchLearningPath, fetchUnitDetail, generatePath } from "@/apis/learningApi";
+import { fetchLearningPath, fetchUnitDetail, generatePath, markUnitComplete } from "@/apis/learningApi";
 
 export type { LearningPath, LearningUnit, LearningPhase };
 
@@ -82,6 +82,24 @@ export const useLearningStore = defineStore("learning", () => {
     }
   }
 
+  /** 标记单元完成（调用后端 API） */
+  async function markComplete(unitId: string) {
+    try {
+      const res = await markUnitComplete(unitId);
+      // 更新本地状态
+      if (currentUnit.value && currentUnit.value.unit_id === unitId) {
+        currentUnit.value.status = "completed";
+        currentUnit.value.mastery_score = res.data?.mastery ?? 1.0;
+      }
+      // 刷新路径
+      await loadPath();
+      return res.data;
+    } catch (e: any) {
+      error.value = e?.message || "标记完成失败";
+      throw e;
+    }
+  }
+
   function switchRole(role: AgentRole) {
     currentRole.value = role;
     currentUnit.value = null;
@@ -102,6 +120,7 @@ export const useLearningStore = defineStore("learning", () => {
     loadPath,
     generateNewPath,
     loadUnit,
+    markComplete,
     switchRole,
   };
 });

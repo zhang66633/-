@@ -27,19 +27,9 @@ const routes: RouteRecordRaw[] = [
         meta: { keepAlive: true },
       },
       {
-        path: "teach",
-        component: () => import("@/pages/teach/index.vue"),
-        meta: { keepAlive: true },
-      },
-      {
         path: "solution",
         component: () => import("@/pages/solution/index.vue"),
         meta: { keepAlive: true },
-      },
-      {
-        path: "archive/:id",
-        component: () => import("@/pages/archive/[id].vue"),
-        props: true,
       },
       {
         path: "knowledge",

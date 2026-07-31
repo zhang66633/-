@@ -44,10 +44,6 @@ const props = withDefaults(
   { answered: false },
 );
 
-const emit = defineEmits<{
-  select: [text: string];
-}>();
-
 // 注入 ChatArea 提供的发送函数
 const sendHandler = inject<((text: string) => void) | null>("chatSendHandler", null);
 
@@ -92,9 +88,7 @@ function confirm() {
   }
   const text = lines.join("；");
 
-  emit("select", text);
-
-  // 同时通过注入的 send handler 直接发送
+  // 通过注入的 send handler 发送消息（ChatArea 已正确 provide）
   if (sendHandler) {
     sendHandler(text);
   }

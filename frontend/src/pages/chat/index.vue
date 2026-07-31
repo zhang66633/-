@@ -5,12 +5,14 @@
         :messages="chatSession.activeChatMessages"
         :is-running="chatSession.getIsRunning('chat')"
         :cancellable="true"
+        :session-title="chatSession.activeChatSession?.title"
         empty-text="开始对话"
         empty-subtext="在下方输入你的问题，智能体将实时回复"
         input-placeholder="输入消息..."
         @send="handleUserSend"
         @cancel="cancelStream"
         @export="handleExport"
+        @new-session="chatSession.newSession('chat')"
       />
     </div>
   </div>

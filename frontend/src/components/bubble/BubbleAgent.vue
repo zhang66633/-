@@ -3,6 +3,8 @@ import { computed, ref, watch, onMounted } from "vue";
 import { Printer, Clipboard } from "lucide-vue-next";
 import type { Message, AgentMessage } from "@/types/response";
 import { AgentType } from "@/types/enum";
+import { getAgentIdentity } from "@/components/agent/AgentIdentity";
+import ThinkingBlock from "@/components/agent/ThinkingBlock.vue";
 import { useTypewriter } from "@/composables/useTypewriter";
 import { renderMarkdown } from "@/utils/markdown";
 import BubbleAvatar from "./BubbleAvatar.vue";
@@ -32,18 +34,12 @@ onMounted(() => {
   isTyping.value = false;
 });
 
+const identity = computed(() => getAgentIdentity((props.message as AgentMessage).agent_type));
+
 const agentLabel = computed(() => {
   const agentType = (props.message as AgentMessage).agent_type;
   if (!agentType) return "";
-  const labels: Record<string, string> = {
-    [AgentType.ORCHESTRATOR]: "主控",
-    [AgentType.ANALYSIS]: "分析",
-    [AgentType.MODELING]: "建模",
-    [AgentType.SOLVING]: "求解",
-    [AgentType.VERIFICATION]: "验证",
-    [AgentType.WRITING]: "写作",
-  };
-  return labels[agentType] ?? agentType;
+  return identity.value?.label ?? "";
 });
 
 const isFinalPaper = computed(
@@ -89,9 +85,20 @@ const timestamp = computed(() => {
       <div class="flex flex-col items-start">
         <div class="max-w-[calc(100%-72px)] rounded-md rounded-bl-sm border border-border bg-background text-foreground px-4 py-3 text-sm leading-relaxed">
           <!-- Agent 标签 -->
-          <div v-if="agentLabel" class="mb-1.5">
-            <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">[{{ agentLabel }}]</span>
+          <div v-if="agentLabel" class="mb-1.5 flex items-center gap-1.5">
+            <span class="font-mono text-[10px] uppercase tracking-wider" :class="identity?.textColor ?? 'text-muted-foreground'">
+              [{{ agentLabel }}]
+            </span>
+            <!-- 流式活跃指示器 -->
+            <span v-if="message.streaming" class="h-1.5 w-1.5 rounded-full animate-pulse" :class="identity?.color ?? 'bg-foreground'" />
           </div>
+
+          <!-- 思考过程（可折叠） -->
+          <ThinkingBlock
+            v-if="(message as AgentMessage).thinking"
+            :thinking="(message as AgentMessage).thinking || ''"
+            :streaming="message.streaming"
+          />
 
           <!-- 内容 / 打字机 / 思考点 -->
           <div
