@@ -660,7 +660,7 @@ def solving_agent_node(state: AgentState) -> dict:
     _persist_dir = _settings.project_root / "data" / "task_files" / task_id
     _persist_dir.mkdir(parents=True, exist_ok=True)
 
-    MAX_TOOL_RESULT_CHARS = 3000
+    MAX_TOOL_RESULT_CHARS = 12000
 
     def _truncate_tool_result(result_text: str, tool_name: str) -> str:
         """截断超长工具结果，完整内容写入磁盘（借鉴 cc-haha）。"""

@@ -57,8 +57,8 @@ class Settings(BaseSettings):
     # DeepSeek V4 Pro 最大输出 393216 tokens (384K)，按实际 token 计费，拉满无额外成本。
     # 写作阶段需生成完整 LaTeX 论文（国赛~1万字 / 美赛25页，含公式+TikZ+表格开销）。
     writing_max_tokens: int = 393216
-    # 求解阶段含代码+推导+图表说明，也给足余量。
-    solving_max_tokens: int = 131072
+    # 求解阶段含代码+推导+图表说明，多轮tool loop每轮都可能产生大量输出。
+    solving_max_tokens: int = 393216
 
     # ---- DeepSeek Proxy ----
     deepseek_base_url: str = "https://api.deepseek.com"
