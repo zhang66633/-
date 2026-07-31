@@ -246,37 +246,16 @@ def generate_learning_path(
     level: UserLevel = UserLevel.BEGINNER,
     goal: str = "国赛",
 ) -> LearningPath:
-    """根据角色、水平、目标生成学习路径.
+    """生成学习路径 — 展示所有内容，用难度标签标注.
 
-    - beginner: 仅入门级单元
-    - intermediate: 入门快速浏览 + 进阶为主
-    - advanced: 跳过入门基础 + 进阶 + 实战
-    - competition: 全部 + 综合实战
+    不做筛选隐藏，全部单元按类别+难度分组展示。
+    诊断水平用于推荐但不禁用内容。
     """
     all_units = ALL_UNITS.get(role.value, ALL_MODELER)
 
-    if level == UserLevel.BEGINNER:
-        filtered = [u for u in all_units if u.difficulty == UserLevel.BEGINNER]
-    elif level == UserLevel.INTERMEDIATE:
-        filtered = [u for u in all_units if u.difficulty in (UserLevel.BEGINNER, UserLevel.INTERMEDIATE)]
-        # 入门级标记为已完成
-        for u in filtered:
-            if u.difficulty == UserLevel.BEGINNER:
-                u.status = UnitStatus.COMPLETED
-                u.mastery_score = 0.7
-    elif level == UserLevel.ADVANCED or level == UserLevel.COMPETITION:
-        filtered = [u for u in all_units]
-        for u in filtered:
-            if u.difficulty == UserLevel.BEGINNER:
-                u.status = UnitStatus.COMPLETED
-                u.mastery_score = 0.85
-            elif u.difficulty == UserLevel.INTERMEDIATE:
-                u.status = UnitStatus.COMPLETED
-                u.mastery_score = 0.7
-
-    # 按类别和难度分组
+    # 按类别和难度分组 (不过滤, 全部展示)
     cats: dict[str, dict[str, list[LearningUnit]]] = {}
-    for u in filtered:
+    for u in all_units:
         cat = u.method_category or "通用"
         diff = u.difficulty.value
         cats.setdefault(cat, {}).setdefault(diff, []).append(u)
@@ -287,8 +266,14 @@ def generate_learning_path(
                   "综合": "综合应用", "": "通用基础"}
     diff_labels = {"beginner": "入门", "intermediate": "进阶", "advanced": "实战", "competition": "竞赛"}
 
+    # 入门在前，进阶次之，实战最后
+    diff_order = ["beginner", "intermediate", "advanced", "competition"]
+
     for cat, diffs in cats.items():
-        for diff, units in diffs.items():
+        for diff in diff_order:
+            if diff not in diffs:
+                continue
+            units = diffs[diff]
             phases.append(LearningPhase(
                 name=f"{cat_labels.get(cat, cat)} · {diff_labels.get(diff, diff)}",
                 description=f"{cat_labels.get(cat, cat)}的{diff_labels.get(diff, diff)}级内容",
@@ -297,7 +282,7 @@ def generate_learning_path(
             ))
 
     return LearningPath(
-        path_id=f"path_{role.value}_{level.value}",
+        path_id=f"path_{role.value}",
         user_id="default", role=role, phases=phases,
     )
 
