@@ -3,8 +3,20 @@ import { Home, MessageSquare, FileText, Library, Key, BookOpen, Dumbbell, Messag
 export interface NavItem { label: string; path: string; icon: typeof Home; }
 export interface NavGroup { label: string; icon: typeof Home; items: NavItem[]; }
 
-export const homeItem: NavItem = { label: "首页", path: "/", icon: Home };
+// 朋友用: 平面列表
+export const navItems: NavItem[] = [
+  { label: "首页", path: "/", icon: Home },
+  { label: "对话", path: "/chat", icon: MessageSquare },
+  { label: "方案", path: "/solution", icon: FileText },
+  { label: "学习工位", path: "/learn", icon: BookOpen },
+  { label: "训练场", path: "/practice", icon: Dumbbell },
+  { label: "答疑室", path: "/qa", icon: MessageCircleQuestion },
+  { label: "成长档案", path: "/progress", icon: TrendingUp },
+  { label: "知识库", path: "/knowledge", icon: Library },
+  { label: "API Keys", path: "/apikeys", icon: Key },
+];
 
+// AppSidebar 用: 分组结构
 export const paperGroup: NavGroup = {
   label: "论文工作台", icon: FileText,
   items: [
