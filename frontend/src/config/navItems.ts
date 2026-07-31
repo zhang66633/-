@@ -43,7 +43,5 @@ export const bottomItems: NavItem[] = [
   { label: "API Keys", path: "/apikeys", icon: Key },
 ];
 
-// ── 用于判断当前页面属于哪个组 ──
-
 export const paperPaths = paperGroup.items.map((i) => i.path);
 export const learnPaths = learnGroup.items.map((i) => i.path);
