@@ -12,6 +12,7 @@ export interface LearningUnit {
   tags: string[];
   primary_agent: string;
   estimated_minutes: number;
+  content_md: string;
   status: "pending" | "in_progress" | "completed" | "skipped";
   mastery_score: number;
   prerequisites: { unit_id: string; required_mastery: number }[];

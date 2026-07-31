@@ -213,11 +213,5 @@ function scrollToHeading(id: string) { docRef.value?.scrollToHeading(id); active
 onMounted(() => { if (unitId.value) store.loadUnit(unitId.value); restoreLatestSession(); loadNotes(); });
 watch(() => route.params.unitId, (id) => { if (id) { store.loadUnit(id as string); loadNotes(); headings.value = []; activeHeading.value = ""; } });
 
-const docMarkdown = computed(() => {
-  const id = unitId.value;
-  if (id === "prog_py_01") return `# Python科学计算入门\n\n## 为什么学?\n数学建模竞赛中，编程手需要快速将数学模型转化为可执行的代码。Python 凭借其丰富的科学计算生态，已成为数学建模最主流的编程语言之一。\n\n**核心优势：**\n- NumPy 提供高性能数组运算\n- SciPy 封装了优化、积分、统计等常用算法\n- 语法简洁，学习曲线平缓\n\n## NumPy 基础\n\n### 创建数组\n\n\`\`\`python\nimport numpy as np\narr = np.array([1, 2, 3, 4, 5])\nzeros = np.zeros((3, 4))\nlinear = np.linspace(0, 1, 100)\n\`\`\`\n\n### 向量化运算\n\n\`\`\`python\na = np.array([1, 2, 3])\nb = np.array([4, 5, 6])\nprint(a + b)   # [5 7 9]\nprint(a * b)   # [4 10 18]\n\`\`\`\n\n### 矩阵运算\n\n\`\`\`python\nA = np.array([[1, 2], [3, 4]])\nB = np.array([[5, 6], [7, 8]])\nC = A @ B\ninv_A = np.linalg.inv(A)\n\`\`\`\n\n## 小结\nNumPy 是 Python 科学计算的基石。`;
-  if (id === "prog_py_02") return `# NumPy数组操作实战\n\n## 创建与重塑\n\`\`\`python\narr = np.arange(12).reshape(3, 4)\nprint(arr[:, 1])  # 第2列\n\`\`\`\n\n## 广播机制\n广播是 NumPy 最强大的特性：\n\`\`\`python\narr = np.array([1, 2, 3])\nprint(arr + 10)  # [11 12 13]\n\`\`\`\n\n## 实战\n用 NumPy 实现 $\\sum x_i^2$ 的向量化版本。`;
-  if (id === "modeler_ahp_01") return `# 层次分析法(AHP)\n\n## 什么是 AHP？\n把主观判断量化，用数学方法做决策。\n\n## 三步走\n1. 建立层次结构\n2. 构造成对比较矩阵\n3. 计算权重+一致性检验\n\n## 比较标度\n| 标度 | 含义 |\n|------|------|\n| 1 | 同等重要 |\n| 3 | 稍微重要 |\n| 5 | 明显重要 |\n\n当 $CR < 0.1$ 时，判断矩阵一致性可接受。`;
-  return `# ${unit.value?.title || '学习内容'}\n\n## 概述\n本节介绍核心概念和应用场景。\n\n## 核心内容\n学习资料正在准备中。你可以先通过右侧智能助手提问。`;
-});
+const docMarkdown = computed(() => unit.value?.content_md || `# ${unit.value?.title || '学习内容'}\n\n学习资料正在准备中。`);
 </script>

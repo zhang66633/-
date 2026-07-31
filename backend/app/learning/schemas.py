@@ -116,6 +116,7 @@ class LearningUnit(BaseModel):
     kb_refs: dict[str, str] = Field(default_factory=dict)  # {method_card: mc_xxx, paper: paper_xxx}
     primary_agent: str = "modeler"           # 主讲智能体
     estimated_minutes: int = 30
+    content_md: str = ""                     # Markdown 学习文档内容
     status: UnitStatus = UnitStatus.PENDING
     mastery_score: float = 0.0
 
