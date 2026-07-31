@@ -150,7 +150,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .prose :deep(h1), .prose :deep(h2), .prose :deep(h3) { scroll-margin-top: 80px; }
-.prose :deep(pre) { background: #1e1e2e; border-radius: 0.5rem; padding: 1rem; overflow-x: auto; }
+.prose :deep(pre) { background: #1e1e2e; color: #cdd6f4; border-radius: 0.5rem; padding: 1rem; overflow-x: auto; }
+.prose :deep(pre code) { color: #cdd6f4; font-size: 0.875em; }
 .prose :deep(code) { font-size: 0.875em; }
 .prose :deep(.katex) { font-size: 1.1em; }
 </style>
