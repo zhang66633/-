@@ -33,8 +33,9 @@ onMounted(async () => {
 
 async function onDiagnoseFinish(payload: any) {
   await profileStore.runDiagnose(payload);
-  // 诊断完成后用诊断结果生成学习路径
-  await store.generateNewPath(payload.role, "beginner", payload.goal);
+  // 用诊断结果的水平生成自适应学习路径
+  store.currentLevel = payload.level;
+  await store.generateNewPath(payload.role, payload.level, payload.goal);
 }
 
 function handleUnitSelect(unitId: string) {

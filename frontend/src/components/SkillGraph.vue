@@ -37,12 +37,14 @@
           <div
             v-for="unit in cat.units"
             :key="unit.id"
-            class="flex items-center gap-2 py-1 px-2 rounded text-sm cursor-pointer transition-colors hover:bg-accent"
+            class="flex items-center gap-2 py-1 px-2 rounded text-sm cursor-pointer transition-colors hover:bg-accent group"
             :class="statusClass(unit.status)"
             @click="$emit('select', unit.id)"
           >
             <span class="text-xs shrink-0">{{ statusIcon(unit.status) }}</span>
-            <span class="truncate">{{ unit.name }}</span>
+            <span class="truncate flex-1">{{ unit.name }}</span>
+            <span v-if="unit.difficulty" class="text-[9px] font-mono px-1 py-0.5 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              :class="diffBadge(unit.difficulty)">{{ diffLabel(unit.difficulty) }}</span>
           </div>
         </div>
       </div>
@@ -122,10 +124,17 @@ function statusClass(status: string) {
 }
 
 function statusIcon(status: string) {
+  return { completed: "✅", active: "🔄", locked: "⬜" }[status] ?? "⬜";
+}
+function diffLabel(d: string) {
+  return { beginner: "入门", intermediate: "进阶", advanced: "实战", competition: "竞赛" }[d] ?? "";
+}
+function diffBadge(d: string) {
   return {
-    completed: "✅",
-    active: "🔄",
-    locked: "⬜",
-  }[status] ?? "⬜";
+    beginner: "bg-emerald-50 text-emerald-600",
+    intermediate: "bg-amber-50 text-amber-600",
+    advanced: "bg-purple-50 text-purple-600",
+    competition: "bg-red-50 text-red-600",
+  }[d] ?? "";
 }
 </script>
