@@ -38,6 +38,8 @@ backend/paper_output/
 
 # Agent / 编辑器工作数据（不入库）
 .codebuddy/
+.idea/
+.vscode/
 
 # 系统杂项
 .DS_Store
