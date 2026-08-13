@@ -16,8 +16,10 @@ def route_to_first_agent(state: AgentState) -> str:
     node_map = {
         "analysis": "analysis_agent",
         "modeling": "modeling_agent",
+        "data_preprocessing": "data_preprocessing_agent",
         "solving": "solving_agent",
         "verification": "verification_agent",
+        "export_results": "export_results_agent",
         "writing": "writing_agent",
     }
     return node_map.get(first_step, "analysis_agent")
@@ -41,8 +43,10 @@ def after_agent_router(state: AgentState) -> str:
         node_map = {
             "analysis": "analysis_agent",
             "modeling": "modeling_agent",
+            "data_preprocessing": "data_preprocessing_agent",
             "solving": "solving_agent",
             "verification": "verification_agent",
+            "export_results": "export_results_agent",
             "writing": "writing_agent",
         }
         return node_map.get(target, "modeling_agent")
@@ -56,8 +60,10 @@ def after_agent_router(state: AgentState) -> str:
     node_map = {
         "analysis": "analysis_agent",
         "modeling": "modeling_agent",
+        "data_preprocessing": "data_preprocessing_agent",
         "solving": "solving_agent",
         "verification": "verification_agent",
+        "export_results": "export_results_agent",
         "writing": "writing_agent",
     }
     return node_map.get(next_step, "format_response")

@@ -159,6 +159,24 @@ class RunCodeTool(BaseTool):
                 p = Path(img_path)
                 img_urls.append(f"/api/images/{result['run_id']}/{p.name}")
             parts.append(f"生成图表: {', '.join(img_urls)}")
+        if result.get("xlsx_files"):
+            xlsx_urls = []
+            for fpath in result["xlsx_files"]:
+                p = Path(fpath)
+                xlsx_urls.append(f"/api/task_files/{result['run_id']}/{p.name}")
+            parts.append(f"生成 Excel 文件: {', '.join(xlsx_urls)}")
+        if result.get("csv_files"):
+            csv_urls = []
+            for fpath in result["csv_files"]:
+                p = Path(fpath)
+                csv_urls.append(f"/api/task_files/{result['run_id']}/{p.name}")
+            parts.append(f"生成 CSV 文件: {', '.join(csv_urls)}")
+        if result.get("html_files"):
+            html_urls = []
+            for fpath in result["html_files"]:
+                p = Path(fpath)
+                html_urls.append(f"/api/task_files/{result['run_id']}/{p.name}")
+            parts.append(f"生成 HTML 报告: {', '.join(html_urls)}")
         if not parts:
             parts.append("代码执行完成，无输出。")
 

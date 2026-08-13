@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import re
 import time
 from pathlib import Path
@@ -45,6 +46,9 @@ from .prompts.writing import (
     WRITING_TEACH_SYSTEM_PROMPT, WRITING_TEACH_USER_TEMPLATE,
     WRITING_OUTLINE_PROMPT, WRITING_SECTION_PROMPT, WRITING_ABSTRACT_PROMPT,
     RED_TEAM_PROMPT, WRITING_REVISE_PROMPT,
+)
+from .prompts.preprocessing import (
+    PREPROCESSING_SYSTEM_PROMPT, PREPROCESSING_USER_TEMPLATE,
 )
 
 
@@ -533,10 +537,22 @@ def _collect_image_urls(text: str) -> list[str]:
     return re.findall(r"/api/images/[^\s,，)）'\"]+\.png", text or "")
 
 
-def _persist_task_images(task_id: str, image_urls: list[str]) -> list[str]:
-    """把沙箱临时目录里的图表复制到任务持久目录，并登记进文件区。
+def _collect_file_urls(text: str, suffix: str) -> list[str]:
+    """从工具输出文本中提取指定后缀的文件 URL。"""
+    pattern = rf"/api/task_files/[^\s,，)）'\"]+\.{suffix}"
+    return re.findall(pattern, text or "")
 
-    返回持久化后的 /api/task_files/{task_id}/{filename} URL 列表。
+
+def _persist_task_files(
+    task_id: str,
+    image_urls: list[str] = (),
+    xlsx_urls: list[str] = (),
+    csv_urls: list[str] = (),
+    html_urls: list[str] = (),
+) -> dict[str, list[str]]:
+    """把沙箱临时目录里的所有文件复制到任务持久目录，并登记进文件区。
+
+    返回持久化后的各类 URL 列表。
     """
     import shutil
     import tempfile
@@ -547,30 +563,48 @@ def _persist_task_images(task_id: str, image_urls: list[str]) -> list[str]:
     temp_root = Path(tempfile.gettempdir()) / "mathmodel_outputs"
     session_mgr = get_session_manager()
 
-    durable_urls: list[str] = []
-    for url in image_urls:
-        try:
-            # url 形如 /api/images/{run_id}/{filename}
-            parts = url.rstrip("/").split("/")
-            run_id, filename = parts[-2], parts[-1]
-            src = temp_root / run_id / filename
-            if not src.exists():
+    def _persist(urls: list[str], file_type: str) -> list[str]:
+        durable: list[str] = []
+        for url in urls:
+            try:
+                parts = url.rstrip("/").split("/")
+                run_id_or_task_id, filename = parts[-2], parts[-1]
+                src = temp_root / run_id_or_task_id / filename
+                if not src.exists():
+                    # 也可能在 task_files 目录
+                    src = task_dir / filename
+                if not src.exists():
+                    continue
+                task_dir.mkdir(parents=True, exist_ok=True)
+                dst = task_dir / filename
+                if not dst.exists():
+                    shutil.copy2(src, dst)
+                durable_url = f"/api/task_files/{task_id}/{filename}"
+                session_mgr.add_artifact(task_id, {
+                    "type": file_type,
+                    "name": filename,
+                    "url": durable_url,
+                    "size": dst.stat().st_size,
+                })
+                durable.append(durable_url)
+            except Exception:  # noqa: BLE001
                 continue
-            task_dir.mkdir(parents=True, exist_ok=True)
-            dst = task_dir / filename
-            if not dst.exists():
-                shutil.copy2(src, dst)
-            durable_url = f"/api/task_files/{task_id}/{filename}"
-            session_mgr.add_artifact(task_id, {
-                "type": "figure",
-                "name": filename,
-                "url": durable_url,
-                "size": dst.stat().st_size,
-            })
-            durable_urls.append(durable_url)
-        except Exception:  # noqa: BLE001
-            continue  # 单个图表持久化失败不阻塞流程
-    return durable_urls
+        return durable
+
+    return {
+        "images": _persist(image_urls, "figure"),
+        "xlsx": _persist(xlsx_urls, "xlsx"),
+        "csv": _persist(csv_urls, "csv"),
+        "html": _persist(html_urls, "html"),
+    }
+
+
+def _persist_task_images(task_id: str, image_urls: list[str]) -> list[str]:
+    """把沙箱临时目录里的图表复制到任务持久目录，并登记进文件区。
+
+    返回持久化后的 /api/task_files/{task_id}/{filename} URL 列表。
+    """
+    return _persist_task_files(task_id, image_urls=image_urls)["images"]
 
 
 def solving_agent_node(state: AgentState) -> dict:
@@ -652,6 +686,9 @@ def solving_agent_node(state: AgentState) -> dict:
     ]
 
     all_images: list[str] = []
+    all_xlsx: list[str] = []
+    all_csv: list[str] = []
+    all_html: list[str] = []
     max_rounds = 10  # 工具调用轮数上限（每轮可并发多个工具）
 
     # 工具结果截断目录（借鉴 cc-haha maxResultSizeChars）
@@ -702,9 +739,12 @@ def solving_agent_node(state: AgentState) -> dict:
             # 截断超长工具结果（借鉴 cc-haha maxResultSizeChars）
             result_text = _truncate_tool_result(result_text, tool_name)
 
-            # 收集 run_code 产出的图表 URL
+            # 收集 run_code 产出的图表和文件 URL
             if tool_name == "run_code":
                 all_images.extend(_collect_image_urls(result_text))
+                all_xlsx.extend(_collect_file_urls(result_text, "xlsx"))
+                all_csv.extend(_collect_file_urls(result_text, "csv"))
+                all_html.extend(_collect_file_urls(result_text, "html"))
 
             # 前端渲染工具调用卡片
             _pub_event(task_id, "tool_call", "solving_agent", {
@@ -714,6 +754,9 @@ def solving_agent_node(state: AgentState) -> dict:
                     "name": tool_name,
                     "preview": result_text[:1500],
                     "images": _collect_image_urls(result_text),
+                    "xlsx_files": _collect_file_urls(result_text, "xlsx"),
+                    "csv_files": _collect_file_urls(result_text, "csv"),
+                    "html_files": _collect_file_urls(result_text, "html"),
                 }],
             })
 
@@ -736,13 +779,20 @@ def solving_agent_node(state: AgentState) -> dict:
         )])
         final_output = str(fallback.content)
 
-    # 图表持久化到任务文件区（临时目录可能被系统清理）
-    _persist_task_images(task_id, all_images)
+    # 图表和文件持久化到任务文件区（临时目录可能被系统清理）
+    _persist_task_files(task_id,
+        image_urls=all_images,
+        xlsx_urls=all_xlsx,
+        csv_urls=all_csv,
+        html_urls=all_html,
+    )
 
     _pub_event(task_id, "node_end", "solving_agent", {
         "step": idx + 1,
         "output_length": len(final_output),
         "images_count": len(all_images),
+        "xlsx_count": len(all_xlsx),
+        "csv_count": len(all_csv),
         "summary": final_output[:800],
         "title": "求解计算",
         "desc": f"输出 {len(final_output)} 字" + (f"，图表 {len(all_images)} 张" if all_images else ""),
@@ -1042,6 +1092,221 @@ def writing_agent_node(state: AgentState) -> dict:
             SystemMessage(
                 content=f"[写作Agent] 第{idx+1}步完成，"
                         f"论文 {len(writing_output)} 字"
+            )
+        ],
+    }
+
+
+# ============================================================
+# 节点: 数据预处理
+# ============================================================
+def data_preprocessing_agent_node(state: AgentState) -> dict:
+    """数据预处理 Agent — 独立 EDA 和数据清洗节点。
+
+    仅在 execute 模式且有数据文件时执行。
+    - 多轮 tool loop 调用 run_code 完成数据质量检查、统计摘要、可视化
+    - 产出结构化 EDA 报告供后续 modeling/solving 使用
+    """
+    idx = _next_step(state)
+    task_id = state["session_id"]
+
+    # 无数据文件时跳过
+    data_files = state.get("data_files") or []
+    if not data_files and not state.get("data_files_dir"):
+        _pub_event(task_id, "node_end", "data_preprocessing_agent", {
+            "step": idx + 1,
+            "skipped": True,
+            "summary": "无数据文件，跳过数据预处理",
+            "title": "数据预处理",
+            "desc": "（无数据，已跳过）",
+        })
+        return {
+            "preprocessed_data": None,
+            "current_step_index": idx,
+            "messages": [SystemMessage(content=f"[预处理Agent] 第{idx+1}步跳过（无数据文件）")],
+        }
+
+    _pub_event(task_id, "node_start", "data_preprocessing_agent", {"step": idx + 1})
+    llm = get_llm("solving", state.get("api_key_config"))  # 复用 solving 的 LLM 配置
+
+    # 注入数据文件目录
+    run_code_tool = RunCodeTool()
+    run_code_tool.data_files_dir = state.get("data_files_dir", "")
+
+    tools = [run_code_tool] + create_math_tools()
+    tool_map = {t.name: t for t in tools}
+    llm_with_tools = llm.bind_tools(tools)
+
+    model_text = state.get("model_output") or "无模型"
+
+    # 构建数据文件上下文
+    data_files_context = ""
+    if data_files:
+        lines = ["\n## 可用数据文件（已挂载到工作目录，代码中直接用文件名读取）"]
+        for df in data_files:
+            lines.append(
+                f"- `{df.get('filename', '?')}`: "
+                f"{df.get('rows', '?')}行, "
+                f"列: {', '.join(df.get('columns', []))}"
+            )
+        data_files_context = "\n".join(lines)
+
+    system_prompt = PREPROCESSING_SYSTEM_PROMPT
+    user_prompt = PREPROCESSING_USER_TEMPLATE.format(
+        problem=state["problem_raw"],
+        model=model_text,
+    )
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt + data_files_context),
+    ]
+
+    all_images: list[str] = []
+    max_rounds = 5
+
+    for _ in range(max_rounds):
+        response = llm_with_tools.invoke(messages)
+        messages.append(response)
+
+        tool_calls = getattr(response, "tool_calls", None) or []
+        if not tool_calls:
+            break
+
+        for tc in tool_calls:
+            tool_name = tc.get("name")
+            tool_args = tc.get("args") or {}
+            tool = tool_map.get(tool_name)
+
+            if tool is None:
+                result_text = f"未知工具: {tool_name}"
+            else:
+                try:
+                    result_text = tool.invoke(tool_args)
+                except Exception as e:
+                    result_text = f"工具执行失败: {e}"
+
+            if tool_name == "run_code":
+                all_images.extend(_collect_image_urls(result_text))
+
+            _pub_event(task_id, "tool_call", "data_preprocessing_agent", {
+                "tool_name": tool_name,
+                "input": {k: (str(v)[:1500] if k == "code" else v) for k, v in tool_args.items()},
+                "output": [{
+                    "name": tool_name,
+                    "preview": result_text[:1500],
+                    "images": _collect_image_urls(result_text),
+                }],
+            })
+
+            messages.append(ToolMessage(
+                content=result_text,
+                tool_call_id=tc.get("id") or tool_name,
+            ))
+
+    # 最终输出 = 最后一条 AI 文本消息
+    final_output = ""
+    for m in reversed(messages):
+        if isinstance(m, AIMessage) and m.content and not (getattr(m, "tool_calls", None)):
+            final_output = str(m.content)
+            break
+
+    if not final_output:
+        fallback = llm.invoke(messages + [HumanMessage(
+            content="请停止调用工具，基于以上已获得的分析结果，立即输出结构化 EDA 报告。"
+        )])
+        final_output = str(fallback.content)
+
+    # 持久化 EDA 图表
+    _persist_task_images(task_id, all_images)
+
+    _pub_event(task_id, "node_end", "data_preprocessing_agent", {
+        "step": idx + 1,
+        "output_length": len(final_output),
+        "images_count": len(all_images),
+        "summary": final_output[:800],
+        "title": "数据预处理",
+        "desc": f"EDA 报告 {len(final_output)} 字" + (f"，图表 {len(all_images)} 张" if all_images else ""),
+    })
+
+    if state["mode"] == "execute":
+        _save_working_memory(task_id, "preprocessing", final_output,
+                             extra={"images_count": len(all_images)})
+
+    return {
+        "preprocessed_data": final_output,
+        "current_step_index": idx,
+        "messages": [
+            SystemMessage(
+                content=f"[预处理Agent] 第{idx+1}步完成，"
+                        f"图表 {len(all_images)} 张，"
+                        f"输出 {len(final_output)} 字"
+            )
+        ],
+    }
+
+
+# ============================================================
+# 节点: 结果导出
+# ============================================================
+def export_results_agent_node(state: AgentState) -> dict:
+    """结果导出 Agent — 将求解结果打包为结构化文件。
+
+    仅在 execute 模式时执行。
+    - 收集求解阶段产出的 xlsx/csv/html 文件
+    - 用 ResultPackager 生成汇总 xlsx 和 zip 包
+    """
+    idx = _next_step(state)
+    task_id = state["session_id"]
+
+    _pub_event(task_id, "node_start", "export_results_agent", {"step": idx + 1})
+    settings = get_settings()
+
+    export_files: list[dict] = []
+    try:
+        from app.services.result_packager import ResultPackager
+        packager = ResultPackager(task_id, settings.project_root)
+
+        # 生成汇总 xlsx
+        solving_output = state.get("solving_output") or ""
+        summary_xlsx = packager.build_summary_xlsx(
+            solving_output=solving_output,
+            task_files_dir=packager.task_dir,
+        )
+        if summary_xlsx.exists():
+            export_files.append({
+                "type": "xlsx",
+                "name": summary_xlsx.name,
+                "url": f"/api/task_files/{task_id}/{summary_xlsx.name}",
+                "size": summary_xlsx.stat().st_size,
+            })
+
+        # 打包 zip
+        zip_path = packager.build_zip_package()
+        if zip_path.exists():
+            export_files.append({
+                "type": "zip",
+                "name": zip_path.name,
+                "url": f"/api/task_files/{task_id}/{zip_path.name}",
+                "size": zip_path.stat().st_size,
+            })
+    except Exception as e:
+        logger.warning("结果导出失败: %s", e)
+
+    _pub_event(task_id, "node_end", "export_results_agent", {
+        "step": idx + 1,
+        "files_count": len(export_files),
+        "summary": f"生成 {len(export_files)} 个导出文件",
+        "title": "结果导出",
+        "desc": f"导出 {len(export_files)} 个文件" if export_files else "导出失败",
+    })
+
+    return {
+        "export_files": export_files,
+        "current_step_index": idx,
+        "messages": [
+            SystemMessage(
+                content=f"[导出Agent] 第{idx+1}步完成，"
+                        f"导出 {len(export_files)} 个文件"
             )
         ],
     }

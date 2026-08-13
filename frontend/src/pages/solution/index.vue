@@ -18,6 +18,7 @@
         input-placeholder="描述你想解决的建模问题..."
         @send="handleUserSend"
         @cancel="handleCancel"
+        @open-paper="openPaperViewer"
       />
     </div>
     <Transition name="slide-right">
@@ -53,6 +54,10 @@
                 class="h-8 w-8 object-cover rounded border shrink-0"
                 loading="lazy"
               />
+              <FileSpreadsheet v-else-if="f.type === 'xlsx' || f.name.endsWith('.xlsx')" class="h-4 w-4 text-green-500 shrink-0" />
+              <Table v-else-if="f.type === 'csv' || f.name.endsWith('.csv')" class="h-4 w-4 text-blue-500 shrink-0" />
+              <FileText v-else-if="f.type === 'html' || f.name.endsWith('.html')" class="h-4 w-4 text-orange-500 shrink-0" />
+              <Archive v-else-if="f.type === 'zip' || f.name.endsWith('.zip')" class="h-4 w-4 text-purple-500 shrink-0" />
               <Paperclip v-else class="h-4 w-4 text-muted-foreground shrink-0" />
               <span class="flex-1 truncate" :title="f.name">{{ f.name }}</span>
               <a
@@ -82,17 +87,52 @@
           >
             <FileDown class="h-4 w-4" /> Word (.docx)
           </button>
+
+          <template v-if="hasExportFiles">
+            <p class="text-xs font-medium text-foreground mb-2 mt-4">📊 下载数据</p>
+            <button
+              v-if="hasXlsxFile"
+              class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+              @click="downloadExport('xlsx')"
+            >
+              <FileSpreadsheet class="h-4 w-4" /> Excel (.xlsx)
+            </button>
+            <button
+              v-if="hasCsvFile"
+              class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+              @click="downloadExport('csv')"
+            >
+              <Table class="h-4 w-4" /> CSV (.csv)
+            </button>
+          </template>
+
+          <p class="text-xs font-medium text-foreground mb-2 mt-4">📦 打包下载</p>
+          <button
+            class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+            @click="downloadPackage"
+          >
+            <Archive class="h-4 w-4" /> 完整结果包 (.zip)
+          </button>
         </div>
       </div>
     </Transition>
+
+    <!-- 论文阅读器（全屏浮层） -->
+    <PaperViewer
+      v-if="showPaperViewer"
+      :markdown="paperContent"
+      :task-id="currentTaskId ?? undefined"
+      @close="closePaperViewer"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
-import { PanelRight, FileText, FileDown, Paperclip, Download } from "lucide-vue-next";
+import { PanelRight, FileText, FileDown, Paperclip, Download, FileSpreadsheet, Table, Archive } from "lucide-vue-next";
 import ChatArea from "@/components/ChatArea.vue";
 import ProgressTimeline, { type ProgressStep } from "@/components/ProgressTimeline.vue";
+import PaperViewer from "@/components/paper/PaperViewer.vue";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { useTaskStore } from "@/stores/task";
 import { createTask, cancelTask, getTaskFiles } from "@/apis/commonApi";
@@ -151,9 +191,11 @@ watch(
 const stepDefs: ProgressStep[] = [
   { id: "1", label: "问题分析", description: "识别问题类型，理解题意", status: "wait" },
   { id: "2", label: "模型构建", description: "选择并建立数学模型", status: "wait" },
-  { id: "3", label: "求解计算", description: "生成并执行求解代码", status: "wait" },
-  { id: "4", label: "验证分析", description: "检验模型鲁棒性", status: "wait" },
-  { id: "5", label: "论文写作", description: "生成结构化论文", status: "wait" },
+  { id: "3", label: "数据预处理", description: "EDA 探索与数据清洗", status: "wait" },
+  { id: "4", label: "求解计算", description: "生成并执行求解代码", status: "wait" },
+  { id: "5", label: "验证分析", description: "检验模型鲁棒性", status: "wait" },
+  { id: "6", label: "结果导出", description: "打包结构化文件", status: "wait" },
+  { id: "7", label: "论文写作", description: "生成结构化论文", status: "wait" },
 ];
 
 const agentSteps = computed<ProgressStep[]>(() => {
@@ -171,10 +213,12 @@ const agentSteps = computed<ProgressStep[]>(() => {
   }
   if (activeIdx === -1) {
     if (current.includes("分析") || current.includes("检索") || current.includes("计划")) activeIdx = 0;
-    else if (current.includes("模型")) activeIdx = 1;
-    else if (current.includes("求解") || current.includes("计算")) activeIdx = 2;
-    else if (current.includes("验证")) activeIdx = 3;
-    else if (current.includes("写作") || current.includes("整合") || current.includes("输出")) activeIdx = 4;
+    else if (current.includes("模型") || current.includes("建模")) activeIdx = 1;
+    else if (current.includes("预处理") || current.includes("数据")) activeIdx = 2;
+    else if (current.includes("求解") || current.includes("计算")) activeIdx = 3;
+    else if (current.includes("验证")) activeIdx = 4;
+    else if (current.includes("导出") || current.includes("打包")) activeIdx = 5;
+    else if (current.includes("写作") || current.includes("整合") || current.includes("输出")) activeIdx = 6;
   }
   return stepDefs.map((s, i) => ({
     ...s,
@@ -304,7 +348,7 @@ async function handleCancel() {
 }
 
 /** 带鉴权的文件导出下载 */
-async function downloadExport(format: "md" | "docx") {
+async function downloadExport(format: "md" | "docx" | "xlsx" | "csv") {
   if (!currentTaskId.value) return;
   try {
     const { default: request } = await import("@/utils/request");
@@ -323,6 +367,50 @@ async function downloadExport(format: "md" | "docx") {
   } catch (e: any) {
     console.error("导出失败：", e);
   }
+}
+
+/** 下载完整结果包 */
+async function downloadPackage() {
+  if (!currentTaskId.value) return;
+  try {
+    const { default: request } = await import("@/utils/request");
+    const resp = await request.get(`/tasks/${currentTaskId.value}/package`, {
+      responseType: "blob",
+    });
+    const blob = new Blob([resp.data]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${currentTaskId.value}_results.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e: any) {
+    console.error("打包下载失败：", e);
+  }
+}
+
+/** 是否有导出文件（xlsx/csv） */
+const hasXlsxFile = computed(() => taskFiles.value.some((f) => f.name.endsWith(".xlsx")));
+const hasCsvFile = computed(() => taskFiles.value.some((f) => f.name.endsWith(".csv")));
+const hasExportFiles = computed(() => hasXlsxFile.value || hasCsvFile.value);
+
+// ---- 论文阅读器 ----
+const showPaperViewer = ref(false);
+const paperContent = ref("");
+
+function openPaperViewer() {
+  // 从 displayMessages 中找到论文消息
+  const paperMsg = displayMessages.value.find(
+    (m) => typeof m.id === "string" && m.id.startsWith("final-"),
+  );
+  if (paperMsg?.content) {
+    paperContent.value = paperMsg.content;
+    showPaperViewer.value = true;
+  }
+}
+
+function closePaperViewer() {
+  showPaperViewer.value = false;
 }
 
 // task_end 后 taskStore.isRunning=false，同步 solution 的 runningMode

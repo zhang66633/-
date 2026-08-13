@@ -51,6 +51,7 @@
           <Bubble
             :message="messages[item.index]"
             :is-last="item.index === messages.length - 1"
+            @open-paper="$emit('openPaper')"
           />
         </div>
       </div>
@@ -122,6 +123,7 @@ const emit = defineEmits<{
   cancel: [];
   export: [];
   "new-session": [];
+  openPaper: [];
 }>();
 
 // 提供给 ClarifyCard 注入的发送函数，让用户选择后可以直接发送消息

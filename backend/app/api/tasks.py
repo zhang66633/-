@@ -408,7 +408,7 @@ from fastapi.responses import Response, StreamingResponse
 @tasks_router.get("/tasks/{task_id}/export")
 async def export_document(
     task_id: str,
-    format: str = Query("md", description="导出格式: md | latex | docx"),
+    format: str = Query("md", description="导出格式: md | latex | docx | xlsx | csv"),
     user: GitHubUser = Depends(require_auth),
 ):
     """导出方案模式生成的结果文档。
@@ -416,6 +416,8 @@ async def export_document(
     - format=md:    Markdown 原文
     - format=latex: LaTeX .tex 文件
     - format=docx:  Word .docx 文件
+    - format=xlsx:  Excel 结果表
+    - format=csv:   CSV 数据文件
     """
     task = get_session_manager().get(task_id)
     if not task:
@@ -434,6 +436,12 @@ async def export_document(
 
     elif format == "docx":
         return _export_docx(final_response, title=task.get("problem", "数学建模方案")[:80])
+
+    elif format == "xlsx":
+        return _export_xlsx(task_id)
+
+    elif format == "csv":
+        return _export_csv(task_id)
 
     else:  # md
         return Response(
@@ -532,3 +540,79 @@ def _export_docx(content: str, title: str = "数学建模方案") -> StreamingRe
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": "attachment; filename=modeling_solution.docx"},
     )
+
+
+def _export_xlsx(task_id: str) -> Response:
+    """导出任务生成的 xlsx 结果文件。"""
+    from pathlib import Path as _Path
+    settings = get_settings()
+    task_dir = _Path(settings.project_root) / "data" / "task_files" / task_id
+
+    # 优先找 LLM 生成的 results.xlsx
+    xlsx_files = sorted(task_dir.glob("*.xlsx"))
+    if not xlsx_files:
+        raise HTTPException(status_code=404, detail="未找到 xlsx 结果文件")
+
+    xlsx_path = xlsx_files[0]
+    return FileResponse(
+        str(xlsx_path),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=f"results_{task_id}.xlsx",
+    )
+
+
+def _export_csv(task_id: str) -> Response:
+    """导出任务生成的 CSV 数据文件。"""
+    from pathlib import Path as _Path
+    settings = get_settings()
+    task_dir = _Path(settings.project_root) / "data" / "task_files" / task_id
+
+    csv_files = sorted(task_dir.glob("*.csv"))
+    if not csv_files:
+        raise HTTPException(status_code=404, detail="未找到 CSV 数据文件")
+
+    csv_path = csv_files[0]
+    return FileResponse(
+        str(csv_path),
+        media_type="text/csv; charset=utf-8",
+        filename=f"data_{task_id}.csv",
+    )
+
+
+# ── Package download ──────────────────────────────────────────────
+
+
+@tasks_router.get("/tasks/{task_id}/package")
+async def download_package(
+    task_id: str,
+    user: GitHubUser = Depends(require_auth),
+):
+    """下载完整结果包（zip：论文 + 数据 + 图表 + 代码）。"""
+    from pathlib import Path as _Path
+    settings = get_settings()
+    task_dir = _Path(settings.project_root) / "data" / "task_files" / task_id
+
+    # 尝试找已有 zip
+    zip_files = sorted(task_dir.glob("*.zip"))
+    if zip_files:
+        return FileResponse(
+            str(zip_files[0]),
+            media_type="application/zip",
+            filename=f"{task_id}_results.zip",
+        )
+
+    # 动态生成 zip
+    try:
+        from app.services.result_packager import ResultPackager
+        packager = ResultPackager(task_id, settings.project_root)
+        zip_path = packager.build_zip_package()
+        if zip_path.exists():
+            return FileResponse(
+                str(zip_path),
+                media_type="application/zip",
+                filename=f"{task_id}_results.zip",
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"打包失败: {e}")
+
+    raise HTTPException(status_code=404, detail="无结果文件可打包")

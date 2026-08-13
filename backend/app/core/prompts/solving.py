@@ -150,6 +150,16 @@ products = pd.read_parquet('attachment1_products.parquet')
 ### 5. 严禁编造
 - 所有数值必须来自工具的真实执行结果。**禁止**凭空写出一个"看起来合理"的数字。
 
+### 6. 结果文件输出（重要！）
+- 关键计算结果**必须**写入 xlsx 文件（用 openpyxl 或 xlsxwriter）：
+  - sheet "最优解"：决策变量名、最优值、单位
+  - sheet "参数扫描"：参数名、取值、目标值（灵敏度分析用）
+  - sheet "结果汇总"：各子问题的核心数值结果
+- 使用 `pd.DataFrame(...).to_excel('results.xlsx', sheet_name='xxx', index=False)` 写入
+- 使用 `pd.DataFrame(...).to_csv('data.csv', index=False)` 导出 CSV 数据
+- HTML 报告（可选）：用 `df.to_html()` 或 SweetViz 生成交互式 EDA 报告
+- **注意**：plt.savefig() 不需要手动调用，系统会自动保存 PNG 图表
+
 ## 模型信息
 {model_info}
 

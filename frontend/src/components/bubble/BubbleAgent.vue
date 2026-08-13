@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from "vue";
-import { Printer, Clipboard } from "lucide-vue-next";
+import { Printer, Clipboard, BookOpen } from "lucide-vue-next";
 import type { Message, AgentMessage } from "@/types/response";
 import { AgentType } from "@/types/enum";
 import { getAgentIdentity } from "@/components/agent/AgentIdentity";
 import ThinkingBlock from "@/components/agent/ThinkingBlock.vue";
+import PaperCard from "@/components/paper/PaperCard.vue";
 import { useTypewriter } from "@/composables/useTypewriter";
 import { renderMarkdown } from "@/utils/markdown";
 import BubbleAvatar from "./BubbleAvatar.vue";
@@ -16,6 +17,10 @@ const props = withDefaults(
   }>(),
   { isLast: false },
 );
+
+const emit = defineEmits<{
+  openPaper: [];
+}>();
 
 const content = computed(() => props.message.content ?? "");
 
@@ -101,8 +106,14 @@ const timestamp = computed(() => {
           />
 
           <!-- 内容 / 打字机 / 思考点 -->
+          <!-- 论文消息：显示 PaperCard 代替全文渲染 -->
+          <PaperCard
+            v-if="isFinalPaper && content"
+            :markdown="content"
+            @open="emit('openPaper')"
+          />
           <div
-            v-if="content"
+            v-else-if="content"
             class="prose prose-sm dark:prose-invert max-w-none break-words"
             :class="{ 'cursor-pointer': isTyping }"
             v-html="renderedContent"

@@ -24,6 +24,10 @@ const props = withDefaults(
   { isLast: false },
 );
 
+const emit = defineEmits<{
+  openPaper: [];
+}>();
+
 const component = computed(() => {
   switch (props.message.msg_type) {
     case "user":    return BubbleUser;
@@ -37,5 +41,5 @@ const component = computed(() => {
 </script>
 
 <template>
-  <component :is="component" :message="message" :is-last="isLast" />
+  <component :is="component" :message="message" :is-last="isLast" @open-paper="emit('openPaper')" />
 </template>

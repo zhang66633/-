@@ -118,23 +118,29 @@ class SandboxExecutor:
             )
 
             images = sorted(output_subdir.glob("*.png"))
+            xlsx_files = sorted(output_subdir.glob("*.xlsx"))
+            csv_files = sorted(output_subdir.glob("*.csv"))
+            html_files = sorted(output_subdir.glob("*.html"))
             return {
                 "success": result.returncode == 0,
                 "stdout": result.stdout[:5000],
                 "stderr": result.stderr[:2000],
                 "returncode": result.returncode,
                 "images": [str(img) for img in images],
+                "xlsx_files": [str(f) for f in xlsx_files],
+                "csv_files": [str(f) for f in csv_files],
+                "html_files": [str(f) for f in html_files],
                 "run_id": run_id,
             }
         except subprocess.TimeoutExpired:
             return {
                 "success": False, "stdout": "", "stderr": f"执行超时 ({self.timeout}秒)",
-                "returncode": -1, "images": [], "run_id": run_id,
+                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
             }
         except Exception as e:
             return {
                 "success": False, "stdout": "", "stderr": str(e),
-                "returncode": -1, "images": [], "run_id": run_id,
+                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
             }
 
     # ── Docker 模式 ──────────────────────────────────────────────
@@ -177,18 +183,33 @@ class SandboxExecutor:
                 p for p in output_subdir.glob("*.png")
                 if p.name != "_code.py"
             )
+            xlsx_files = sorted(
+                p for p in output_subdir.glob("*.xlsx")
+                if p.name != "_code.py"
+            )
+            csv_files = sorted(
+                p for p in output_subdir.glob("*.csv")
+                if p.name != "_code.py"
+            )
+            html_files = sorted(
+                p for p in output_subdir.glob("*.html")
+                if p.name != "_code.py"
+            )
             return {
                 "success": result.returncode == 0,
                 "stdout": result.stdout[:5000],
                 "stderr": result.stderr[:2000],
                 "returncode": result.returncode,
                 "images": [str(img) for img in images],
+                "xlsx_files": [str(f) for f in xlsx_files],
+                "csv_files": [str(f) for f in csv_files],
+                "html_files": [str(f) for f in html_files],
                 "run_id": run_id,
             }
         except subprocess.TimeoutExpired:
             return {
                 "success": False, "stdout": "", "stderr": f"执行超时 ({self.timeout}秒)",
-                "returncode": -1, "images": [], "run_id": run_id,
+                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
             }
         except FileNotFoundError:
             return {
@@ -197,12 +218,12 @@ class SandboxExecutor:
                     "Docker 未安装或未在 PATH 中。请安装 Docker Desktop，"
                     "然后执行: docker build -t mathmodel-sandbox -f Dockerfile.sandbox ."
                 ),
-                "returncode": -1, "images": [], "run_id": run_id,
+                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
             }
         except Exception as e:
             return {
                 "success": False, "stdout": "", "stderr": str(e),
-                "returncode": -1, "images": [], "run_id": run_id,
+                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
             }
 
     def _wrap_code(self, code: str, output_dir: str) -> str:

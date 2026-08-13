@@ -36,8 +36,10 @@ from .nodes import (
     plan_execution,
     analysis_agent_node,
     modeling_agent_node,
+    data_preprocessing_agent_node,
     solving_agent_node,
     verification_agent_node,
+    export_results_agent_node,
     writing_agent_node,
     format_response,
 )
@@ -54,11 +56,13 @@ def build_orchestrator() -> StateGraph:
     workflow.add_node("retrieve_knowledge", retrieve_knowledge)
     workflow.add_node("plan_execution", plan_execution)
 
-    # ---- Agent 节点（子智能体目前全是占位）----
+    # ---- Agent 节点 ----
     workflow.add_node("analysis_agent", analysis_agent_node)
     workflow.add_node("modeling_agent", modeling_agent_node)
+    workflow.add_node("data_preprocessing_agent", data_preprocessing_agent_node)
     workflow.add_node("solving_agent", solving_agent_node)
     workflow.add_node("verification_agent", verification_agent_node)
+    workflow.add_node("export_results_agent", export_results_agent_node)
     workflow.add_node("writing_agent", writing_agent_node)
 
     # ---- 格式化输出 ----
@@ -76,8 +80,10 @@ def build_orchestrator() -> StateGraph:
         {
             "analysis_agent": "analysis_agent",
             "modeling_agent": "modeling_agent",
+            "data_preprocessing_agent": "data_preprocessing_agent",
             "solving_agent": "solving_agent",
             "verification_agent": "verification_agent",
+            "export_results_agent": "export_results_agent",
             "writing_agent": "writing_agent",
             "format_response": "format_response",
         },
@@ -87,8 +93,10 @@ def build_orchestrator() -> StateGraph:
     agent_nodes = [
         "analysis_agent",
         "modeling_agent",
+        "data_preprocessing_agent",
         "solving_agent",
         "verification_agent",
+        "export_results_agent",
         "writing_agent",
     ]
 
@@ -99,8 +107,10 @@ def build_orchestrator() -> StateGraph:
             {
                 "analysis_agent": "analysis_agent",
                 "modeling_agent": "modeling_agent",
+                "data_preprocessing_agent": "data_preprocessing_agent",
                 "solving_agent": "solving_agent",
                 "verification_agent": "verification_agent",
+                "export_results_agent": "export_results_agent",
                 "writing_agent": "writing_agent",
                 "format_response": "format_response",
             },

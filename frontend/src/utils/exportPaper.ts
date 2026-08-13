@@ -38,9 +38,14 @@ const PRINT_HTML_TEMPLATE = (title: string, markdown: string) => `<!DOCTYPE html
     }
     @media print {
       body { margin: 1.5cm; font-size: 11pt; }
-      @page { margin: 1.5cm; size: A4; }
-      pre, code { page-break-inside: avoid; }
+      @page {
+        margin: 1.5cm; size: A4;
+        @bottom-center { content: "— " counter(page) " —"; font-size: 9pt; color: #999; }
+      }
+      pre, code, table, img { page-break-inside: avoid; }
       h1, h2, h3, h4 { page-break-after: avoid; }
+      thead { display: table-header-group; }
+      tr { page-break-inside: avoid; }
     }
     html, body { background: var(--bg); color: var(--fg); }
     body {
@@ -92,6 +97,16 @@ const PRINT_HTML_TEMPLATE = (title: string, markdown: string) => `<!DOCTYPE html
     table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.95em; }
     th, td { border: 1px solid var(--border); padding: 0.5em 0.8em; text-align: left; }
     th { background: var(--bg-soft); font-weight: 600; }
+    tbody tr:nth-child(even) { background: var(--bg-soft); }
+    /* 代码块语言标签 */
+    .code-lang-label {
+      display: inline-block;
+      font-size: 0.75em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.4em;
+      font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    }
     .katex-display { margin: 1em 0 !important; }
     a { color: #2563eb; text-decoration: none; }
     /* 顶部标题块 */

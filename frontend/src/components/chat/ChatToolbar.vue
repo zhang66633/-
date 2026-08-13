@@ -28,7 +28,7 @@
         <Plus class="h-4 w-4" />
       </button>
       <button
-        v-if="messagesCount > 0"
+        v-if="(messagesCount ?? 0) > 0"
         class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         title="导出"
         @click="$emit('export')"

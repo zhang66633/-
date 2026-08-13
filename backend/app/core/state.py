@@ -38,6 +38,7 @@ class AgentState(TypedDict):
     # --- 各 Agent 输出 ---
     analysis_output: Optional[str]
     model_output: Optional[str]
+    preprocessed_data: Optional[str]  # 数据预处理节点输出
     solving_output: Optional[str]
     verification_output: Optional[str]
     writing_output: Optional[str]
@@ -53,6 +54,9 @@ class AgentState(TypedDict):
     # --- 题目数据附件 ---
     data_files: List[dict]          # 本题关联的数据文件信息 [{filename, columns, rows, ...}]
     data_files_dir: str             # 数据文件在磁盘上的目录路径
+
+    # --- 导出文件 ---
+    export_files: Optional[List[dict]]  # 结果导出文件列表 [{type, name, url, size}]
 
     # --- 最终输出 ---
     final_response: Optional[str]
@@ -85,6 +89,7 @@ def create_initial_state(
         max_retries=3,
         analysis_output=None,
         model_output=None,
+        preprocessed_data=None,
         solving_output=None,
         verification_output=None,
         writing_output=None,
@@ -94,5 +99,6 @@ def create_initial_state(
         api_key_config=api_key_config,
         data_files=data_files or [],
         data_files_dir=data_files_dir,
+        export_files=None,
         final_response=None,
     )
