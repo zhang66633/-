@@ -34,7 +34,14 @@
 import DOMPurify from "dompurify";
 import { MessageCircleQuestion } from "lucide-vue-next";
 import { marked } from "marked";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 
 const props = defineProps<{
   markdown: string;
@@ -89,7 +96,10 @@ function extractHeadings() {
   }
   emit("headingsChange", r);
 }
-watch(renderedHtml, () => setTimeout(extractHeadings, 0));
+// 首次挂载时 v-html 渲染完成后提取(此前只挂 watch,首访 markdown 不变 → 目录恒空)
+onMounted(() => nextTick(extractHeadings));
+// 切换单元时 markdown 变化 → 重新提取
+watch(renderedHtml, () => nextTick(extractHeadings));
 
 // ── 选区 ────────────────────────────────────────────
 

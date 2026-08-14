@@ -2,8 +2,6 @@
 import ChatArea from "@/components/ChatArea.vue";
 import SkillGraph from "@/components/SkillGraph.vue";
 // biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
-import NextRecommendationCard from "@/components/learning/NextRecommendationCard.vue";
-// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard.vue";
 import { useStreamChat } from "@/composables/useStreamChat";
 import { toast } from "@/composables/useToast";
@@ -22,7 +20,6 @@ const chatSession = useChatSessionStore();
 const onboardingStore = useOnboardingStore();
 const profileStore = useProfileStore();
 const wizard = ref<InstanceType<typeof OnboardingWizard>>();
-const recCard = ref<InstanceType<typeof NextRecommendationCard>>();
 const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
   "learning",
   "learning",
@@ -68,7 +65,6 @@ async function onDiagnose(payload: DiagnosePayload) {
 // 收尾: 零 API 调用(诊断已在 onDiagnose 完成,防止跑两遍)
 function onDiagnoseFinish(_payload: DiagnosePayload) {
   toast("诊断完成,你的个性化学习路径已生成", "success");
-  recCard.value?.refresh();
 }
 
 function handleUnitSelect(unitId: string) {
@@ -120,14 +116,6 @@ const hubQuickActions = [
           :class="treeOpen ? 'w-64' : 'w-10'"
         >
           <div v-show="treeOpen" class="flex-1 overflow-y-auto p-4 min-h-0">
-            <!-- AI 下一步推荐 -->
-            <NextRecommendationCard
-              ref="recCard"
-              class="mb-3"
-              :role="store.currentRole"
-              compact
-              @go="handleUnitSelect"
-            />
             <SkillGraph
               :categories="store.skillTree"
               :title="`${roleLabel}技能树`"
