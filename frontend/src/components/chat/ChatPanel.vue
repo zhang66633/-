@@ -12,14 +12,6 @@
       @mousedown="startResize"
     >
       <div class="absolute inset-y-0 -left-1 -right-1" />
-      <!-- 收起按钮(分隔条中央) -->
-      <button
-        class="absolute top-1/2 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-[10px] text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100"
-        title="收起聊天面板"
-        @click="close"
-      >
-        »
-      </button>
     </div>
 
     <!-- 聊天面板 -->
@@ -28,7 +20,19 @@
       class="flex min-h-0 shrink-0 flex-col overflow-hidden border-l"
       :style="{ width: width + 'px' }"
     >
-      <slot />
+      <div class="min-h-0 flex-1">
+        <slot />
+      </div>
+      <!-- 底部收起条(与左侧侧栏折叠按钮一致的底部语义) -->
+      <div class="flex shrink-0 items-center justify-center border-t py-1.5">
+        <button
+          class="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+          title="收起聊天面板"
+          @click="close"
+        >
+          <PanelRightClose class="h-3.5 w-3.5" />收起
+        </button>
+      </div>
     </div>
 
     <!-- 收起后的悬浮展开按钮 -->
@@ -44,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import { PanelRightClose } from "lucide-vue-next";
 import { onBeforeUnmount, ref } from "vue";
 
 const props = withDefaults(

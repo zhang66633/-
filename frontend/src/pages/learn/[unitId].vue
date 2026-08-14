@@ -1,28 +1,21 @@
 <template>
   <div class="flex h-full bg-background">
-    <!-- 左侧栏: 可折叠 -->
+    <!-- 左侧栏: 可折叠(折叠按钮固定在底部) -->
     <div :class="leftOpen ? 'w-56' : 'w-10'" class="shrink-0 border-r flex flex-col transition-all duration-200">
-      <!-- 折叠按钮 -->
-      <button class="flex items-center justify-center py-2 border-b hover:bg-accent/50 transition-colors" @click="leftOpen = !leftOpen" :title="leftOpen ? '折叠侧栏' : '展开侧栏'">
+      <div v-if="leftOpen" class="flex-1 overflow-y-auto min-h-0">
+        <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground px-3 py-2.5 border-b">📑 目录</p>
+        <div class="py-1">
+          <button v-for="h in headings" :key="h.id"
+            class="block w-full text-left px-3 py-1 text-xs transition-colors hover:bg-accent/50 truncate"
+            :class="activeHeading === h.id ? 'text-primary font-medium bg-primary/5' : 'text-muted-foreground'"
+            :style="{ paddingLeft: (h.level * 8) + 'px' }" @click="scrollToHeading(h.id)">{{ h.text }}</button>
+          <div v-if="headings.length === 0" class="px-3 py-4 text-[11px] text-muted-foreground text-center">暂无目录</div>
+        </div>
+      </div>
+      <button class="flex shrink-0 items-center justify-center border-t py-2 hover:bg-accent/50 transition-colors" @click="leftOpen = !leftOpen" :title="leftOpen ? '折叠侧栏' : '展开侧栏'">
         <PanelLeftOpen v-if="leftOpen" class="h-3.5 w-3.5 text-muted-foreground" />
         <PanelLeft v-else class="h-3.5 w-3.5 text-muted-foreground" />
       </button>
-
-      <template v-if="leftOpen">
-        <div class="flex-1 overflow-y-auto min-h-0">
-          <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground px-3 py-2.5 border-b">📑 目录</p>
-          <div class="py-1">
-            <button v-for="h in headings" :key="h.id"
-              class="block w-full text-left px-3 py-1 text-xs transition-colors hover:bg-accent/50 truncate"
-              :class="activeHeading === h.id ? 'text-primary font-medium bg-primary/5' : 'text-muted-foreground'"
-              :style="{ paddingLeft: (h.level * 8) + 'px' }" @click="scrollToHeading(h.id)">{{ h.text }}</button>
-            <div v-if="headings.length === 0" class="px-3 py-4 text-[11px] text-muted-foreground text-center">暂无目录</div>
-          </div>
-        </div>
-        <div class="h-52 shrink-0 border-t">
-          <NotePanel :notes="notes" @add-blank="openNoteEditor('', '')" @update="updateNote" @remove="removeNote" @jump-to="scrollToHeading" />
-        </div>
-      </template>
     </div>
 
     <!-- 中间+右侧 -->
@@ -71,7 +64,7 @@
       >
         <template #main>
           <LearningDoc ref="docRef" :markdown="docMarkdown" :unit-id="unit.unit_id"
-            :on-add-note="openNoteEditor" :on-ask-a-i="handleAskAI"
+            :on-ask-a-i="handleAskAI"
             @headings-change="headings = $event" @scroll-section="activeHeading = $event">
             <UnitQuizBlock :unit-id="unit.unit_id" @complete="onQuizComplete" />
           </LearningDoc>
@@ -109,35 +102,11 @@
           <CheckCircle v-else class="h-3.5 w-3.5" />
           {{ marking ? '标记中…' : unit.status === 'completed' ? '已完成 ✓' : '标记完成' }}
         </button>
-        <button class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs hover:bg-accent" @click="openNoteEditor('', '')"><StickyNote class="h-3.5 w-3.5" />做笔记</button>
         <span class="flex-1" />
         <span class="font-mono text-[10px] text-muted-foreground">{{ agentEmoji }} {{ agentName }}</span>
       </div>
     </div>
 
-    <!-- 笔记编辑器弹窗 -->
-    <Teleport to="body">
-      <div v-if="noteEditor.visible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/20" @mousedown.self="closeNoteEditor">
-        <div class="bg-card border border-border rounded-lg shadow-xl w-full max-w-md p-5">
-          <div class="flex items-center justify-between mb-3">
-            <span class="font-display font-medium text-sm">📝 {{ noteEditor.isNew ? '新建笔记' : '编辑笔记' }}</span>
-            <button class="text-muted-foreground hover:text-foreground" @click="closeNoteEditor">✕</button>
-          </div>
-          <div v-if="noteEditor.quote" class="rounded-md bg-muted/50 p-2 mb-3">
-            <p class="text-[10px] font-mono text-muted-foreground mb-0.5">引用原文</p>
-            <p class="text-xs leading-relaxed">{{ noteEditor.quote }}</p>
-          </div>
-          <label class="block text-[10px] font-mono text-muted-foreground mb-1">标题</label>
-          <input v-model="noteEditor.title" class="w-full text-sm border border-border rounded px-3 py-1.5 mb-3 bg-background" placeholder="给这条笔记起个标题" />
-          <label class="block text-[10px] font-mono text-muted-foreground mb-1">我的想法</label>
-          <textarea v-model="noteEditor.comment" class="w-full text-sm border border-border rounded px-3 py-2 mb-3 bg-background resize-none" rows="4" placeholder="写写你的理解和思考..." />
-          <div class="flex justify-end gap-2">
-            <button class="rounded-md border px-4 py-1.5 text-xs hover:bg-accent" @click="closeNoteEditor">取消</button>
-            <button class="rounded-md bg-primary text-primary-foreground px-4 py-1.5 text-xs hover:bg-primary/90" @click="saveNote">保存笔记</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
   </div>
 </template>
 
@@ -145,8 +114,6 @@
 import ChatArea from "@/components/ChatArea.vue";
 // biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import LearningDoc from "@/components/LearningDoc.vue";
-import NotePanel from "@/components/NotePanel.vue";
-import type { NoteItem } from "@/components/NotePanel.vue";
 import UnitQuizBlock from "@/components/UnitQuizBlock.vue";
 // biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import ChatPanel from "@/components/chat/ChatPanel.vue";
@@ -163,7 +130,6 @@ import {
   Loader2,
   PanelLeft,
   PanelLeftOpen,
-  StickyNote,
 } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
@@ -184,7 +150,6 @@ const leftOpen = ref(
 );
 const headings = ref<{ id: string; text: string; level: number }[]>([]);
 const activeHeading = ref("");
-const notes = ref<NoteItem[]>([]);
 const prefillText = ref("");
 
 // ── 聊天面板缩放收起已统一到 ChatPanel 组件 ──────────
@@ -194,64 +159,6 @@ const prefillText = ref("");
 function handleAskAI(text: string, section: string) {
   chatPanel.value?.expand();
   prefillText.value = `关于「${section || unit.value?.title || ""}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
-}
-
-// ── 笔记 ───────────────────────────────────────────
-
-const noteEditor = ref({
-  visible: false,
-  isNew: true,
-  title: "",
-  quote: "",
-  comment: "",
-  section: "",
-  headingId: "",
-});
-function openNoteEditor(quote: string, section: string) {
-  noteEditor.value = {
-    visible: true,
-    isNew: true,
-    title: quote.slice(0, 30),
-    quote,
-    comment: "",
-    section,
-    headingId: activeHeading.value,
-  };
-}
-function closeNoteEditor() {
-  noteEditor.value.visible = false;
-}
-function saveNote() {
-  const e = noteEditor.value;
-  if (e.isNew)
-    notes.value.push({
-      title: e.title || "未命名笔记",
-      quote: e.quote,
-      section: e.section,
-      comment: e.comment,
-      headingId: e.headingId,
-    });
-  saveNotes();
-  noteEditor.value.visible = false;
-}
-function updateNote(i: number, note: NoteItem) {
-  notes.value[i] = note;
-  saveNotes();
-}
-function removeNote(i: number) {
-  notes.value.splice(i, 1);
-  saveNotes();
-}
-function saveNotes() {
-  try {
-    localStorage.setItem(`notes_${unitId.value}`, JSON.stringify(notes.value));
-  } catch {}
-}
-function loadNotes() {
-  try {
-    const r = localStorage.getItem(`notes_${unitId.value}`);
-    if (r) notes.value = JSON.parse(r);
-  } catch {}
 }
 
 // ── 其他 ───────────────────────────────────────────
@@ -368,14 +275,12 @@ function scrollToHeading(id: string) {
 onMounted(() => {
   if (unitId.value) store.loadUnit(unitId.value);
   restoreLatestSession();
-  loadNotes();
 });
 watch(
   () => route.params.unitId,
   (id) => {
     if (id) {
       store.loadUnit(id as string);
-      loadNotes();
       headings.value = [];
       activeHeading.value = "";
     }

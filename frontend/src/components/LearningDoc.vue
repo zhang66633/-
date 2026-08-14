@@ -22,9 +22,6 @@
     <!-- Mini Toolbar -->
     <Teleport to="body">
       <div v-if="toolbar.visible" class="fixed z-50 flex items-center gap-0.5 rounded-md border border-border bg-card shadow-lg px-1.5 py-1.5" :style="{ left: toolbar.x + 'px', top: toolbar.y + 'px' }">
-        <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @mousedown.stop.prevent="doAddNote">
-          <StickyNote class="h-3.5 w-3.5" />笔记
-        </button>
         <button class="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-accent" @mousedown.stop.prevent="doAskAI">
           <MessageCircleQuestion class="h-3.5 w-3.5" />问AI
         </button>
@@ -35,14 +32,13 @@
 
 <script setup lang="ts">
 import DOMPurify from "dompurify";
-import { MessageCircleQuestion, StickyNote } from "lucide-vue-next";
+import { MessageCircleQuestion } from "lucide-vue-next";
 import { marked } from "marked";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 const props = defineProps<{
   markdown: string;
   unitId: string;
-  onAddNote?: (text: string, section: string) => void;
   onAskAI?: (text: string, section: string) => void;
 }>();
 
@@ -166,12 +162,6 @@ function onGlobalMouseUp() {
   sel.removeAllRanges();
 }
 
-function doAddNote() {
-  if (selectedText && props.onAddNote)
-    props.onAddNote(selectedText, selectedSection);
-  toolbar.value.visible = false;
-  fakeSel.value.visible = false;
-}
 function doAskAI() {
   if (selectedText && props.onAskAI)
     props.onAskAI(selectedText, selectedSection);

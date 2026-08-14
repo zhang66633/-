@@ -22,14 +22,13 @@
         <span :class="isNavActive('/') ? 'font-display font-medium' : ''">首页</span>
       </button>
       <div v-for="group in visibleGroups" :key="group.label" class="mt-1">
-        <button class="flex items-center gap-2 w-full px-5 py-1.5 text-left font-mono text-[10px] uppercase tracking-wider transition-colors"
-          :class="group.label === learnGroup.label && activeGroup === learnGroup.label ? 'text-primary' : 'text-muted-foreground/60 hover:text-muted-foreground'"
-          @click="toggleGroup(group.label)">
-          <ChevronRight class="h-3 w-3 shrink-0 transition-transform" :class="{ 'rotate-90': expandedGroups.has(group.label) }" />
+        <!-- 静态小节标签(图标+汉字,不支持折叠,组内条目始终可见) -->
+        <p class="flex items-center gap-2 w-full px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider"
+          :class="group.label === learnGroup.label && activeGroup === learnGroup.label ? 'text-primary' : 'text-muted-foreground/60'">
           <component :is="group.icon" class="h-3.5 w-3.5 shrink-0" />
           {{ group.label }}
-        </button>
-        <div v-show="expandedGroups.has(group.label)" class="space-y-0.5">
+        </p>
+        <div class="space-y-0.5">
           <button v-for="(item, i) in group.items" :key="item.path"
             :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate(item.path)">
             <span v-if="isNavActive(item.path)" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
@@ -40,24 +39,27 @@
       </div>
     </nav>
 
-    <!-- 历史会话(降权: 移到导航之下,紧凑展示,功能不变) -->
-    <div v-if="!collapsed && sessionList.length > 0" class="border-t py-2 shrink-0 max-h-40 overflow-y-auto min-h-0">
-      <p class="px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">{{ sessionListTitle }}</p>
+    <!-- 聊天记录(跨模式汇总,固定位置,空时占位保持布局稳定) -->
+    <div v-if="!collapsed" class="border-t py-2 shrink-0 max-h-40 overflow-y-auto min-h-0">
+      <p class="px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">AI 聊天记录</p>
+      <p v-if="sessionList.length === 0" class="px-5 py-2 text-[11px] text-muted-foreground/50">
+        暂无聊天记录
+      </p>
       <TransitionGroup name="session-list">
         <div
           v-for="s in sessionList"
-          :key="s.id"
+          :key="s.session.id"
           class="group relative flex w-full items-center gap-2 py-1 pr-2 pl-5 text-sm cursor-pointer transition-all duration-200"
-          :class="isActiveSession(s.id) ? 'text-foreground bg-accent/50' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
-          @click="switchTo(s.id)"
+          :class="isActiveSession(s) ? 'text-foreground bg-accent/50' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
+          @click="switchTo(s)"
         >
           <Transition name="indicator">
             <div
-              v-if="isActiveSession(s.id)"
+              v-if="isActiveSession(s)"
               class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 bg-primary rounded-r"
             />
           </Transition>
-          <template v-if="editingId === s.id">
+          <template v-if="editing?.id === s.session.id">
             <input
               v-model="editingTitle"
               class="flex-1 text-xs bg-background border border-primary/30 rounded px-1.5 py-0.5 outline-none"
@@ -68,19 +70,22 @@
             />
           </template>
           <template v-else>
-            <span class="truncate flex-1 text-xs">{{ s.title }}</span>
+            <span class="shrink-0 rounded bg-muted px-1 py-px font-mono text-[9px] text-muted-foreground/80">
+              {{ modeBadge[s.mode] }}
+            </span>
+            <span class="truncate flex-1 text-xs">{{ s.session.title }}</span>
           </template>
           <div class="flex items-center gap-1 shrink-0">
             <button
-              v-if="editingId !== s.id"
+              v-if="editing?.id !== s.session.id"
               class="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm opacity-0 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-all"
-              @click.stop="startRename(s.id, s.title)"
+              @click.stop="startRename(s)"
               title="重命名"
             >
               <Pencil class="h-3 w-3" />
             </button>
             <button
-              v-if="editingId === s.id"
+              v-if="editing?.id === s.session.id"
               class="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm opacity-100 hover:bg-primary/10 hover:text-primary transition-all"
               @click.stop="confirmRename"
               title="确认"
@@ -89,7 +94,7 @@
             </button>
             <button
               class="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
-              @click.stop="removeSession(s.id)"
+              @click.stop="removeSession(s)"
               title="删除"
             >
               <X class="h-3 w-3" />
@@ -144,25 +149,28 @@ import {
   paperPaths,
 } from "@/config/navItems";
 import { NAV_ITEM } from "@/config/styles";
-import { type SessionMode, useChatSessionStore } from "@/stores/chatSession";
+import {
+  type ChatSession,
+  type SessionMode,
+  useChatSessionStore,
+} from "@/stores/chatSession";
 import { APP_NAME } from "@/types/const";
 import {
   Check,
-  ChevronRight,
   Home,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
   X,
 } from "lucide-vue-next";
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const router = useRouter();
 const route = useRoute();
 const chatSession = useChatSessionStore();
 
-const editingId = ref<string | null>(null);
+const editing = ref<{ id: string; mode: SessionMode } | null>(null);
 const editingTitle = ref("");
 const collapsed = ref(false);
 
@@ -180,10 +188,10 @@ const collapsedNavItems = computed(() => {
 
 const allGroups = [paperGroup, learnGroup];
 
-// 当前页面属于哪个组
+// 当前页面属于哪个组(仅用于学习中心组标题高亮;分组不再折叠)
 const activeGroup = computed(() => {
   const path = route.path;
-  if (path === "/") return null; // 首页两个组都展开
+  if (path === "/") return null;
   for (const p of paperPaths) {
     if (path.startsWith(p)) return paperGroup.label;
   }
@@ -193,95 +201,87 @@ const activeGroup = computed(() => {
   return null;
 });
 
-const expandedGroups = ref<Set<string>>(
-  new Set([paperGroup.label, learnGroup.label]),
-);
-
-// 路由变化时自动展开当前组、折叠另一个组（首页两个都展开）
-watch(
-  activeGroup,
-  (group) => {
-    if (!group) {
-      // 首页: 两个都展开
-      expandedGroups.value = new Set([paperGroup.label, learnGroup.label]);
-    } else {
-      expandedGroups.value = new Set([group]);
-    }
-  },
-  { immediate: true },
-);
-
-function toggleGroup(label: string) {
-  const next = new Set(expandedGroups.value);
-  if (next.has(label)) {
-    next.delete(label);
-  } else {
-    next.add(label);
-  }
-  expandedGroups.value = next;
-}
-
 const visibleGroups = computed(() => allGroups);
 
-// ── 会话逻辑 ─────────────────────────────────────────
+// ── 会话逻辑(跨模式汇总,不再随页面切换) ──────────────
 
-const currentMode = computed<SessionMode>(() => {
-  if (route.path.startsWith("/solution")) return "solution";
-  if (route.path.startsWith("/learn")) return "learning";
-  if (route.path.startsWith("/practice")) return "practice";
-  return "chat";
-});
+const MODES: SessionMode[] = ["chat", "solution", "learning", "practice"];
+const modeBadge: Record<SessionMode, string> = {
+  chat: "对话",
+  solution: "方案",
+  learning: "学习",
+  practice: "练习",
+};
+const modeRoute: Record<SessionMode, string> = {
+  chat: "/chat",
+  solution: "/solution",
+  learning: "/learn",
+  practice: "/practice",
+};
 
-const sessionListTitle = computed(() => {
-  const titles: Record<SessionMode, string> = {
-    chat: "最近对话",
-    solution: "最近方案",
-    learning: "学习对话",
-    practice: "练习记录",
-  };
-  return titles[currentMode.value];
-});
-
-const sessionList = computed(() => {
-  const sorted = chatSession.getSortedSessions(currentMode.value).value;
-  return sorted.slice(0, 20);
-});
-
-function isActiveSession(id: string): boolean {
-  return chatSession.getActiveId(currentMode.value).value === id;
+interface SessionRow {
+  session: ChatSession;
+  mode: SessionMode;
 }
 
-function switchTo(id: string) {
-  chatSession.switchSession(currentMode.value, id);
+const sessionList = computed<SessionRow[]>(() => {
+  const all: SessionRow[] = [];
+  for (const m of MODES) {
+    for (const s of chatSession.getSessions(m).value) {
+      all.push({ session: s, mode: m });
+    }
+  }
+  return all
+    .sort(
+      (a, b) =>
+        new Date(b.session.updatedAt).getTime() -
+        new Date(a.session.updatedAt).getTime(),
+    )
+    .slice(0, 12);
+});
+
+function isActiveSession(row: SessionRow): boolean {
+  return chatSession.getActiveId(row.mode).value === row.session.id;
 }
 
-function removeSession(id: string) {
-  const wasActive = isActiveSession(id);
-  chatSession.deleteSession(currentMode.value, id);
+/** 点击: 激活该模式会话;当前不在该模式页面时跳转过去 */
+function switchTo(row: SessionRow) {
+  chatSession.switchSession(row.mode, row.session.id);
+  const path = route.path;
+  const onModePage =
+    row.mode === "learning"
+      ? path.startsWith("/learn")
+      : path.startsWith(modeRoute[row.mode]);
+  if (!onModePage) router.push(modeRoute[row.mode]);
+}
+
+function removeSession(row: SessionRow) {
+  const wasActive = isActiveSession(row);
+  chatSession.deleteSession(row.mode, row.session.id);
   if (wasActive) {
-    chatSession.clearActive(currentMode.value);
+    chatSession.clearActive(row.mode);
   }
 }
 
-function startRename(id: string, title: string) {
-  editingId.value = id;
-  editingTitle.value = title;
+function startRename(row: SessionRow) {
+  editing.value = { id: row.session.id, mode: row.mode };
+  editingTitle.value = row.session.title;
 }
 
 function confirmRename() {
-  if (editingId.value) {
+  if (editing.value) {
     chatSession.renameSession(
-      currentMode.value,
-      editingId.value,
+      editing.value.mode,
+      editing.value.id,
       editingTitle.value,
     );
-    editingId.value = null;
+    editing.value = null;
     editingTitle.value = "";
   }
 }
 
 function cancelRename() {
-  editingId.value = null;
+  editing.value = null;
   editingTitle.value = "";
 }
 

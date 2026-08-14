@@ -114,20 +114,12 @@ const hubQuickActions = [
 
       <!-- 主内容区: 技能树 + 对话区 -->
       <div class="flex-1 flex min-h-0">
-        <!-- 左侧技能树(可折叠) -->
+        <!-- 左侧技能树(可折叠,折叠按钮固定在底部) -->
         <div
-          class="shrink-0 border-r overflow-y-auto transition-all duration-200"
-          :class="treeOpen ? 'w-64 p-4' : 'w-10'"
+          class="shrink-0 border-r flex flex-col transition-all duration-200"
+          :class="treeOpen ? 'w-64' : 'w-10'"
         >
-          <button
-            class="mb-2 flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground hover:bg-accent/50 transition-colors"
-            :title="treeOpen ? '折叠技能树' : '展开技能树'"
-            @click="treeOpen = !treeOpen"
-          >
-            <PanelLeftOpen v-if="treeOpen" class="h-3.5 w-3.5" />
-            <PanelLeft v-else class="h-3.5 w-3.5" />
-          </button>
-          <div v-show="treeOpen">
+          <div v-show="treeOpen" class="flex-1 overflow-y-auto p-4 min-h-0">
             <!-- AI 下一步推荐 -->
             <NextRecommendationCard
               ref="recCard"
@@ -144,6 +136,14 @@ const hubQuickActions = [
               @select="handleUnitSelect"
             />
           </div>
+          <button
+            class="flex shrink-0 items-center justify-center border-t py-2 transition-colors hover:bg-accent/50"
+            :title="treeOpen ? '折叠技能树' : '展开技能树'"
+            @click="treeOpen = !treeOpen"
+          >
+            <PanelLeftOpen v-if="treeOpen" class="h-3.5 w-3.5 text-muted-foreground" />
+            <PanelLeft v-else class="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
         </div>
 
         <!-- 右侧智能体对话区 -->
