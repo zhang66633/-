@@ -110,6 +110,7 @@
 
 <script setup lang="ts">
 import ChatArea from "@/components/ChatArea.vue";
+// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import LearningDoc from "@/components/LearningDoc.vue";
 import NotePanel from "@/components/NotePanel.vue";
 import type { NoteItem } from "@/components/NotePanel.vue";
