@@ -3,7 +3,7 @@ name = "math-model-agent"
 version = "0.1.0"
 description = "数学建模多智能体辅助系统"
 requires-python = ">=3.11"
-readme = "README.md"
+# 注：readme 字段已移除——backend/ 下无 README.md（在仓库根），poetry-core 构建元数据会因读不到而失败
 
 dependencies = [
     "fastapi>=0.115.0",
