@@ -1,0 +1,173 @@
+/* ===================================================
+   Paper Viewer 专用样式 — 学术论文排版增强
+   =================================================== */
+
+/* ── 代码块 ── */
+.paper-content .code-block-wrapper {
+  font-family: "JetBrains Mono", "Geist Mono", "Consolas", monospace;
+}
+
+.paper-content .code-block-wrapper pre {
+  tab-size: 4;
+  -moz-tab-size: 4;
+}
+
+.paper-content .code-block-wrapper code {
+  font-family: inherit;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* ── 表格 ── */
+.paper-content .table-wrapper {
+  margin: 1.5em 0;
+  border-radius: var(--radius, 0.5rem);
+  border: 1px solid hsl(var(--border));
+}
+
+.paper-content .table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875em;
+  line-height: 1.6;
+}
+
+.paper-content .table-wrapper thead {
+  background: hsl(var(--muted));
+  border-bottom: 2px solid hsl(var(--border));
+}
+
+.paper-content .table-wrapper thead th {
+  padding: 0.6em 0.8em;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85em;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+}
+
+.paper-content .table-wrapper tbody td {
+  padding: 0.5em 0.8em;
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  color: hsl(var(--foreground) / 0.85);
+}
+
+.paper-content .table-wrapper tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 斑马纹 */
+.paper-content .table-wrapper tbody tr:nth-child(even) {
+  background: hsl(var(--muted) / 0.3);
+}
+
+/* hover 高亮 */
+.paper-content .table-wrapper tbody tr:hover {
+  background: hsl(var(--accent));
+}
+
+/* ── 图片 ── */
+.paper-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius, 0.5rem);
+  border: 1px solid hsl(var(--border));
+  margin: 1em 0;
+}
+
+/* ── 标题锚点 ── */
+.paper-content h1[id],
+.paper-content h2[id],
+.paper-content h3[id] {
+  scroll-margin-top: 80px;
+}
+
+.paper-content h1[id]:hover::after,
+.paper-content h2[id]:hover::after,
+.paper-content h3[id]:hover::after {
+  content: " #";
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8em;
+  opacity: 0.5;
+}
+
+/* ── 公式间距 ── */
+.paper-content .katex-display {
+  margin: 1.2em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.paper-content .katex {
+  font-size: 1.05em;
+}
+
+/* ── 引用块 ── */
+.paper-content blockquote {
+  border-left: 3px solid hsl(var(--primary) / 0.4);
+  padding: 0.5em 1em;
+  margin: 1em 0;
+  background: hsl(var(--muted) / 0.2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: hsl(var(--foreground) / 0.8);
+  font-style: italic;
+}
+
+/* ── 论文摘要区域 ── */
+.paper-content h2#摘要 + p {
+  font-size: 0.95em;
+  line-height: 1.8;
+  color: hsl(var(--foreground) / 0.85);
+}
+
+/* ── 打印样式 ── */
+@media print {
+  .paper-content {
+    font-size: 11pt;
+    line-height: 1.7;
+    color: #000;
+    background: #fff;
+  }
+
+  .paper-content .code-block-wrapper {
+    break-inside: avoid;
+    border: 1px solid #ddd;
+    background: #f8f8f8 !important;
+  }
+
+  .paper-content .code-block-wrapper pre {
+    background: #f8f8f8 !important;
+    color: #333 !important;
+  }
+
+  .paper-content .table-wrapper {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+  }
+
+  .paper-content .table-wrapper thead {
+    background: #eee;
+    border-bottom: 2px solid #999;
+  }
+
+  .paper-content img {
+    max-width: 100%;
+    break-inside: avoid;
+  }
+
+  .paper-content h1,
+  .paper-content h2,
+  .paper-content h3 {
+    break-after: avoid;
+  }
+
+  @page {
+    margin: 2cm;
+    @bottom-center {
+      content: counter(page);
+      font-size: 9pt;
+    }
+  }
+}
