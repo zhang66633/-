@@ -1,5 +1,6 @@
 import type { LearningPath } from "@/apis/learningApi";
 import { diagnose as diagnoseApi, fetchProfile } from "@/apis/learningApi";
+import type { SelfAssessment } from "@/stores/onboarding";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
@@ -28,7 +29,7 @@ export const useProfileStore = defineStore("profile", () => {
   /** 执行诊断 */
   async function runDiagnose(payload: {
     role: string;
-    self_assessment: Record<string, number>;
+    self_assessment: SelfAssessment;
     goal: string;
     weekly_hours: number;
   }) {

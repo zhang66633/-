@@ -54,12 +54,18 @@ const props = withDefaults(
     min?: number;
     max?: number;
     buttonLabel?: string;
+    /** 初始折叠(仅初始态,不持久化)。单元页默认收起;practice 等页面不传 → 保持展开 */
+    startCollapsed?: boolean;
+    /** 视口宽度低于该值时自动收起(仅向下越过阈值时收起一次,不阻止用户重新展开) */
+    collapseBelow?: number;
   }>(),
   {
     defaultWidth: 360,
     min: 280,
     max: 700,
     buttonLabel: "💬 助手",
+    startCollapsed: false,
+    collapseBelow: undefined,
   },
 );
 
@@ -73,8 +79,19 @@ function loadWidth(): number {
   return props.defaultWidth;
 }
 
-const open = ref(true);
+const open = ref(!props.startCollapsed);
 const width = ref(loadWidth());
+
+// ── 窄屏自动收起(单向: 越过阈值收起,不阻止用户重新展开) ──
+let narrowQuery: MediaQueryList | null = null;
+function handleNarrowChange(ev: MediaQueryListEvent) {
+  if (ev.matches) open.value = false;
+}
+if (props.collapseBelow !== undefined) {
+  narrowQuery = window.matchMedia(`(max-width: ${props.collapseBelow}px)`);
+  if (narrowQuery.matches) open.value = false;
+  narrowQuery.addEventListener("change", handleNarrowChange);
+}
 
 function close() {
   open.value = false;
@@ -117,6 +134,8 @@ function startResize(e: MouseEvent) {
 onBeforeUnmount(() => {
   if (moveHandler) document.removeEventListener("mousemove", moveHandler);
   if (upHandler) document.removeEventListener("mouseup", upHandler);
+  if (narrowQuery)
+    narrowQuery.removeEventListener("change", handleNarrowChange);
 });
 
 defineExpose({

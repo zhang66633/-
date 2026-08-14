@@ -51,6 +51,9 @@
         <router-view />
       </main>
     </div>
+
+    <!-- 全局轻量提示(toast.success/error/info) -->
+    <ToastHost />
   </div>
 </template>
 
@@ -62,6 +65,7 @@ import SkipToContent from "@/components/SkipToContent.vue";
 import ThemeToggle from "@/components/ThemeToggle.vue";
 import SessionStorageAlert from "@/components/chat/SessionStorageAlert.vue";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ToastHost } from "@/components/ui/toast";
 import { APP_NAME } from "@/types/const";
 import { Menu } from "lucide-vue-next";
 import { computed, ref } from "vue";

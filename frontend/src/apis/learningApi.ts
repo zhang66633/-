@@ -1,3 +1,4 @@
+import type { SelfAssessment } from "@/stores/onboarding";
 import request from "@/utils/request";
 
 // ── 类型定义 ──────────────────────────────────────────
@@ -77,7 +78,7 @@ export function fetchProfile() {
 /** 初始诊断 */
 export function diagnose(
   role: string,
-  selfAssessment: Record<string, number>,
+  selfAssessment: SelfAssessment,
   goal: string,
 ) {
   return request.post("/profile/diagnose", {

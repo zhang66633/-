@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import ChatArea from "@/components/ChatArea.vue";
 import SkillGraph from "@/components/SkillGraph.vue";
+// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard.vue";
 import { useStreamChat } from "@/composables/useStreamChat";
+import { toast } from "@/composables/useToast";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { type AgentRole, useLearningStore } from "@/stores/learning";
-import { useOnboardingStore } from "@/stores/onboarding";
+import { type DiagnosePayload, useOnboardingStore } from "@/stores/onboarding";
 import { useProfileStore } from "@/stores/profile";
 import { PanelLeft, PanelLeftOpen } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
@@ -17,6 +19,7 @@ const store = useLearningStore();
 const chatSession = useChatSessionStore();
 const onboardingStore = useOnboardingStore();
 const profileStore = useProfileStore();
+const wizard = ref<InstanceType<typeof OnboardingWizard>>();
 const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
   "learning",
   "learning",
@@ -40,11 +43,28 @@ onMounted(async () => {
   restoreLatestSession();
 });
 
-async function onDiagnoseFinish(payload: any) {
-  await profileStore.runDiagnose(payload);
-  // 用诊断结果的水平生成自适应学习路径
-  store.currentLevel = payload.level;
-  await store.generateNewPath(payload.role, payload.level, payload.goal);
+// 诊断: 向导点「开始分析」后执行真实 API,期间向导保持分析动画
+let diagnosing = false;
+async function onDiagnose(payload: DiagnosePayload) {
+  if (diagnosing) return;
+  diagnosing = true;
+  try {
+    await profileStore.runDiagnose(payload);
+    // 用诊断结果的水平生成自适应学习路径
+    store.currentLevel = payload.level;
+    await store.generateNewPath(payload.role, payload.level, payload.goal);
+    // generateNewPath 内部吞错,以 store.error 判断成败
+    wizard.value?.reportResult(!store.error, store.error || undefined);
+  } catch (e: any) {
+    wizard.value?.reportResult(false, e?.message || "诊断失败,请检查后端服务");
+  } finally {
+    diagnosing = false;
+  }
+}
+
+// 收尾: 零 API 调用(诊断已在 onDiagnose 完成,防止跑两遍)
+function onDiagnoseFinish(_payload: DiagnosePayload) {
+  toast("诊断完成,你的个性化学习路径已生成", "success");
 }
 
 function handleUnitSelect(unitId: string) {
@@ -54,6 +74,15 @@ function handleUnitSelect(unitId: string) {
 function handleSend(text: string) {
   handleUserSend(text);
 }
+
+// 工位聊天空态快捷提问
+const hubQuickActions = [
+  {
+    label: "我现在该学什么",
+    text: "我现在该学什么?请根据我的学习路径给我一个建议",
+  },
+  { label: "帮我制定学习计划", text: "帮我制定一个本周的学习计划" },
+];
 </script>
 
 <template>
@@ -114,6 +143,7 @@ function handleSend(text: string) {
             empty-subtext="智能体将用对话方式为你讲解"
             input-placeholder="向智能体提问..."
             :session-title="chatSession.activeLearningSession?.title"
+            :quick-actions="hubQuickActions"
             cancellable
             @send="handleSend"
             @cancel="cancelStream"
@@ -125,6 +155,10 @@ function handleSend(text: string) {
     </div>
 
     <!-- 诊断向导 -->
-    <OnboardingWizard @finish="onDiagnoseFinish" />
+    <OnboardingWizard
+      ref="wizard"
+      @diagnose="onDiagnose"
+      @finish="onDiagnoseFinish"
+    />
   </div>
 </template>

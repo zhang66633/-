@@ -11,7 +11,7 @@ export interface SelfAssessment {
 }
 
 export interface DiagnosePayload {
-  role: string;
+  role: AgentRole;
   self_assessment: SelfAssessment;
   goal: string;
   weekly_hours: number;
@@ -103,9 +103,8 @@ export const useOnboardingStore = defineStore("onboarding", () => {
     if (step.value > 0) step.value--;
   }
 
-  function finish(): DiagnosePayload {
-    visible.value = false;
-    diagnosed.value = true;
+  /** 收集当前诊断数据(不关闭向导),供分析阶段 emit 给页面执行 API */
+  function buildPayload(): DiagnosePayload {
     return {
       role: role.value,
       self_assessment: { ...assessment.value },
@@ -113,6 +112,12 @@ export const useOnboardingStore = defineStore("onboarding", () => {
       weekly_hours: weeklyHours.value,
       level: computedLevel.value,
     };
+  }
+
+  function finish(): DiagnosePayload {
+    visible.value = false;
+    diagnosed.value = true;
+    return buildPayload();
   }
 
   return {
@@ -130,6 +135,7 @@ export const useOnboardingStore = defineStore("onboarding", () => {
     start,
     next,
     prev,
+    buildPayload,
     finish,
   };
 });

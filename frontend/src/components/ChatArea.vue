@@ -17,6 +17,17 @@
       <div v-if="messages.length === 0 && !isRunning" class="flex flex-col justify-center h-full max-w-md mx-auto px-4">
         <p class="font-display text-xl text-muted-foreground">{{ emptyText }}</p>
         <p class="text-sm text-muted-foreground/70 mt-1">{{ emptySubtext }}</p>
+        <!-- 快捷提问(opt-in,不传不渲染) -->
+        <div v-if="quickActions.length > 0" class="mt-4 flex flex-wrap gap-2">
+          <button
+            v-for="a in quickActions"
+            :key="a.label"
+            class="cursor-pointer rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            @click="$emit('send', a.text)"
+          >
+            {{ a.label }}
+          </button>
+        </div>
       </div>
 
       <!-- 连接中骨架 -->
@@ -111,6 +122,8 @@ const props = withDefaults(
     showToolbar?: boolean;
     cancellable?: boolean;
     cancelling?: boolean;
+    /** 空状态快捷提问(点击走 send 事件)。默认 [] → 不渲染,chat/solution/practice 页不受影响 */
+    quickActions?: { label: string; text: string }[];
   }>(),
   {
     isRunning: false,
@@ -122,6 +135,7 @@ const props = withDefaults(
     showToolbar: true,
     cancellable: false,
     cancelling: false,
+    quickActions: () => [],
   },
 );
 
