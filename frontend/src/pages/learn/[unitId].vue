@@ -82,28 +82,6 @@
           @new-session="chatSession.newSession('learning')" />
       </ChatPanel>
 
-      <!-- 完成反馈: 下一步推荐(标记完成后出现) -->
-      <div v-if="unit && showNextRec" class="shrink-0 border-t bg-card px-4 py-2.5">
-        <div class="mb-1.5 flex items-center justify-between">
-          <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">接下来建议学习</span>
-          <button class="text-xs text-muted-foreground hover:text-foreground" @click="showNextRec = false">✕</button>
-        </div>
-        <NextRecommendationCard :role="store.currentRole" @go="(id: string) => $router.push(`/learn/${id}`)" />
-      </div>
-
-      <div v-if="unit" class="flex items-center gap-2 border-t px-4 py-2 shrink-0 bg-card">
-        <button
-          class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors hover:bg-accent disabled:opacity-50"
-          :disabled="marking || unit.status === 'completed'"
-          @click="markComplete"
-        >
-          <Loader2 v-if="marking" class="h-3.5 w-3.5 animate-spin" />
-          <CheckCircle v-else class="h-3.5 w-3.5" />
-          {{ marking ? '标记中…' : unit.status === 'completed' ? '已完成 ✓' : '标记完成' }}
-        </button>
-        <span class="flex-1" />
-        <span class="font-mono text-[10px] text-muted-foreground">{{ agentEmoji }} {{ agentName }}</span>
-      </div>
     </div>
 
   </div>
@@ -116,20 +94,12 @@ import LearningDoc from "@/components/LearningDoc.vue";
 import UnitQuizBlock from "@/components/UnitQuizBlock.vue";
 // biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import ChatPanel from "@/components/chat/ChatPanel.vue";
-// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
-import NextRecommendationCard from "@/components/learning/NextRecommendationCard.vue";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStreamChat } from "@/composables/useStreamChat";
 import { toast } from "@/composables/useToast";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { useLearningStore } from "@/stores/learning";
-import {
-  ArrowLeft,
-  CheckCircle,
-  Loader2,
-  PanelLeft,
-  PanelLeftOpen,
-} from "lucide-vue-next";
+import { ArrowLeft, PanelLeft, PanelLeftOpen } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
@@ -178,7 +148,6 @@ const agentInfo = computed(
       name: "导航员",
     },
 );
-const agentEmoji = computed(() => agentInfo.value.emoji);
 const agentName = computed(() => agentInfo.value.name);
 const difficultyLabel = computed(
   () =>
@@ -236,27 +205,6 @@ const quickActions = computed(() => {
     { label: "生成一道练习题", text: `${base},请给我出一道练习题并批改。` },
   ];
 });
-
-// ── 标记完成 + 完成反馈 ──
-const marking = ref(false);
-const showNextRec = ref(false);
-
-function markComplete() {
-  if (!unit.value || marking.value) return;
-  marking.value = true;
-  store
-    .markComplete(unit.value.unit_id)
-    .then(() => {
-      toast("这个知识点掌握完成 ✓", "success");
-      showNextRec.value = true;
-    })
-    .catch((e: any) => {
-      toast(e?.message || "标记失败,请重试", "error");
-    })
-    .finally(() => {
-      marking.value = false;
-    });
-}
 
 function onQuizComplete(p: { correct: number; total: number }) {
   toast(

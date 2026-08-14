@@ -94,12 +94,6 @@
           </div>
         </div>
 
-        <!-- AI 下一步建议 -->
-        <div class="mt-6">
-          <p class="font-display text-lg font-medium mb-3">🧭 AI 下一步建议</p>
-          <NextRecommendationCard :role="recRole" @go="(id: string) => router.push(`/learn/${id}`)" />
-        </div>
-
         <!-- 学习日历热力图 -->
         <div class="mt-6">
           <CalendarHeatmap :calendar="progress.calendar ?? []" />
@@ -131,8 +125,6 @@
 </template>
 
 <script setup lang="ts">
-// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
-import NextRecommendationCard from "@/components/learning/NextRecommendationCard.vue";
 import AchievementWall from "@/components/progress/AchievementWall.vue";
 import CalendarHeatmap from "@/components/progress/CalendarHeatmap.vue";
 import ReviewList from "@/components/progress/ReviewList.vue";
@@ -141,14 +133,12 @@ import SkillRadar from "@/components/progress/SkillRadar.vue";
 import StatHero from "@/components/progress/StatHero.vue";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStaggerReveal } from "@/composables/useStaggerReveal";
-import { useLearningStore } from "@/stores/learning";
 import { useProfileStore } from "@/stores/profile";
 import { computed, onMounted, ref } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 
 const router = useRouter();
 const profileStore = useProfileStore();
-const learningStore = useLearningStore();
 const progress = computed(() => profileStore.progress);
 const stagger = useStaggerReveal({ count: 1, delay: 100 });
 const failed = ref(false);
@@ -193,17 +183,6 @@ const roleSkills = computed(() => {
     { name: "编程", value: Math.round(Number(roles.programmer) || 0) },
     { name: "论文", value: Math.round(Number(roles.writer) || 0) },
   ];
-});
-
-// ── AI 推荐下一步(取掌握度最高的角色,兜底当前角色) ──
-const recRole = computed(() => {
-  const roles = progress.value?.roles ?? {};
-  const entries = Object.entries(roles).filter(
-    ([, v]) => typeof v === "number",
-  );
-  if (entries.length === 0) return learningStore.currentRole;
-  entries.sort((a, b) => (b[1] as number) - (a[1] as number));
-  return entries[0][0];
 });
 
 const reviewItems = computed(() => {

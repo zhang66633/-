@@ -2,6 +2,8 @@
 import ChatArea from "@/components/ChatArea.vue";
 import SkillGraph from "@/components/SkillGraph.vue";
 // biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
+import ChatPanel from "@/components/chat/ChatPanel.vue";
+// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard.vue";
 import { useStreamChat } from "@/composables/useStreamChat";
 import { toast } from "@/composables/useToast";
@@ -108,34 +110,42 @@ const hubQuickActions = [
         </div>
       </div>
 
-      <!-- 主内容区: 技能树 + 对话区 -->
-      <div class="flex-1 flex min-h-0">
-        <!-- 左侧技能树(可折叠,折叠按钮固定在底部) -->
-        <div
-          class="shrink-0 border-r flex flex-col transition-all duration-200"
-          :class="treeOpen ? 'w-64' : 'w-10'"
+      <!-- 主内容区: 技能树 + AI 对话(面板化,返回时默认隐藏) -->
+      <div class="flex-1 min-h-0">
+        <ChatPanel
+          storage-key="hub-chat"
+          :default-width="380"
+          button-label="💬 助手"
+          :start-collapsed="true"
+          class="h-full"
         >
-          <div v-show="treeOpen" class="flex-1 overflow-y-auto p-4 min-h-0">
-            <SkillGraph
-              :categories="store.skillTree"
-              :title="`${roleLabel}技能树`"
-              :loading="store.loading"
-              :error="store.error"
-              @select="handleUnitSelect"
-            />
-          </div>
-          <button
-            class="flex shrink-0 items-center justify-center border-t py-2 transition-colors hover:bg-accent/50"
-            :title="treeOpen ? '折叠技能树' : '展开技能树'"
-            @click="treeOpen = !treeOpen"
-          >
-            <PanelLeftOpen v-if="treeOpen" class="h-3.5 w-3.5 text-muted-foreground" />
-            <PanelLeft v-else class="h-3.5 w-3.5 text-muted-foreground" />
-          </button>
-        </div>
+          <template #main>
+            <!-- 左侧技能树(可折叠,折叠按钮固定在底部) -->
+            <div
+              class="h-full shrink-0 border-r flex flex-col transition-all duration-200"
+              :class="treeOpen ? 'w-64' : 'w-10'"
+            >
+              <div v-show="treeOpen" class="flex-1 overflow-y-auto p-4 min-h-0">
+                <SkillGraph
+                  :categories="store.skillTree"
+                  :title="`${roleLabel}技能树`"
+                  :loading="store.loading"
+                  :error="store.error"
+                  @select="handleUnitSelect"
+                />
+              </div>
+              <button
+                class="flex shrink-0 items-center justify-center border-t py-2 transition-colors hover:bg-accent/50"
+                :title="treeOpen ? '折叠技能树' : '展开技能树'"
+                @click="treeOpen = !treeOpen"
+              >
+                <PanelLeftOpen v-if="treeOpen" class="h-3.5 w-3.5 text-muted-foreground" />
+                <PanelLeft v-else class="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          </template>
 
-        <!-- 右侧智能体对话区 -->
-        <div class="flex-1 flex flex-col min-w-0">
+          <!-- 智能体对话区 -->
           <ChatArea
             :messages="chatSession.activeLearningMessages"
             :is-running="chatSession.getIsRunning('learning')"
@@ -150,7 +160,7 @@ const hubQuickActions = [
             @clear="chatSession.clearSession('learning')"
             @new-session="chatSession.newSession('learning')"
           />
-        </div>
+        </ChatPanel>
       </div>
     </div>
 
