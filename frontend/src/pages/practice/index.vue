@@ -89,11 +89,12 @@
                 <th class="w-24 px-2 py-2">类别</th>
                 <th class="w-20 px-2 py-2">难度</th>
                 <th class="w-16 px-2 py-2 text-right">错次</th>
+                <th class="w-20 px-2 py-2 text-right">错题本</th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="(q, i) in filteredBank"
+                v-for="q in filteredBank"
                 :key="q.id"
                 class="border-b border-border/50 transition-colors hover:bg-accent/50 cursor-pointer"
                 @click="store.toggleSelect(q.id)"
@@ -106,7 +107,7 @@
                   <span v-else-if="q.status === 'wrong'" class="text-red-500" title="做错">✗</span>
                   <span v-else class="text-muted-foreground/40">—</span>
                 </td>
-                <td class="px-2 py-2 font-mono text-xs text-muted-foreground">{{ i + 1 }}</td>
+                <td class="px-2 py-2 font-mono text-xs text-muted-foreground">{{ q.no }}</td>
                 <td class="px-2 py-2">
                   <div class="line-clamp-1">{{ q.question.replace(/\s+/g, " ").slice(0, 60) }}</div>
                   <div class="mt-0.5 flex gap-1 flex-wrap">
@@ -121,6 +122,18 @@
                 </td>
                 <td class="px-2 py-2 text-right font-mono text-xs" :class="q.wrong_times > 0 ? 'text-red-500' : 'text-muted-foreground/40'">
                   {{ q.wrong_times || "—" }}
+                </td>
+                <td class="px-2 py-2 text-right" @click.stop>
+                  <button
+                    class="rounded border px-1.5 py-0.5 text-[10px] transition-colors"
+                    :class="q.status === 'wrong'
+                      ? 'border-red-500/40 text-red-500 hover:bg-red-500/10'
+                      : 'border-border text-muted-foreground hover:bg-accent'"
+                    :title="q.status === 'wrong' ? '移出错题本' : '加入错题本(标记想重点复习)'"
+                    @click="store.toggleMistake(q)"
+                  >
+                    {{ q.status === "wrong" ? "✓已加入" : "＋错题本" }}
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -166,8 +179,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(q, i) in mistakes" :key="q.id" class="border-b border-border/50 hover:bg-accent/50">
-              <td class="px-3 py-2 font-mono text-xs text-muted-foreground">{{ i + 1 }}</td>
+            <tr v-for="q in mistakes" :key="q.id" class="border-b border-border/50 hover:bg-accent/50">
+              <td class="px-3 py-2 font-mono text-xs text-muted-foreground">{{ q.no }}</td>
               <td class="px-2 py-2">
                 <div class="line-clamp-1">{{ q.question.replace(/\s+/g, " ").slice(0, 60) }}</div>
               </td>
@@ -178,9 +191,12 @@
                 </span>
               </td>
               <td class="px-2 py-2 text-right font-mono text-xs text-red-500">{{ q.wrong_times }}</td>
-              <td class="px-2 py-2 text-right">
+              <td class="px-2 py-2 text-right whitespace-nowrap">
                 <button class="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-accent transition-colors" @click="redoMistake(q)">
                   重做
+                </button>
+                <button class="ml-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent transition-colors" title="不重做,直接移出错题本" @click="store.removeMistake(q)">
+                  移除
                 </button>
               </td>
             </tr>
@@ -194,7 +210,16 @@
           <!-- 进度 -->
           <div class="mb-4 flex items-center justify-between text-xs text-muted-foreground">
             <span class="font-mono">第 {{ store.sessionIndex + 1 }} / {{ store.session.length }} 题</span>
-            <span class="font-mono">✓ {{ store.correctCount }} · ✗ {{ store.answers.length - store.correctCount }}</span>
+            <div class="flex items-center gap-4">
+              <span class="font-mono">✓ {{ store.correctCount }} · ✗ {{ store.answers.length - store.correctCount }}</span>
+              <button
+                class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent transition-colors"
+                title="半路退出: 本次作答不保存"
+                @click="confirmExit = true"
+              >
+                🚪 退出
+              </button>
+            </div>
           </div>
           <div class="mb-6 h-1 rounded-full bg-muted">
             <div class="h-full rounded-full bg-primary transition-all duration-300" :style="{ width: `${((store.sessionIndex + (reveal ? 1 : 0)) / store.session.length) * 100}%` }" />
@@ -203,7 +228,7 @@
           <template v-if="currentQuestion">
             <!-- 题面 -->
             <div class="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-              <span class="font-mono">#{{ store.sessionIndex + 1 }}</span>
+              <span class="font-mono">#{{ currentQuestion.no }}</span>
               <span>{{ currentQuestion.category }}</span>
               <span class="rounded px-1.5 py-px text-[10px] font-medium" :class="diffBadgeClass(currentQuestion.difficulty)">
                 {{ diffLabel(currentQuestion.difficulty) }}
@@ -295,8 +320,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(a, i) in store.answers" :key="a.question.id" class="border-b border-border/50">
-                <td class="px-2 py-2 font-mono text-xs text-muted-foreground">{{ i + 1 }}</td>
+              <tr v-for="a in store.answers" :key="a.question.id" class="border-b border-border/50">
+                <td class="px-2 py-2 font-mono text-xs text-muted-foreground">{{ a.question.no }}</td>
                 <td class="px-2 py-2">
                   <div class="line-clamp-1">{{ a.question.question.replace(/\s+/g, " ").slice(0, 50) }}</div>
                 </td>
@@ -337,6 +362,26 @@
         @new-session="chatSession.newSession('practice')"
       />
     </div>
+
+    <!-- 退出确认弹层 -->
+    <Teleport to="body">
+      <div v-if="confirmExit" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" @mousedown.self="confirmExit = false">
+        <div class="w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-xl">
+          <p class="mb-2 font-display text-sm font-medium">🚪 退出本轮练习?</p>
+          <p class="mb-4 text-xs leading-relaxed text-muted-foreground">
+            已答的 {{ store.answers.length }} 道题记录将全部丢弃(错题本、错次、状态不留痕迹),确定退出吗?
+          </p>
+          <div class="flex justify-end gap-2">
+            <button class="rounded-md border border-border px-3.5 py-1.5 text-xs hover:bg-accent transition-colors" @click="confirmExit = false">
+              继续刷题
+            </button>
+            <button class="rounded-md bg-destructive px-3.5 py-1.5 text-xs font-medium text-destructive-foreground hover:opacity-90 transition-all" @click="doExit">
+              退出并丢弃
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -365,6 +410,14 @@ const letters = ["A", "B", "C", "D"];
 const chosenIndex = ref<number | null>(null);
 const reveal = ref<{ answerIndex: number; chosenIndex: number } | null>(null);
 const lastExplanation = ref("");
+const confirmExit = ref(false);
+
+async function doExit() {
+  confirmExit.value = false;
+  chosenIndex.value = null;
+  reveal.value = null;
+  await store.quitSession();
+}
 
 const inSession = computed(
   () => store.session.length > 0 && !store.sessionDone,

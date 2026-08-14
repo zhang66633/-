@@ -27,6 +27,13 @@
         @dblclick="onCardDoubleClick(oi)"
       >
         <span class="flex items-start gap-2.5 min-w-0">
+          <span
+            v-if="lettered"
+            class="flex h-5 w-5 shrink-0 items-center justify-center rounded border font-mono text-[11px] font-bold transition-colors"
+            :class="modelValue === oi && !reveal
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-border bg-muted/50 text-muted-foreground'"
+          >{{ letters[oi] }}</span>
           <span v-if="opt.icon" class="text-base leading-5 shrink-0">{{ opt.icon }}</span>
           <span class="min-w-0 text-left">
             <span class="block text-sm leading-5">{{ opt.label }}</span>
@@ -99,6 +106,8 @@ const props = withDefaults(
     reveal?: QuizReveal | null;
     /** 「下一步」按钮文案 */
     confirmText?: string;
+    /** 选项前显示 A/B/C/D 字母徽章 */
+    lettered?: boolean;
   }>(),
   {
     title: "",
@@ -108,6 +117,7 @@ const props = withDefaults(
     disabled: false,
     reveal: null,
     confirmText: "下一步",
+    lettered: true,
   },
 );
 
@@ -115,6 +125,8 @@ const emit = defineEmits<{
   "update:modelValue": [value: number | null];
   confirm: [index: number];
 }>();
+
+const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
 
 function cardClass(oi: number): string[] {
   const base = [

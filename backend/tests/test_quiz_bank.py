@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.learning.quiz_bank import (  # noqa: E402
     categories_summary, get_by_unit, get_question, list_questions, public_view,
-    total_count,
+    question_no, total_count,
 )
 from app.services.practice_store import PracticeStore  # noqa: E402
 
@@ -98,6 +98,60 @@ def test_get_question():
     q = get_question("modeler_lp_01_q1")
     assert q is not None and q["unit_id"] == "modeler_lp_01"
     assert get_question("不存在的题") is None
+
+
+def test_stable_question_numbers():
+    """永久题号: 每道题有唯一编号,1..total 连续,public_view 携带。"""
+    all_qs = list_questions()
+    nos = [public_view(q)["no"] for q in all_qs]
+    assert sorted(nos) == list(range(1, len(all_qs) + 1)), "题号应唯一且 1..N 连续"
+    # 同题重复取号应稳定
+    assert question_no(all_qs[54]["id"]) == 55
+
+
+def test_practice_store_manual_mistake_flow(tmp_path):
+    """错题本手动增删 + 自动状态转移。"""
+    store = PracticeStore(db_path=tmp_path / "practice.db")
+
+    # 手动加入
+    store.add_to_mistake_book("q1")
+    assert store.get_wrong_question_ids() == {"q1"}
+
+    # 手动移除
+    store.remove_from_mistake_book("q1")
+    assert store.get_wrong_question_ids() == set()
+
+    # 答错自动入本
+    store.record_answer("q2", 0, False)
+    assert store.get_wrong_question_ids() == {"q2"}
+
+    # 手动加入后答对 → 自动出本
+    store.add_to_mistake_book("q3")
+    store.record_answer("q3", 1, True)
+    assert store.get_wrong_question_ids() == {"q2"}
+
+
+def test_practice_store_discard_round(tmp_path):
+    """半路退出: 丢弃轮次记录,错题本重算(不留痕迹)。"""
+    store = PracticeStore(db_path=tmp_path / "practice.db")
+
+    # 轮次 A: 答错两题、答对一题
+    store.record_answer("q1", 0, False, round_id="round_a")
+    store.record_answer("q2", 1, True, round_id="round_a")
+    store.record_answer("q3", 0, False, round_id="round_a")
+    assert store.get_wrong_question_ids() == {"q1", "q3"}
+
+    # 丢弃轮次 A → 错题本清空、记录删除
+    deleted = store.discard_round("round_a")
+    assert deleted == 3
+    assert store.get_wrong_question_ids() == set()
+    assert store.get_tried_ids() == set()
+
+    # 轮次 B 答错后被丢弃,但更早的历史答对仍存在 → 重算出本
+    store.record_answer("q1", 0, False, round_id="round_b")
+    assert store.get_wrong_question_ids() == {"q1"}
+    store.discard_round("round_b")
+    assert store.get_wrong_question_ids() == set()
 
 
 if __name__ == "__main__":

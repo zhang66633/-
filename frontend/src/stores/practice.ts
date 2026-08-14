@@ -1,7 +1,10 @@
 import {
   type QuizQuestion,
+  addToMistakes,
+  discardQuizRound,
   fetchQuizBank,
   fetchQuizMistakes,
+  removeFromMistakes,
   startQuizPractice,
   submitQuizAnswer,
 } from "@/apis/learningApi";
@@ -40,6 +43,7 @@ export const usePracticeStore = defineStore("practice", () => {
   const answers = ref<AnswerRecord[]>([]);
   const sessionStartAt = ref(0);
   const sessionDone = ref(false);
+  const roundId = ref("");
 
   // ── 错题本 ──────────────────────────────────────────
   const mistakes = ref<QuizQuestion[]>([]);
@@ -125,12 +129,13 @@ export const usePracticeStore = defineStore("practice", () => {
     answers.value = [];
     sessionStartAt.value = Date.now();
     sessionDone.value = false;
+    roundId.value = `r${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
   async function answerQuestion(choice: number): Promise<AnswerRecord | null> {
     const q = currentQuestion.value;
     if (!q) return null;
-    const res = await submitQuizAnswer(q.id, choice);
+    const res = await submitQuizAnswer(q.id, choice, roundId.value);
     const record: AnswerRecord = {
       question: q,
       chosen: choice,
@@ -162,7 +167,40 @@ export const usePracticeStore = defineStore("practice", () => {
     sessionDone.value = false;
     sessionIndex.value = 0;
     answers.value = [];
+    roundId.value = "";
     clearSelection();
+  }
+
+  /** 半路退出: 丢弃本轮作答记录(不留痕迹),回到题库。 */
+  async function quitSession() {
+    const rid = roundId.value;
+    backToBank();
+    if (rid) {
+      try {
+        await discardQuizRound(rid);
+      } catch {
+        /* 丢弃失败不阻塞退出 */
+      }
+      await loadBank();
+    }
+  }
+
+  /** 手动加入/移出错题本(题库行按钮)。 */
+  async function toggleMistake(q: QuizQuestion) {
+    if (q.status === "wrong") {
+      await removeFromMistakes(q.id);
+      q.status = "untried";
+    } else {
+      await addToMistakes(q.id);
+      q.status = "wrong";
+    }
+  }
+
+  async function removeMistake(q: QuizQuestion) {
+    await removeFromMistakes(q.id);
+    mistakes.value = mistakes.value.filter((m) => m.id !== q.id);
+    const inBank = bank.value.find((b) => b.id === q.id);
+    if (inBank) inBank.status = "untried";
   }
 
   async function loadMistakes() {
@@ -191,6 +229,7 @@ export const usePracticeStore = defineStore("practice", () => {
     sessionIndex,
     answers,
     sessionDone,
+    roundId,
     mistakes,
     mistakesLoading,
     filteredBank,
@@ -206,6 +245,9 @@ export const usePracticeStore = defineStore("practice", () => {
     answerQuestion,
     nextQuestion,
     backToBank,
+    quitSession,
+    toggleMistake,
+    removeMistake,
     loadMistakes,
   };
 });

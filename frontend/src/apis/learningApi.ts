@@ -97,6 +97,7 @@ export function fetchProgress() {
 export type QuizStatus = "untried" | "wrong" | "mastered";
 
 export interface QuizQuestion {
+  no: number;
   id: string;
   unit_id: string;
   role: "modeler" | "programmer" | "writer";
@@ -142,11 +143,16 @@ export interface QuizAnswerResult {
   explanation: string;
 }
 
-/** 判分一道选择题(答错自动入错题本) */
-export function submitQuizAnswer(question_id: string, choice: number) {
+/** 判分一道选择题(答错自动入错题本; round_id 供中途退出丢弃) */
+export function submitQuizAnswer(
+  question_id: string,
+  choice: number,
+  round_id = "",
+) {
   return request.post<QuizAnswerResult>("/learning/quiz/answer", {
     question_id,
     choice,
+    round_id,
   });
 }
 
@@ -161,5 +167,22 @@ export function fetchQuizMistakes() {
 export function fetchUnitQuiz(unitId: string) {
   return request.get<{ questions: QuizQuestion[] }>(
     `/learning/quiz/by-unit/${unitId}`,
+  );
+}
+
+/** 手动把题目加入错题本 */
+export function addToMistakes(question_id: string) {
+  return request.post(`/learning/quiz/mistakes/${question_id}`);
+}
+
+/** 手动把题目移出错题本 */
+export function removeFromMistakes(question_id: string) {
+  return request.delete(`/learning/quiz/mistakes/${question_id}`);
+}
+
+/** 半路退出: 丢弃本轮全部作答记录 */
+export function discardQuizRound(round_id: string) {
+  return request.post<{ status: string; discarded: number }>(
+    `/learning/quiz/round/${round_id}/discard`,
   );
 }

@@ -144,6 +144,7 @@ MAX_QUIZ_PER_ROUND = 100
 
 class QuizQuestionView(BaseModel):
     """题库/练习里的题目视图(不含答案)。"""
+    no: int                    # 永久题号(力扣式, 全库稳定排序, 筛选不变)
     id: str
     unit_id: str
     role: str
@@ -239,6 +240,7 @@ class QuizAnswerRequest(BaseModel):
     question_id: str
     choice: int
     user_id: str = "default"
+    round_id: str = ""   # 练习轮次(供中途退出丢弃)
 
 
 class QuizAnswerResponse(BaseModel):
@@ -259,7 +261,7 @@ async def quiz_answer(req: QuizAnswerRequest):
 
     correct = req.choice == q["answer_index"]
     store = get_practice_store()
-    store.record_answer(req.question_id, req.choice, correct, req.user_id)
+    store.record_answer(req.question_id, req.choice, correct, req.user_id, req.round_id)
 
     # 掌握度 + 成就闭环(事件驱动,复用学习事件管线)
     unit = get_unit_detail(q["unit_id"])
@@ -307,6 +309,33 @@ async def quiz_mistakes(user_id: str = "default"):
         views.append(QuizQuestionView(**view))
 
     return QuizMistakeResponse(total=len(views), questions=views)
+
+
+# ── 错题本手动增删 / 轮次丢弃 ──────────────────────────
+
+@learning_router.post("/quiz/mistakes/{question_id}")
+async def quiz_mistake_add(question_id: str, user_id: str = "default"):
+    """手动把题目加入错题本(幂等,用于标记想重点复习的题)。"""
+    if not get_question(question_id):
+        raise HTTPException(status_code=404, detail=f"题目 {question_id} 不存在")
+    get_practice_store().add_to_mistake_book(question_id, user_id)
+    return {"status": "ok", "message": f"题目 {question_id} 已加入错题本"}
+
+
+@learning_router.delete("/quiz/mistakes/{question_id}")
+async def quiz_mistake_remove(question_id: str, user_id: str = "default"):
+    """手动把题目移出错题本(不重做直接删)。"""
+    get_practice_store().remove_from_mistake_book(question_id, user_id)
+    return {"status": "ok", "message": f"题目 {question_id} 已移出错题本"}
+
+
+@learning_router.post("/quiz/round/{round_id}/discard")
+async def quiz_round_discard(round_id: str, user_id: str = "default"):
+    """半路退出: 丢弃本轮全部作答记录,错题本状态重算(不留痕迹)。"""
+    if not round_id:
+        raise HTTPException(status_code=400, detail="round_id 不能为空")
+    discarded = get_practice_store().discard_round(round_id, user_id)
+    return {"status": "ok", "discarded": discarded}
 
 
 @learning_router.get("/quiz/by-unit/{unit_id}", response_model=QuizPracticeResponse)

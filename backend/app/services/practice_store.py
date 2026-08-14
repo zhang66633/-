@@ -19,10 +19,19 @@ CREATE TABLE IF NOT EXISTS practice_records (
     question_id TEXT NOT NULL,
     choice INTEGER NOT NULL,
     is_correct INTEGER NOT NULL,
+    round_id TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_practice_user_qid
     ON practice_records(user_id, question_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_practice_round
+    ON practice_records(user_id, round_id);
+CREATE TABLE IF NOT EXISTS mistake_book (
+    user_id TEXT NOT NULL DEFAULT 'default',
+    question_id TEXT NOT NULL,
+    added_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, question_id)
+);
 """
 
 
@@ -52,8 +61,39 @@ class PracticeStore:
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._lock:
             with self._get_conn() as conn:
+                # 轻量迁移先行: 旧库缺 round_id 列(必须先于 SCHEMA_SQL, 其索引引用该列)
+                try:
+                    cols = [r[1] for r in conn.execute("PRAGMA table_info(practice_records)")]
+                except sqlite3.OperationalError:
+                    cols = []  # 表还不存在, SCHEMA_SQL 会建
+                if cols and "round_id" not in cols:
+                    conn.execute(
+                        "ALTER TABLE practice_records ADD COLUMN round_id TEXT NOT NULL DEFAULT ''"
+                    )
+                    conn.commit()
                 conn.executescript(SCHEMA_SQL)
                 conn.commit()
+                # 错题本回填: 按历史记录最新状态(仅对空错题本生效, 幂等)
+                n = conn.execute("SELECT COUNT(*) AS n FROM mistake_book").fetchone()["n"]
+                if n == 0:
+                    for qid, is_correct in self._latest_states(conn):
+                        if not is_correct:
+                            conn.execute(
+                                "INSERT OR IGNORE INTO mistake_book(user_id, question_id, added_at)"
+                                " VALUES ('default', ?, ?)",
+                                (qid, _utcnow()),
+                            )
+                    conn.commit()
+
+    @staticmethod
+    def _latest_states(conn: sqlite3.Connection) -> list[tuple[str, bool]]:
+        rows = conn.execute(
+            "SELECT question_id, is_correct FROM practice_records ORDER BY id DESC"
+        ).fetchall()
+        latest: dict[str, bool] = {}
+        for row in rows:
+            latest.setdefault(row["question_id"], bool(row["is_correct"]))
+        return list(latest.items())
 
     # ── 记录 ─────────────────────────────────────────────
 
@@ -63,31 +103,100 @@ class PracticeStore:
         choice: int,
         is_correct: bool,
         user_id: str = "default",
+        round_id: str = "",
     ) -> None:
         with self._lock:
             with self._get_conn() as conn:
                 conn.execute(
-                    "INSERT INTO practice_records(user_id, question_id, choice, is_correct, created_at)"
-                    " VALUES (?, ?, ?, ?, ?)",
-                    (user_id, question_id, choice, int(is_correct), _utcnow()),
+                    "INSERT INTO practice_records"
+                    "(user_id, question_id, choice, is_correct, round_id, created_at)"
+                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    (user_id, question_id, choice, int(is_correct), round_id, _utcnow()),
                 )
+                # 错题本状态转移: 答错入本, 答对出本(自动掌握)
+                if is_correct:
+                    conn.execute(
+                        "DELETE FROM mistake_book WHERE user_id = ? AND question_id = ?",
+                        (user_id, question_id),
+                    )
+                else:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO mistake_book(user_id, question_id, added_at)"
+                        " VALUES (?, ?, ?)",
+                        (user_id, question_id, _utcnow()),
+                    )
                 conn.commit()
+
+    def discard_round(self, round_id: str, user_id: str = "default") -> int:
+        """丢弃一轮练习的全部记录,并重算涉及题目的错题本状态。"""
+        with self._lock:
+            with self._get_conn() as conn:
+                involved = [
+                    r["question_id"]
+                    for r in conn.execute(
+                        "SELECT DISTINCT question_id FROM practice_records"
+                        " WHERE user_id = ? AND round_id = ?",
+                        (user_id, round_id),
+                    ).fetchall()
+                ]
+                cur = conn.execute(
+                    "DELETE FROM practice_records WHERE user_id = ? AND round_id = ?",
+                    (user_id, round_id),
+                )
+                deleted = cur.rowcount
+                # 重算: 剩余记录最新状态决定去留
+                for qid in involved:
+                    rows = conn.execute(
+                        "SELECT is_correct FROM practice_records"
+                        " WHERE user_id = ? AND question_id = ?"
+                        " ORDER BY id DESC LIMIT 1",
+                        (user_id, qid),
+                    ).fetchall()
+                    if not rows or bool(rows[0]["is_correct"]):
+                        conn.execute(
+                            "DELETE FROM mistake_book WHERE user_id = ? AND question_id = ?",
+                            (user_id, qid),
+                        )
+                    else:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO mistake_book(user_id, question_id, added_at)"
+                            " VALUES (?, ?, ?)",
+                            (user_id, qid, _utcnow()),
+                        )
+                conn.commit()
+                return deleted
 
     # ── 错题本 ───────────────────────────────────────────
 
+    def add_to_mistake_book(self, question_id: str, user_id: str = "default") -> None:
+        """手动加入错题本(幂等)。"""
+        with self._lock:
+            with self._get_conn() as conn:
+                conn.execute(
+                    "INSERT OR IGNORE INTO mistake_book(user_id, question_id, added_at)"
+                    " VALUES (?, ?, ?)",
+                    (user_id, question_id, _utcnow()),
+                )
+                conn.commit()
+
+    def remove_from_mistake_book(self, question_id: str, user_id: str = "default") -> None:
+        """手动移出错题本。"""
+        with self._lock:
+            with self._get_conn() as conn:
+                conn.execute(
+                    "DELETE FROM mistake_book WHERE user_id = ? AND question_id = ?",
+                    (user_id, question_id),
+                )
+                conn.commit()
+
     def get_wrong_question_ids(self, user_id: str = "default") -> set[str]:
-        """当前处于「错题」状态的题目 id 集合(最新一次作答错误)。"""
+        """错题本题目集合(答错自动入本 + 手动加入,答对/手动移除/丢弃轮次出本)。"""
         with self._get_conn() as conn:
             rows = conn.execute(
-                "SELECT question_id, is_correct FROM practice_records"
-                " WHERE user_id = ?"
-                " ORDER BY id DESC",
+                "SELECT question_id FROM mistake_book WHERE user_id = ?",
                 (user_id,),
             ).fetchall()
-        latest: dict[str, bool] = {}
-        for row in rows:
-            latest.setdefault(row["question_id"], bool(row["is_correct"]))
-        return {qid for qid, ok in latest.items() if not ok}
+        return {r["question_id"] for r in rows}
 
     def get_mistake_detail(self, question_id: str, user_id: str = "default") -> Optional[dict[str, Any]]:
         """某题的错题详情(最后一次错误作答)。"""
