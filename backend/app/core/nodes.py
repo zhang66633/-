@@ -51,78 +51,14 @@ from .prompts.preprocessing import (
 )
 
 
-logger = logging.getLogger(__name__)
 
 
-class TaskCancelledError(Exception):
-    """任务被取消时的哨兵异常 — 用于在节点内提前终止编排器。"""
-
-
-# ── helper: publish node progress ────────────────────────────────────
-
-
-def _pub_event(task_id: str, event: str, node: str, data: dict | None = None):
-    """Fire-and-forget publish a progress event to Redis."""
-    try:
-        return get_publisher().publish(task_id, event, node, data)
-    except Exception:
-        pass  # best-effort; never block the workflow on publish failures
-
-
-def _is_cancelled(task_id: str) -> bool:
-    """Check if the task has been cancelled."""
-    try:
-        from app.services.session import get_session_manager
-        event = get_session_manager().get_cancel_event(task_id)
-        return event.is_set()
-    except Exception:
-        return False
-
-
-def _check_cancelled(task_id: str) -> None:
-    """节点入口的取消检查：已取消则抛哨兵异常，让编排器提前退出。"""
-    if _is_cancelled(task_id):
-        raise TaskCancelledError(task_id)
-
-
-def _save_working_memory(session_id: str, stage: str, output: str, extra: dict | None = None):
-    """保存阶段检查点 + 异步更新问题状态文档。
-
-    检查点同步写入（保证断电不丢失），
-    整体重写异步执行（不阻塞工作流）。
-    """
-    try:
-        from app.services.working_memory import WorkingMemory
-        wm = WorkingMemory(session_id)
-        wm.save_checkpoint(stage, output, extra)
-    except Exception as e:  # noqa: BLE001
-        # 工作记忆不阻塞主流程，但记录失败便于排查
-        logger.warning(
-            "工作记忆检查点保存失败 (session=%s, stage=%s): %s",
-            session_id, stage, e,
-        )
-        return
-
-    # LLM 重写放后台线程，不阻塞流水线；
-    # 当前线程无运行事件循环时跳过异步重写（检查点已保存，问题文档留待下次更新）
-    try:
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(None, wm.update_problem_doc, stage, output, None)
-    except RuntimeError:
-        logger.warning(
-            "当前线程无运行事件循环，跳过问题文档异步重写 (session=%s, stage=%s)",
-            session_id, stage,
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "问题文档异步重写失败 (session=%s, stage=%s): %s",
-            session_id, stage, e,
-        )
-
-
-# ============================================================
-# 节点 1: 问题分类
-# ============================================================
+from .node_helpers import (  # noqa: F401  (god-files 拆分 #31：辅助函数外置)
+    TaskCancelledError, _check_cancelled, _clean_md, _collect_file_urls,
+    _collect_image_urls, _extract_code_block, _extract_json, _is_cancelled,
+    _next_step, _persist_task_files, _persist_task_images, _pub_event,
+    _save_working_memory, logger,
+)
 def classify_problem(state: AgentState) -> dict:
     """识别问题类型、复杂度、数据依赖。"""
     task_id = state["session_id"]
@@ -422,11 +358,6 @@ def plan_execution(state: AgentState) -> dict:
 # ============================================================
 # Agent 节点 — 每个 agent 节点递增 current_step_index
 # ============================================================
-def _next_step(state: AgentState) -> int:
-    """获取当前步骤索引并递增。"""
-    return state.get("current_step_index", -1) + 1
-
-
 def analysis_agent_node(state: AgentState) -> dict:
     """问题分析 Agent — 用 LLM 深度分析问题结构。"""
     idx = _next_step(state)
@@ -565,81 +496,6 @@ def modeling_agent_node(state: AgentState) -> dict:
             )
         ],
     }
-
-
-def _collect_image_urls(text: str) -> list[str]:
-    """从工具输出文本中提取 /api/images/... 形式的图表 URL。"""
-    return re.findall(r"/api/images/[^\s,，)）'\"]+\.png", text or "")
-
-
-def _collect_file_urls(text: str, suffix: str) -> list[str]:
-    """从工具输出文本中提取指定后缀的文件 URL。"""
-    pattern = rf"/api/task_files/[^\s,，)）'\"]+\.{suffix}"
-    return re.findall(pattern, text or "")
-
-
-def _persist_task_files(
-    task_id: str,
-    image_urls: list[str] = (),
-    xlsx_urls: list[str] = (),
-    csv_urls: list[str] = (),
-    html_urls: list[str] = (),
-) -> dict[str, list[str]]:
-    """把沙箱临时目录里的所有文件复制到任务持久目录，并登记进文件区。
-
-    返回持久化后的各类 URL 列表。
-    """
-    import shutil
-    import tempfile
-    from app.services.session import get_session_manager
-
-    settings = get_settings()
-    task_dir = settings.project_root / "data" / "task_files" / task_id
-    temp_root = Path(tempfile.gettempdir()) / "mathmodel_outputs"
-    session_mgr = get_session_manager()
-
-    def _persist(urls: list[str], file_type: str) -> list[str]:
-        durable: list[str] = []
-        for url in urls:
-            try:
-                parts = url.rstrip("/").split("/")
-                run_id_or_task_id, filename = parts[-2], parts[-1]
-                src = temp_root / run_id_or_task_id / filename
-                if not src.exists():
-                    # 也可能在 task_files 目录
-                    src = task_dir / filename
-                if not src.exists():
-                    continue
-                task_dir.mkdir(parents=True, exist_ok=True)
-                dst = task_dir / filename
-                if not dst.exists():
-                    shutil.copy2(src, dst)
-                durable_url = f"/api/task_files/{task_id}/{filename}"
-                session_mgr.add_artifact(task_id, {
-                    "type": file_type,
-                    "name": filename,
-                    "url": durable_url,
-                    "size": dst.stat().st_size,
-                })
-                durable.append(durable_url)
-            except Exception:  # noqa: BLE001
-                continue
-        return durable
-
-    return {
-        "images": _persist(image_urls, "figure"),
-        "xlsx": _persist(xlsx_urls, "xlsx"),
-        "csv": _persist(csv_urls, "csv"),
-        "html": _persist(html_urls, "html"),
-    }
-
-
-def _persist_task_images(task_id: str, image_urls: list[str]) -> list[str]:
-    """把沙箱临时目录里的图表复制到任务持久目录，并登记进文件区。
-
-    返回持久化后的 /api/task_files/{task_id}/{filename} URL 列表。
-    """
-    return _persist_task_files(task_id, image_urls=image_urls)["images"]
 
 
 def solving_agent_node(state: AgentState) -> dict:
@@ -855,16 +711,6 @@ def solving_agent_node(state: AgentState) -> dict:
     }
 
 
-def _extract_code_block(text: str) -> str:
-    """从 LLM 输出中提取 Python 代码块。"""
-    import re
-    match = re.search(r"```(?:python)?\s*\n(.*?)```", text, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    # 如果没有代码块标记，返回空（避免执行非代码内容）
-    return ""
-
-
 def verification_agent_node(state: AgentState) -> dict:
     """验证分析 Agent — 检验模型+结果，判定通过或回退。"""
     idx = _next_step(state)
@@ -1027,14 +873,6 @@ PAPER_SECTIONS: list[tuple[str, str]] = [
      "严禁编造。"
      "**本章必须完整写完，以最后一条文献结束。**"),
 ]
-
-
-def _clean_md(text: str) -> str:
-    """去掉 LLM 输出外层的 Markdown 代码块标记。"""
-    text = str(text)
-    text = re.sub(r"^```(?:markdown|md)?\s*\n", "", text)
-    text = re.sub(r"\n```\s*$", "", text)
-    return text.strip()
 
 
 def writing_agent_node(state: AgentState) -> dict:
@@ -1476,29 +1314,3 @@ def _format_teach_response(state: AgentState) -> str:
 # ============================================================
 # 工具函数
 # ============================================================
-def _extract_json(text: str) -> dict | list:
-    """从 LLM 输出中提取 JSON。"""
-    # 尝试直接解析
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    # 尝试提取 ```json ... ``` 代码块
-    match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # 尝试提取 { } 或 [ ]
-    for pattern in [r"\{[\s\S]*\}", r"\[[\s\S]*\]"]:
-        match = re.search(pattern, text)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                continue
-
-    return {}
