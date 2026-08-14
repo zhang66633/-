@@ -1,0 +1,13 @@
+# 统一换行符: 前端文件强制 LF
+# 否则 Windows 检出 CRLF 会让 biome format 报出一堆假错误
+# (CI 在 Linux 上跑,本地与 CI 结果必须一致)
+*.ts text eol=lf
+*.tsx text eol=lf
+*.vue text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
