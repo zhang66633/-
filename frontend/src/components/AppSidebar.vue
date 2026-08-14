@@ -22,10 +22,18 @@
         <span :class="isNavActive('/') ? 'font-display font-medium' : ''">首页</span>
       </button>
       <div v-for="group in visibleGroups" :key="group.label" class="mt-1">
-        <!-- 静态小节标签(图标+汉字,不支持折叠,组内条目始终可见) -->
-        <p class="flex items-center gap-2 w-full px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider"
-          :class="activeGroup === group.label ? 'text-primary' : 'text-muted-foreground/60'">
-          <component :is="group.icon" class="h-3.5 w-3.5 shrink-0" />
+        <!-- 静态小节标签(图标+汉字,不支持折叠;激活组与子项同款高亮:白字+主色图标+左竖条) -->
+        <p class="relative flex items-center gap-2 w-full px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider"
+          :class="activeGroup === group.label ? 'text-foreground font-medium' : 'text-muted-foreground/60'">
+          <span
+            v-if="activeGroup === group.label"
+            class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-px bg-primary"
+          />
+          <component
+            :is="group.icon"
+            class="h-3.5 w-3.5 shrink-0"
+            :class="activeGroup === group.label ? 'text-primary' : ''"
+          />
           {{ group.label }}
         </p>
         <div class="space-y-0.5">
