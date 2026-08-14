@@ -58,7 +58,6 @@
         storage-key="unit-chat"
         :default-width="400"
         button-label="💬 问AI"
-        :start-collapsed="true"
         :collapse-below="1024"
         class="flex-1 min-h-0"
       >
