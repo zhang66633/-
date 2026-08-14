@@ -94,6 +94,13 @@ class SandboxExecutor:
                     logger.warning("复制文件到沙箱失败 %s: %s", fpath, e)
 
         if self.backend == "docker":
+            # docker 不可用时回退 subprocess 并告警（Windows 下 subprocess 模式无内存限制，仅限可信输入）
+            import shutil as _shutil
+            if _shutil.which("docker") is None:
+                logger.warning(
+                    "SANDBOX_BACKEND=docker 但本机未安装 docker，回退 subprocess 模式（无硬隔离，仅限可信输入）"
+                )
+                return self._run_subprocess(code, output_subdir, run_id)
             return self._run_docker(code, output_subdir, run_id)
         else:
             return self._run_subprocess(code, output_subdir, run_id)
@@ -163,7 +170,15 @@ class SandboxExecutor:
             "--network=none",
             f"--memory={self.max_memory_mb}m",
             f"--memory-swap={self.max_memory_mb}m",  # 禁用 swap
-            "-v", f"{output_subdir}:{container_output}",
+            "--cap-drop=ALL",
+            "--security-opt", "no-new-privileges",
+            "--pids-limit", "64",
+            "--read-only",
+            "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
+            "-e", "HOME=/tmp",
+            "-e", "MPLCONFIGDIR=/tmp/matplotlib",
+            "-e", "PYTHONDONTWRITEBYTECODE=1",
+            "-v", f"{output_subdir}:{container_output}:rw",
             SANDBOX_IMAGE,
             f"{container_output}/_code.py",
             container_output,
@@ -233,13 +248,17 @@ class SandboxExecutor:
         200-500MB 内存每个沙箱进程。matplotlib 仅设置 backend（轻量），pyplot 按需导入。
         """
         return f'''
-# ── 网络阻断：禁止任何 socket 连接 ──
+# ── 网络阻断：禁止任何 socket 连接（connect + connect_ex 双拦）──
 import socket as _socket
 _original_connect = _socket.socket.connect
+_original_connect_ex = _socket.socket.connect_ex
 def _blocked_connect(self, *args, **kwargs):
     raise OSError("网络访问已被沙箱禁止")
+def _blocked_connect_ex(self, *args, **kwargs):
+    raise OSError("网络访问已被沙箱禁止")
 _socket.socket.connect = _blocked_connect
-del _socket, _original_connect
+_socket.socket.connect_ex = _blocked_connect_ex
+del _socket, _original_connect, _original_connect_ex
 
 import sys as _sys
 import os as _os

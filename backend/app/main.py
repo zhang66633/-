@@ -149,11 +149,11 @@ if __name__ == "__main__":
     import uvicorn
 
     settings = get_settings()
+    # 对齐 RULES.md：uvicorn 不带 --reload（不稳定）
     uvicorn.run(
         "app.main:app",
         host=settings.host,
         port=settings.port,
-        reload=settings.debug,
         workers=1,
         limit_concurrency=4,
         timeout_keep_alive=30,

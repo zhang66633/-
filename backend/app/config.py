@@ -25,9 +25,9 @@ class Settings(BaseSettings):
     )
 
     # ---- Server ----
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"  # 默认仅本机监听；如需局域网访问在 .env 显式改为 0.0.0.0
     port: int = 8000
-    debug: bool = True
+    debug: bool = False
 
     # ---- LLM API Keys ----
     anthropic_api_key: str = ""
@@ -76,7 +76,8 @@ class Settings(BaseSettings):
     # ---- Sandbox ----
     sandbox_timeout: int = 60
     sandbox_max_memory_mb: int = 512
-    sandbox_backend: str = "subprocess"  # "subprocess" | "docker"
+    # 默认 docker（硬隔离）；docker 不可用时自动回退 subprocess 并告警（见 sandbox/executor.py）
+    sandbox_backend: str = "docker"  # "docker" | "subprocess"
 
     # ---- GitHub OAuth ----
     github_client_id: str = ""
@@ -101,23 +102,23 @@ class Settings(BaseSettings):
 
     def get_llm_config(self, agent_role: str) -> LLMConfig:
         """Get LLM configuration for a specific agent role."""
+        from app.core.llm.providers import classify_provider
+
         model_attr = f"{agent_role}_model"
         model = getattr(self, model_attr, self.analysis_model)
 
-        provider: Literal["anthropic", "openai"] = "openai"
-        api_key = self.openai_api_key
-        base_url: Optional[str] = None
-
-        if "claude" in model.lower():
-            provider = "anthropic"
+        # 供应商归类单一真源在 core/llm/providers.classify_provider；这里只做 key/base_url 解析
+        provider = classify_provider(model)
+        if provider == "anthropic":
             api_key = self.anthropic_api_key
-        elif "deepseek" in model.lower():
-            provider = "openai"
+            base_url: Optional[str] = None
+        else:
             api_key = self.openai_api_key
-            base_url = getattr(self, "deepseek_base_url", "https://api.deepseek.com")
-        elif "gpt" in model.lower() or "o1" in model.lower() or "o3" in model.lower():
-            provider = "openai"
-            api_key = self.openai_api_key
+            base_url = (
+                getattr(self, "deepseek_base_url", "https://api.deepseek.com")
+                if "deepseek" in model.lower()
+                else None
+            )
 
         # 按角色选择 max_tokens：写作/求解阶段需更长输出
         if agent_role == "writing":

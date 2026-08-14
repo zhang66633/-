@@ -74,17 +74,31 @@ class SqliteSessionStore:
     def __init__(self, db_path: Path):
         self._db_path = db_path
         self._lock = threading.Lock()
+        self._local = threading.local()  # 每线程单连接复用（见 _get_conn）
         self._init_db()
 
     # ── 初始化 ──────────────────────────────────────────
 
     def _get_conn(self) -> sqlite3.Connection:
-        """每个线程独立连接，启用 WAL + 外键。"""
-        conn = sqlite3.connect(str(self._db_path))
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        conn.row_factory = sqlite3.Row
+        """每线程独立连接（复用，不每次新建）；启用 WAL + 外键。"""
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA foreign_keys=ON")
+            self._local.conn = conn
         return conn
+
+    def close(self):
+        """关闭当前线程的连接（进程退出前调用）。"""
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            self._local.conn = None
 
     def _init_db(self):
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -147,40 +161,57 @@ class SqliteSessionStore:
                     ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_conversation(self, conv_id: str) -> Optional[dict]:
-        """获取单个会话。"""
+    def get_conversation(self, conv_id: str, user_id: Optional[str] = None) -> Optional[dict]:
+        """获取单个会话；提供 user_id 时校验属主（不匹配视为不存在）。"""
         with self._lock:
             with self._get_conn() as conn:
-                row = conn.execute(
-                    "SELECT * FROM conversations WHERE id = ?", (conv_id,)
-                ).fetchone()
+                if user_id is not None:
+                    row = conn.execute(
+                        "SELECT * FROM conversations WHERE id = ? AND user_id = ?",
+                        (conv_id, user_id),
+                    ).fetchone()
+                else:
+                    row = conn.execute(
+                        "SELECT * FROM conversations WHERE id = ?", (conv_id,)
+                    ).fetchone()
         return dict(row) if row else None
 
-    def update_conversation(self, conv_id: str, **fields) -> Optional[dict]:
-        """更新会话字段（title, mode 等）。"""
+    def update_conversation(self, conv_id: str, user_id: Optional[str] = None, **fields) -> Optional[dict]:
+        """更新会话字段（title, mode 等）；提供 user_id 时校验属主。"""
         allowed = {"title", "mode", "updated_at"}
         updates = {k: v for k, v in fields.items() if k in allowed}
         if not updates:
-            return self.get_conversation(conv_id)
+            return self.get_conversation(conv_id, user_id=user_id)
         updates["updated_at"] = _now()
 
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [conv_id]
+        where = "id = ?" if user_id is None else "id = ? AND user_id = ?"
+        if user_id is not None:
+            values.append(user_id)
 
         with self._lock:
             with self._get_conn() as conn:
                 conn.execute(
-                    f"UPDATE conversations SET {set_clause} WHERE id = ?",
+                    f"UPDATE conversations SET {set_clause} WHERE {where}",
                     values,
                 )
                 conn.commit()
-        return self.get_conversation(conv_id)
+        return self.get_conversation(conv_id, user_id=user_id)
 
-    def delete_conversation(self, conv_id: str) -> bool:
-        """删除会话及其所有消息（CASCADE）。"""
+    def delete_conversation(self, conv_id: str, user_id: Optional[str] = None) -> bool:
+        """删除会话及其所有消息（CASCADE）；提供 user_id 时校验属主。"""
         with self._lock:
             with self._get_conn() as conn:
-                cur = conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
+                if user_id is not None:
+                    cur = conn.execute(
+                        "DELETE FROM conversations WHERE id = ? AND user_id = ?",
+                        (conv_id, user_id),
+                    )
+                else:
+                    cur = conn.execute(
+                        "DELETE FROM conversations WHERE id = ?", (conv_id,)
+                    )
                 conn.commit()
                 return cur.rowcount > 0
 

@@ -1,8 +1,9 @@
 """API Key 管理 — 存储、验证、CRUD。
 外部通过 from .apikeys import get_active_api_key, PROVIDER_PRESETS 使用。"""
 
-import json, uuid
+import json, uuid, ipaddress
 from pathlib import Path
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Request
 from .schemas.request import ApiKeyCreate, ApiKeyQuickCreate
 from .schemas.response import ApiKeyResponse
@@ -32,6 +33,28 @@ def _preset_base_url(provider: str, explicit: str = "") -> str:
     if explicit:
         return explicit.rstrip("/")
     return PROVIDER_PRESETS.get(provider, {}).get("base_url", "")
+
+
+def _validate_custom_base_url(base_url: str) -> str:
+    """校验用户自定义 base_url，防 SSRF（仅 https + 拒绝内网/回环地址）。
+
+    预置服务商地址不经此校验（可信常量表）。
+    """
+    if not base_url:
+        return ""
+    u = urlparse(base_url)
+    if u.scheme != "https":
+        raise HTTPException(status_code=400, detail="自定义 base_url 仅允许 https")
+    if not u.hostname:
+        raise HTTPException(status_code=400, detail="base_url 缺少主机名")
+    try:
+        ip = ipaddress.ip_address(u.hostname)
+    except ValueError:
+        pass  # 域名形式：跳过字面 IP 检查（本地单机应用的务实取舍，已记录于审计计划 004）
+    else:
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            raise HTTPException(status_code=400, detail="base_url 不允许指向内网地址")
+    return base_url.rstrip("/")
 
 
 def _get_api_keys_path() -> Path:
@@ -205,6 +228,7 @@ async def quick_add_api_key(
     model_name = req.model_name or (
         DEFAULT_EMBEDDING["model"] if req.purpose == "embedding" else preset["chat_model"]
     )
+    _validate_custom_base_url(req.base_url)
     base_url = _preset_base_url(provider, req.base_url)
     purpose = req.purpose if req.purpose in ("chat", "embedding") else "chat"
 
@@ -271,6 +295,7 @@ async def create_api_key(req: ApiKeyCreate, user: GitHubUser | None = Depends(ge
     uid = _resolve_user_id(user=user)
 
     purpose = req.purpose if req.purpose in ("chat", "embedding") else "chat"
+    _validate_custom_base_url(req.base_url)
     base_url = _preset_base_url(req.provider, req.base_url)
 
     valid, err_msg = await _verify_api_key(req.key, req.provider, req.model_name, base_url, purpose)

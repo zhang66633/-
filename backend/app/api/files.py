@@ -11,13 +11,14 @@ from ..config import get_settings
 
 files_router = APIRouter()
 
-# 路径参数只允许字母、数字、点、下划线、短横线
+# 路径参数只允许字母、数字、点、下划线、短横线；拒绝 "." / ".." 及纯点号段（防路径穿越）
 _SAFE_NAME_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
 
 
 def _validate_path_segment(value: str, label: str) -> str:
     """校验路径片段合法性，防止路径穿越。"""
-    if not _SAFE_NAME_RE.match(value):
+    stripped = value.strip()
+    if not _SAFE_NAME_RE.match(stripped) or set(stripped) <= {"."}:
         raise HTTPException(status_code=400, detail=f"非法{label}: {value}")
     return value
 
@@ -101,10 +102,10 @@ async def get_image(run_id: str, filename: str):
     """获取求解 Agent 生成的图表。"""
     _validate_path_segment(run_id, "run_id")
     _validate_path_segment(filename, "filename")
-    img_dir = Path(tempfile.gettempdir()) / "mathmodel_outputs" / run_id
+    img_dir = (Path(tempfile.gettempdir()) / "mathmodel_outputs" / run_id).resolve()
     img_path = (img_dir / filename).resolve()
-    # 二次确认：resolve 后必须仍在 img_dir 内
-    if not str(img_path).startswith(str(img_dir.resolve())):
+    # 二次确认：resolve 后必须仍在 img_dir 内（is_relative_to 语义严格，防前缀误判）
+    if not img_path.is_relative_to(img_dir):
         raise HTTPException(status_code=400, detail="非法路径")
     if not img_path.exists():
         raise HTTPException(status_code=404, detail="图片不存在")
@@ -119,7 +120,7 @@ async def get_task_file(task_id: str, filename: str):
     settings = get_settings()
     file_dir = (settings.project_root / "data" / "task_files" / task_id).resolve()
     file_path = (file_dir / filename).resolve()
-    if not str(file_path).startswith(str(file_dir)):
+    if not file_path.is_relative_to(file_dir):
         raise HTTPException(status_code=400, detail="非法路径")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="文件不存在")

@@ -1,6 +1,7 @@
 """API 路由入口 — 注册子路由 + Auth/Health 内联路由。"""
 import logging
-from fastapi import APIRouter, HTTPException, Query, Depends
+import secrets
+from fastapi import APIRouter, HTTPException, Query, Depends, Request, Response
 from fastapi.responses import JSONResponse
 import httpx
 
@@ -40,18 +41,39 @@ from ..auth import GitHubUser, get_current_user, ALLOWED_CONTRIBUTORS, TokenResp
 
 _auth_router = APIRouter()
 
+# OAuth state 防 CSRF：登录时下发随机 state cookie，回调时校验后清除
+OAUTH_STATE_COOKIE = "mma_oauth_state"
+
+
 @_auth_router.get("/auth/login")
-async def github_login():
+async def github_login(response: Response):
     settings = get_settings()
+    state = secrets.token_urlsafe(16)
+    response.set_cookie(
+        OAUTH_STATE_COOKIE, state,
+        max_age=600, httponly=True, samesite="lax",
+    )
     authorize_url = (
         f"https://github.com/login/oauth/authorize?"
         f"client_id={settings.github_client_id}"
         f"&redirect_uri={settings.github_redirect_uri}"
+        f"&state={state}"
     )
     return {"authorize_url": authorize_url}
 
 @_auth_router.get("/auth/callback")
-async def github_callback(code: str = Query(...)):
+async def github_callback(
+    code: str = Query(...),
+    state: str = Query(default=""),
+    request: Request = None,
+    response: Response = None,
+):
+    # 防 login CSRF：state 必须与登录时下发的 cookie 一致
+    cookie_state = request.cookies.get(OAUTH_STATE_COOKIE, "")
+    if not cookie_state or not state or not secrets.compare_digest(cookie_state, state):
+        raise HTTPException(status_code=400, detail="OAuth state 校验失败，请重新登录")
+    response.delete_cookie(OAUTH_STATE_COOKIE)
+
     settings = get_settings()
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
