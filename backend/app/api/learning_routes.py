@@ -265,7 +265,9 @@ async def quiz_answer(req: QuizAnswerRequest):
 
     correct = req.choice == q["answer_index"]
     store = get_practice_store()
-    store.record_answer(req.question_id, req.choice, correct, req.user_id, req.round_id)
+    record_id = store.record_answer(
+        req.question_id, req.choice, correct, req.user_id, req.round_id,
+    )
 
     # 掌握度 + 成就闭环(事件驱动,复用学习事件管线)
     unit = get_unit_detail(q["unit_id"])
@@ -279,7 +281,14 @@ async def quiz_answer(req: QuizAnswerRequest):
         score=1.0 if correct else 0.0,
         created_at=datetime.utcnow(),
     )
-    get_mastery_tracker().update_from_event(req.user_id, event)
+    tracker = get_mastery_tracker()
+    tracker.update_from_event(req.user_id, event)
+    # 标记该记录已实时入账,防进度页重放时双计
+    guard = getattr(tracker, "_replayed_ids", None)
+    if guard is None:
+        guard = set()
+        tracker._replayed_ids = guard
+    guard.add(f"pr_{record_id}")
     get_achievement_service().add_event(event)
     # 持久化练习事件(热力图/连续天数/成就的数据源)
     get_learning_store().add_event(

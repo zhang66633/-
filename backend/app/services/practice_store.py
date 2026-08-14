@@ -105,16 +105,18 @@ class PracticeStore:
         user_id: str = "default",
         round_id: str = "",
         created_at: str | None = None,
-    ) -> None:
+    ) -> int:
+        """记录一次作答并更新错题本;返回记录 id(供事件重放去重)。"""
         with self._lock:
             with self._get_conn() as conn:
-                conn.execute(
+                cur = conn.execute(
                     "INSERT INTO practice_records"
                     "(user_id, question_id, choice, is_correct, round_id, created_at)"
                     " VALUES (?, ?, ?, ?, ?, ?)",
                     (user_id, question_id, choice, int(is_correct), round_id,
                      created_at or _utcnow()),
                 )
+                row_id = int(cur.lastrowid)
                 # 错题本状态转移: 答错入本, 答对出本(自动掌握)
                 if is_correct:
                     conn.execute(
@@ -128,6 +130,7 @@ class PracticeStore:
                         (user_id, question_id, _utcnow()),
                     )
                 conn.commit()
+                return row_id
 
     def discard_round(self, round_id: str, user_id: str = "default") -> int:
         """丢弃一轮练习的全部记录,并重算涉及题目的错题本状态。"""
@@ -248,6 +251,15 @@ class PracticeStore:
                 (user_id,),
             ).fetchall()
         return {r["question_id"] for r in rows}
+
+    def list_records(self, user_id: str = "default") -> list[dict]:
+        """全部作答记录(按时间正序,供事件重放)。"""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM practice_records WHERE user_id = ? ORDER BY id ASC",
+                (user_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     def active_dates(self, user_id: str = "default") -> set[str]:
         """有作答记录的日期集合(YYYY-MM-DD,供热力图/连续天数)。"""

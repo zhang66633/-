@@ -49,8 +49,6 @@ export const useProfileStore = defineStore("profile", () => {
   async function loadProgress() {
     loading.value = true;
     try {
-      const res = await fetchProfile();
-      // progress 在 /profile/progress 接口
       const { default: request } = await import("@/utils/request");
       const progressRes = await request.get("/profile/progress");
       progress.value = progressRes.data;
@@ -58,6 +56,19 @@ export const useProfileStore = defineStore("profile", () => {
       progress.value = null;
     } finally {
       loading.value = false;
+    }
+  }
+
+  /** 成就已读(庆祝弹窗关闭后调用) */
+  async function ackAchievements() {
+    try {
+      const { default: request } = await import("@/utils/request");
+      await request.post("/profile/achievements/ack");
+      if (progress.value?.achievements) {
+        for (const a of progress.value.achievements) a.is_new = false;
+      }
+    } catch {
+      /* 忽略 */
     }
   }
 
@@ -69,5 +80,6 @@ export const useProfileStore = defineStore("profile", () => {
     checkProfile,
     runDiagnose,
     loadProgress,
+    ackAchievements,
   };
 });

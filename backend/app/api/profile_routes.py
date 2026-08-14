@@ -161,18 +161,31 @@ async def ack_achievements():
     return {"status": "ok"}
 
 
-def _replay_events_to_tracker(tracker) -> None:
-    """把持久层事件重放到掌握度追踪器(进程内幂等: 防同事件重复抬峰值)。"""
+def _parse_naive_dt(iso: str):
+    """ISO 字符串 → naive datetime(与 tracker 内部 datetime.utcnow() 约定一致)。"""
     from datetime import datetime
 
+    return datetime.fromisoformat(iso).replace(tzinfo=None)
+
+
+def _replay_events_to_tracker(tracker) -> None:
+    """把持久层事件重放到掌握度追踪器(进程内幂等: 防同事件重复抬峰值)。
+
+    来源二: ①learning_events(事件钩子落库)②practice_records(历史作答,
+    事件钩子上线前的练习也能恢复掌握度)。
+    """
     from ..learning.schemas import LearningEvent
     from ..services.learning_store import get_learning_store
+    from ..services.practice_store import get_practice_store
 
     replayed = getattr(tracker, "_replayed_ids", None)
     if replayed is None:
         replayed = set()
         tracker._replayed_ids = replayed
+
     for row in get_learning_store().list_events("default"):
+        if row["event_type"] == "practice":
+            continue  # 练习掌握度统一从 practice_records 重放,避免双计
         if row["id"] in replayed:
             continue
         replayed.add(row["id"])
@@ -183,7 +196,27 @@ def _replay_events_to_tracker(tracker) -> None:
             skill_ids=[row["unit_id"]],
             event_type=row["event_type"],
             score=row["score"],
-            created_at=datetime.fromisoformat(row["created_at"]),
+            created_at=_parse_naive_dt(row["created_at"]),
+        ))
+
+    from ..learning.quiz_bank import get_question
+
+    for row in get_practice_store().list_records("default"):
+        key = f"pr_{row['id']}"
+        if key in replayed:
+            continue
+        replayed.add(key)
+        # skill 以单元为准(与角色掌握度列表对齐),题目反查单元
+        q = get_question(row["question_id"])
+        unit_id = q["unit_id"] if q else row["question_id"]
+        tracker.update_from_event("default", LearningEvent(
+            event_id=key,
+            user_id="default",
+            unit_id=unit_id,
+            skill_ids=[unit_id],
+            event_type="practice",
+            score=1.0 if row["is_correct"] else 0.0,
+            created_at=_parse_naive_dt(row["created_at"]),
         ))
 
 

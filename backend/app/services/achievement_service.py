@@ -149,7 +149,6 @@ class AchievementService:
                 return pstore.get_fixed_mistake_count(user_id)
             return 0
 
-        unlocked_map = store.unlocked_ids(user_id)
         results = []
         for ach in ACHIEVEMENT_DEFS:
             check = ach["check"]
@@ -158,7 +157,10 @@ class AchievementService:
             unlocked = progress >= target
             if unlocked:
                 store.unlock_achievement(ach["id"], user_id)  # 幂等持久化
-            meta = unlocked_map.get(ach["id"], {})
+                # 解锁后重读元数据(本次新解锁 acknowledged=0 → is_new=True)
+                meta = store.unlocked_ids(user_id).get(ach["id"], {})
+            else:
+                meta = {}
             results.append({
                 "id": ach["id"],
                 "name": ach["name"],
