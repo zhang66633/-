@@ -132,3 +132,205 @@ async def get_next_recommendation(role: str = "modeler"):
     )
 
 
+# ── 题库与练习(选择题)───────────────────────────────
+
+from ..learning.quiz_bank import (  # noqa: E402
+    categories_summary, get_by_unit, get_question, list_questions, public_view,
+)
+from ..services.practice_store import get_practice_store  # noqa: E402
+
+MAX_QUIZ_PER_ROUND = 100
+
+
+class QuizQuestionView(BaseModel):
+    """题库/练习里的题目视图(不含答案)。"""
+    id: str
+    unit_id: str
+    role: str
+    category: str
+    difficulty: str
+    question: str
+    options: list[str]
+    tags: list[str] = []
+    status: str = "untried"   # untried | wrong | mastered
+    wrong_times: int = 0
+
+
+class QuizBankResponse(BaseModel):
+    total: int
+    categories: list[dict]
+    questions: list[QuizQuestionView]
+
+
+@learning_router.get("/quiz/bank", response_model=QuizBankResponse)
+async def quiz_bank(
+    category: str | None = None,
+    difficulty: str | None = None,
+    role: str | None = None,
+    unit_id: str | None = None,
+    user_id: str = "default",
+):
+    """题库浏览: 按类别/难度/角色/单元过滤,附用户作答状态(不含答案)。"""
+    questions = list_questions(
+        category=category, difficulty=difficulty, role=role, unit_id=unit_id,
+    )
+    store = get_practice_store()
+    wrong_ids = store.get_wrong_question_ids(user_id)
+    counts = store.get_wrong_counts(user_id)
+    tried = store.get_tried_ids(user_id)
+
+    views = []
+    for q in questions:
+        view = public_view(q)
+        qid = q["id"]
+        if qid in wrong_ids:
+            view["status"] = "wrong"
+        elif qid in tried:
+            view["status"] = "mastered"
+        view["wrong_times"] = counts.get(qid, 0)
+        views.append(QuizQuestionView(**view))
+
+    return QuizBankResponse(
+        total=len(views),
+        categories=categories_summary(role),
+        questions=views,
+    )
+
+
+class QuizPracticeRequest(BaseModel):
+    question_ids: list[str]
+    user_id: str = "default"
+
+
+class QuizPracticeResponse(BaseModel):
+    questions: list[QuizQuestionView]
+
+
+@learning_router.post("/quiz/practice", response_model=QuizPracticeResponse)
+async def quiz_practice(req: QuizPracticeRequest):
+    """按用户勾选的题目创建一轮练习(校验题目存在,按勾选顺序返回)。"""
+    if not req.question_ids:
+        raise HTTPException(status_code=400, detail="至少选择一道题")
+    if len(req.question_ids) > MAX_QUIZ_PER_ROUND:
+        raise HTTPException(status_code=400, detail=f"单轮最多 {MAX_QUIZ_PER_ROUND} 题")
+
+    store = get_practice_store()
+    wrong_ids = store.get_wrong_question_ids(req.user_id)
+    counts = store.get_wrong_counts(req.user_id)
+    tried = store.get_tried_ids(req.user_id)
+
+    views = []
+    for qid in req.question_ids:
+        q = get_question(qid)
+        if not q:
+            raise HTTPException(status_code=404, detail=f"题目 {qid} 不存在")
+        view = public_view(q)
+        if qid in wrong_ids:
+            view["status"] = "wrong"
+        elif qid in tried:
+            view["status"] = "mastered"
+        view["wrong_times"] = counts.get(qid, 0)
+        views.append(QuizQuestionView(**view))
+
+    return QuizPracticeResponse(questions=views)
+
+
+class QuizAnswerRequest(BaseModel):
+    question_id: str
+    choice: int
+    user_id: str = "default"
+
+
+class QuizAnswerResponse(BaseModel):
+    question_id: str
+    correct: bool
+    answer_index: int
+    explanation: str
+
+
+@learning_router.post("/quiz/answer", response_model=QuizAnswerResponse)
+async def quiz_answer(req: QuizAnswerRequest):
+    """判分一道选择题: 记录作答,错误自动入错题本,并驱动掌握度/成就。"""
+    q = get_question(req.question_id)
+    if not q:
+        raise HTTPException(status_code=404, detail=f"题目 {req.question_id} 不存在")
+    if not (0 <= req.choice < 4):
+        raise HTTPException(status_code=400, detail="choice 必须在 0-3 之间")
+
+    correct = req.choice == q["answer_index"]
+    store = get_practice_store()
+    store.record_answer(req.question_id, req.choice, correct, req.user_id)
+
+    # 掌握度 + 成就闭环(事件驱动,复用学习事件管线)
+    unit = get_unit_detail(q["unit_id"])
+    skill_ids = [q["unit_id"]] + (unit.tags if unit else [])
+    event = LearningEvent(
+        event_id=f"evt_{uuid.uuid4().hex[:8]}",
+        user_id=req.user_id,
+        unit_id=q["unit_id"],
+        skill_ids=skill_ids,
+        event_type="practice",
+        score=1.0 if correct else 0.0,
+        created_at=datetime.utcnow(),
+    )
+    get_mastery_tracker().update_from_event(req.user_id, event)
+    get_achievement_service().add_event(event)
+
+    return QuizAnswerResponse(
+        question_id=req.question_id,
+        correct=correct,
+        answer_index=q["answer_index"],
+        explanation=q["explanation"],
+    )
+
+
+class QuizMistakeResponse(BaseModel):
+    total: int
+    questions: list[QuizQuestionView]
+
+
+@learning_router.get("/quiz/mistakes", response_model=QuizMistakeResponse)
+async def quiz_mistakes(user_id: str = "default"):
+    """错题本: 最新一次作答仍错误的题目列表(附上次错误选项)。"""
+    store = get_practice_store()
+    wrong_ids = store.get_wrong_question_ids(user_id)
+    counts = store.get_wrong_counts(user_id)
+
+    views = []
+    for qid in sorted(wrong_ids):
+        q = get_question(qid)
+        if not q:
+            continue
+        view = public_view(q)
+        view["status"] = "wrong"
+        view["wrong_times"] = counts.get(qid, 0)
+        views.append(QuizQuestionView(**view))
+
+    return QuizMistakeResponse(total=len(views), questions=views)
+
+
+@learning_router.get("/quiz/by-unit/{unit_id}", response_model=QuizPracticeResponse)
+async def quiz_by_unit(unit_id: str, user_id: str = "default"):
+    """某学习单元的自测题(供单元页「单元自测」块使用)。"""
+    unit = get_unit_detail(unit_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"学习单元 {unit_id} 不存在")
+    store = get_practice_store()
+    wrong_ids = store.get_wrong_question_ids(user_id)
+    counts = store.get_wrong_counts(user_id)
+    tried = store.get_tried_ids(user_id)
+
+    views = []
+    for q in get_by_unit(unit_id):
+        view = public_view(q)
+        qid = q["id"]
+        if qid in wrong_ids:
+            view["status"] = "wrong"
+        elif qid in tried:
+            view["status"] = "mastered"
+        view["wrong_times"] = counts.get(qid, 0)
+        views.append(QuizQuestionView(**view))
+
+    return QuizPracticeResponse(questions=views)
+
+

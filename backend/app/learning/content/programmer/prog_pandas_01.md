@@ -320,63 +320,68 @@ print("平滑前 3 天:", smooth.head(3).round(2).tolist())   # 中心滑动,头
 5. **merge 默认 inner 丢数据**。`pd.merge` 默认 `how='inner'` 只保留两表共有的键;清洗阶段合并多张表时先 `how='left'` 再检查缺失,避免「数据被悄悄丢掉」
 6. **删缺失值太豪爽**。`dropna()` 可能一刀切掉 30% 的数据;先看 `df.isna().sum()` 与缺失比例,能填充的(均值/中位数/前向)就别删,删除前在论文里说明理由
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:`df[df['x'] > 0]['y'] = 0` 为什么无效?正确写法是什么?
-
-<details><summary>查看答案</summary>
-
-`df[df['x'] > 0]` 先返回了一个**中间副本**,再对副本的 `['y']` 赋值,原 DataFrame 不受影响(并发出 SettingWithCopyWarning)。正确写法是 `df.loc[df['x'] > 0, 'y'] = 0`,布尔掩码与列选择在同一次 `loc` 中完成。
-
-</details>
-
-**第 2 题(补全)**:用 groupby 同时求每个地区「销量的均值」和「利润的总和」,并给结果列起名 `平均销量`、`总利润`。
-
-<details><summary>查看答案</summary>
+**第 1 题**
 
 ```python
 import pandas as pd
+df = pd.DataFrame({"x": [-1, 2, -3, 4], "y": [1, 2, 3, 4]})
+df[df["x"] > 0]["y"] = 0
+print(df["y"].tolist())
+```
 
+输出是:
+
+A. [1, 2, 3, 4]
+B. [1, 0, 3, 0]
+C. [0, 2, 0, 4]
+D. 报错并中断执行
+
+<details><summary>查看答案与解析</summary>
+**答案:A**。`df[df["x"] > 0]` 先返回一个**中间副本**,再对副本的 `["y"]` 赋值,原 DataFrame 不受影响——这就是链式赋值。pandas 3.x 会发出 ChainedAssignmentError 警告(旧版为 SettingWithCopyWarning),但不会报错中断。[1, 0, 3, 0] 是「期望的结果」(x>0 的行 y 置 0);[0, 2, 0, 4] 是掩码方向反了(x≤0 的行);正确写法是布尔掩码与列选择在同一次 `loc` 中完成:`df.loc[df["x"] > 0, "y"] = 0`。
+</details>
+
+**第 2 题**
+
+```python
+import pandas as pd
 df = pd.DataFrame({"地区": ["华东", "华南", "华东", "华南"],
                    "销量": [10, 20, 30, 40],
                    "利润": [1, 2, 6, 8]})
-df.groupby("地区").agg(
-    平均销量=("销量", "mean"),
-    总利润=("利润", "sum"),
-)
+out = df.groupby("地区").agg(平均销量=("销量", "mean"),
+                            总利润=("利润", "sum"))
+print(out.loc["华东", "平均销量"], out.loc["华东", "总利润"])
 ```
 
-新式命名元组写法自 pandas 0.25 起可用,比旧式 `agg({"销量": "mean"})` 更能控制输出列名。
+输出是:
 
+A. 40.0 和 7
+B. 20.0 和 3.5
+C. 30.0 和 10.0
+D. 20.0 和 7
+
+<details><summary>查看答案与解析</summary>
+**答案:D**。华东两行:平均销量 (10+30)/2 = 20.0,总利润 1+6 = 7。40.0 是把「平均销量」误用成 sum(华东销量合计 40);20.0 和 3.5 是对利润也取了 mean((1+6)/2 = 3.5);30.0 和 10.0 是把华南的结果当成了华东(华南平均销量 (20+40)/2 = 30、总利润 10)。新式命名写法 `agg(新列名=("原列", "函数"))` 比旧式字典更能控制输出列名。
 </details>
 
-**第 3 题(计算)**:对逐日时间序列 `s`(索引为 DatetimeIndex)求 5 日滑动平均,并说明结果前 4 个值为何是 NaN。
-
-<details><summary>查看答案</summary>
+**第 3 题**
 
 ```python
-import pandas as pd
-import numpy as np
-
-s = pd.Series(np.arange(30) % 10 + 1.0,
-              index=pd.date_range("2023-01-01", periods=30, freq="D"))
-s.rolling(5, center=True).mean()
+left = pd.DataFrame({"id": [1, 2, 3], "x": ["a", "b", "c"]})
+right = pd.DataFrame({"id": [2, 3, 4], "y": ["B", "C", "D"]})
+print(len(pd.merge(left, right, on="id")))
 ```
 
-默认 `center=False` 时窗口需要 5 个历史值,前 4 个位置窗口不满,结果为 NaN。取 `center=True` 则改为前后各 2 天,NaN 出现在两端。两种方式的平滑曲线整体相差不大,论文画图时通常 `dropna()` 后再画。
+输出是:
 
-</details>
+A. 3
+B. 4
+C. 2
+D. 6
 
-**第 4 题(概念)**:`merge` 的 `how='inner' / 'left' / 'outer'` 三者区别?
-
-<details><summary>查看答案</summary>
-
-- `inner`:只保留两表键**共有**的行(交集),最易丢数据
-- `left`:保留左表全部行,右表键匹配不上填 NaN(最常用于「主表 + 补充表」)
-- `outer`:保留两表全部行(并集),缺失填 NaN,适合合并后检查覆盖情况
-
-合并后立刻 `df.isna().sum()` 检查新增缺失,是防止静默丢数据的习惯。
-
+<details><summary>查看答案与解析</summary>
+**答案:C**。`pd.merge` 默认 `how="inner"`,只保留两表**共有键**的行:共有 id 为 {2, 3},共 2 行。3 是 `how="left"` 的结果(左表 3 行全保留,右表匹配不上填 NaN);4 是 `how="outer"`(并集);6 是误以为做了笛卡尔积/纵向拼接。清洗阶段合并多表时先 `how="left"` 再检查新增缺失(`df.isna().sum()`),防止「数据被悄悄丢掉」。
 </details>
 
 ## 🏆 竞赛实战链接

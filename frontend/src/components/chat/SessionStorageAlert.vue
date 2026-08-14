@@ -70,7 +70,6 @@ function handleCleanup() {
       "chatSessions",
       "solutionSessions",
       "learningSessions",
-      "qaSessions",
       "practiceSessions",
     ];
     for (const mode of modes) {

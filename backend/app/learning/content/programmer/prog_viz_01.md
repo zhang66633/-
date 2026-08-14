@@ -247,69 +247,45 @@ print("子图数量:", axes.size, "张")
 5. **保存用截图**。论文插图必须是程序 `savefig` 出的矢量图(PDF/SVG),截图进论文会糊且被评委一眼看穿;PNG 至少 `dpi=300`
 6. **图缺「三要素」**。无坐标轴标签、无图例、无单位——评委看不懂的图等于没画;每张图问自己:横轴是什么、纵轴是什么、不同曲线分别是什么
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:`plt.plot(x, y)` 与 `ax.plot(x, y)` 的区别是什么?为什么竞赛代码推荐后者?
-
-<details><summary>查看答案</summary>
-
-`plt.plot` 操作「当前坐标系」——Matplotlib 隐式维护的全局状态,多子图/多图叠画时很容易把线画到错误的 ax 上,且函数封装时行为不可控。`ax.plot` 显式指定目标坐标系,一张 fig 多个 ax 时互不干扰,代码也更容易封装成函数复用。结论:全程 `fig, ax = plt.subplots()`,只用 `ax.*`。
-
-</details>
-
-**第 2 题(补全)**:在 $[0, 2\pi]$ 上画出 $y=\sin x$,要求:黑色实线、线宽 2、开启网格、标注轴标签,并保存为 PDF。
-
-<details><summary>查看答案</summary>
-
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-
-x = np.linspace(0, 2 * np.pi, 200)
-fig, ax = plt.subplots(figsize=(7, 4.5))
-ax.plot(x, np.sin(x), "k-", lw=2, label=r"$\sin x$")
-ax.set_xlabel(r"$x$")
-ax.set_ylabel(r"$\sin x$")
-ax.grid(alpha=0.3)
-ax.legend()
-fig.savefig("sin.pdf")
-```
-
-用 LaTeX 语法写数学标签(`r"$\sin x$"`),论文插图档次立升。
-
-</details>
-
-**第 3 题(计算)**:用 `imshow` 显示 3×3 单位阵时,若忘记 `origin="lower"`,图像与数学意义有何差异?
-
-<details><summary>查看答案</summary>
-
-默认 `origin="upper"` 下,第 0 行显示在**顶部**,单位阵看起来仍是主对角线为 1,但换成任意矩阵 $A$ 时,显示的其实是「上下翻转后的 $A$」。数学意义的矩阵/场一律加 `origin="lower"`,或改用 `ax.matshow(A)`(它会自动设置正确的 origin 与坐标)。
-
-</details>
-
-**第 4 题(实操)**:画出三个实验组(A/B/C)的均值 ± 标准差误差棒图,并给每组上不同颜色。
-
-<details><summary>查看答案</summary>
+**第 1 题** 用面向对象 API 画图时,设置横轴标签的正确方式是:
 
 ```python
 import matplotlib.pyplot as plt
-
-groups = ["A", "B", "C"]
-means = [3.2, 5.1, 4.0]
-stds = [0.6, 1.1, 0.8]
-colors = ["steelblue", "darkorange", "seagreen"]
-
-fig, ax = plt.subplots(figsize=(7, 4.5))
-ax.bar(groups, means, yerr=stds, capsize=6, color=colors, alpha=0.85)
-ax.set_xlabel("实验组")
-ax.set_ylabel("均值")
-ax.set_title("三组实验结果对比(误差棒:±1 标准差)")
-ax.grid(axis="y", alpha=0.3)
-fig.savefig("bars.png", dpi=200)
+fig, ax = plt.subplots()
+ax.plot(x, y)
 ```
 
-`bar` 的 `yerr` 参数直接画误差棒,`capsize` 控制端帽宽度。注意论文里要注明误差棒的含义(标准差/标准误/置信区间),三者不可混用。
+A. plt.xlabel("x")
+B. ax.set_xlabel("x")
+C. fig.set_xlabel("x")
+D. ax.xlabel("x")
 
+<details><summary>查看答案与解析</summary>
+**答案:B**。面向对象 API 下所有绘图元素都挂在明确的 `ax` 上,标签用 `ax.set_xlabel`。`plt.xlabel` 是 pyplot 状态机写法,作用于「当前坐标系」——单图时碰巧没事,多子图/封装成函数时就会标错地方;`fig` 是整张画布,没有 set_xlabel 方法;`ax.xlabel` 方法名不存在。竞赛代码一律 `fig, ax = plt.subplots()`,只用 `ax.*`,不碰 `plt` 的绘图函数。
+</details>
+
+**第 2 题** 用 `imshow` 显示数学意义的二维场(地形高程、概率密度)时,必须设置 `origin="lower"`,原因是:
+
+A. 默认 origin="lower" 会把图像左右颠倒
+B. 不设置时颜色映射会失效
+C. 默认 origin="upper" 会把图像上下颠倒
+D. 不设置时无法指定坐标轴范围
+
+<details><summary>查看答案与解析</summary>
+**答案:C**。`imshow` 默认 `origin="upper"`,第 0 行显示在顶部;而数学场的 y 轴向上增长,不设置时显示的其实是「上下翻转后的矩阵」——图像上下颠倒。左右颠倒混淆了 extent 参数的职责;颜色映射失效混淆了 cmap;坐标范围由 `extent` 参数负责,与 origin 无关。画数学意义的矩阵/场一律加 `origin="lower"`(或改用 `ax.matshow`,它会自动设置正确的 origin 与坐标)。
+</details>
+
+**第 3 题** 论文插图应该用什么格式保存,为什么?
+
+A. 用 plt.show() 展示后截图进论文
+B. 保存 JPG,压缩率高最适合论文
+C. 保存 PNG 默认 dpi 即可,位图打印不糊
+D. 保存 PDF/SVG 矢量格式,放大不糊;汇报 PPT 用 PNG(dpi=300)
+
+<details><summary>查看答案与解析</summary>
+**答案:D**。论文插图必须是程序 `savefig` 出的**矢量图**(PDF/SVG),放大任意倍数不糊;PNG 是位图,打印前至少 `dpi=300`,默认 dpi(100)会糊。截图进论文既糊又会被评委一眼看穿;JPG 是有损压缩,会产生压缩伪影,不适合线条与文字密集的学术图。论文定稿再统一导出矢量图,不要截图。
 </details>
 
 ## 🏆 竞赛实战链接

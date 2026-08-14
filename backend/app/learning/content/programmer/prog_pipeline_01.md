@@ -335,80 +335,45 @@ print("流水线步骤:", [name for name, _ in loaded.steps])
 5. **对测试集调用 `fit_transform`**。测试集上任何 `fit*` 都是在用测试数据「学习」预处理参数——测试集永远只 `transform`(或直接 `pipe.predict`,内部自动正确)
 6. **只存模型不存流水线**。`joblib.dump(model)` 而预处理另存/不存,预测时预处理不一致,结果静默漂移;存就存 `pipe` 整体
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:下面代码哪里泄漏了?怎么改?
-
-```python
-from sklearn.datasets import make_classification
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import cross_val_score
-from sklearn.linear_model import LogisticRegression
-
-X, y = make_classification(n_samples=300, n_features=6, random_state=0)
-
-scaler = StandardScaler().fit(X)        # 全量 fit(题目代码)
-X_scaled = scaler.transform(X)
-scores = cross_val_score(LogisticRegression(max_iter=2000), X_scaled, y, cv=5)
-```
-
-<details><summary>查看答案</summary>
-
-`scaler.fit(X)` 用到了**全部数据**(包括每一折的验证部分),缩放参数泄漏了验证折的信息,CV 评估不再严格无偏。泄漏的虚高幅度取决于预处理对数据的敏感程度——标准化这类稳定统计量通常影响很小,特征选择这类「会记住数据」的操作影响明显(实测对照见例题 2)。改法:把 scaler 装进 Pipeline,`cross_val_score(Pipeline([("scaler", StandardScaler()), ("model", LogisticRegression())]), X, y, cv=5)`——每折的训练部分 fit 缩放器、验证部分只 transform,评估无偏。防泄漏的成本为零,没有理由不用 Pipeline。
-
-</details>
-
-**第 2 题(补全)**:写出「数值列(均值填充 + 标准化)与类别列(众数填充 + 独热)」的 ColumnTransformer。
-
-<details><summary>查看答案</summary>
+**第 1 题**
 
 ```python
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-
-num_cols = ["年龄", "收入"]
-cat_cols = ["学历", "城市"]
-pre = ColumnTransformer([
-    ("num", Pipeline([("imp", SimpleImputer(strategy="mean")),
-                      ("sc", StandardScaler())]), num_cols),
-    ("cat", Pipeline([("imp", SimpleImputer(strategy="most_frequent")),
-                      ("ohe", OneHotEncoder(handle_unknown="ignore",
-                                            sparse_output=False))]), cat_cols),
-])
-```
-
-要点:每类列挂一条**完整子流水线**(先填充再变换,顺序不可反);`num_cols`/`cat_cols` 是列名列表,可用 `df.select_dtypes(include=np.number).columns` 自动生成数值列名。
-
-</details>
-
-**第 3 题(计算)**:流水线 `Pipeline([("scaler", StandardScaler()), ("model", Ridge())])`,用 GridSearchCV 调 `Ridge` 的 `alpha ∈ {0.1, 1}` 和 `StandardScaler` 的 `with_mean`,参数网格怎么写?
-
-<details><summary>查看答案</summary>
-
-```python
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import Ridge
-
 pipe = Pipeline([("scaler", StandardScaler()), ("model", Ridge())])
-param_grid = {
-    "model__alpha": [0.1, 1.0],
-    "scaler__with_mean": [True, False],
-}
 ```
 
-双下划线把「步骤名」与「参数名」连起来;`scaler__with_mean=False` 适合稀疏矩阵场景。嵌套流水线(如 ColumnTransformer 内)写法更长,如 `pre__num__sc__with_mean`,用 `get_params().keys()` 核对。
+用 GridSearchCV 同时调 Ridge 的 alpha 与 StandardScaler 的 with_mean,参数网格应写成:
 
+A. {"model__alpha": [0.1, 1.0], "scaler__with_mean": [True, False]}
+B. {"alpha": [0.1, 1.0], "with_mean": [True, False]}
+C. {"Ridge__alpha": [0.1, 1.0], "StandardScaler__with_mean": [True, False]}
+D. {"model.alpha": [0.1, 1.0], "scaler.with_mean": [True, False]}
+
+<details><summary>查看答案与解析</summary>
+**答案:A**。流水线内调参用**双下划线**连接「步骤名」与「参数名」:`步骤名__参数名`。直写参数名会报 Invalid parameter 错误(GridSearchCV 找不到它们);用类名 Ridge/StandardScaler 也不行——键必须是你给步骤起的名字 scaler/model;单下划线或点号语法不存在。嵌套流水线(ColumnTransformer 里套 Pipeline)的名字更长,如 `pre__num__sc__with_mean`,不确定时用 `print(grid.estimator.get_params().keys())` 照抄。
 </details>
 
-**第 4 题(概念)**:为什么建议 `joblib.dump` 保存整条 Pipeline 而不是只保存模型?
+**第 2 题** 为什么保存模型时应该 `joblib.dump` 整条 Pipeline,而不是只保存模型?
 
-<details><summary>查看答案</summary>
+A. 单独保存模型会导致文件损坏
+B. 流水线序列化后文件体积更小
+C. joblib 只能序列化 Pipeline 对象,不能保存裸模型
+D. 预测时新数据必须走与训练完全相同的预处理,只存模型预处理状态丢失,预测静默漂移
 
-预测时的新数据必须经过**与训练完全相同的预处理**(同样的填充值、缩放均值/标准差、独热类别表)。只存模型意味着这些状态丢失或手写重建,一旦有出入(如训练时众数填充、预测时均值填充),特征分布漂移,预测静默变差。存整条 Pipeline,预处理状态与模型一起序列化,`load` 后直接 `predict`,训练/预测环境零漂移——这也是竞赛论文「可复现性」的工程保证。
+<details><summary>查看答案与解析</summary>
+**答案:D**。预测时的新数据必须经过与训练**完全相同**的预处理:同样的填充值、缩放均值/标准差、独热类别表。只存模型意味着这些状态丢失或手写重建,一旦有出入(如训练时众数填充、预测时均值填充),特征分布漂移,预测静默变差。joblib 能序列化任意 Python 对象,裸模型也能存——但存整条 Pipeline,load 后直接 predict,训练/预测环境零漂移,这是竞赛论文「可复现性」的工程保证。
+</details>
 
+**第 3 题** ColumnTransformer 中 `OneHotEncoder(handle_unknown="ignore")` 的作用是:
+
+A. 自动把未知类别填充为众数
+B. 预测时遇到训练集未见过的类别,输出全 0 行而不是抛 ValueError
+C. 忽略数值列的缺失值
+D. 把未知类别合并为一个「其他」列
+
+<details><summary>查看答案与解析</summary>
+**答案:B**。`handle_unknown="ignore"` 保证预测时若出现训练集没见过的类别(如新城市「深圳」),编码器输出全 0 行而不是抛 ValueError——这是部署场景的头号保险。它不会把未知类别填充为众数(那是 SimpleImputer 的事),也不会合并成「其他」列(合并稀有类别要用 handle_unknown="infrequent_if_exist");数值缺失值处理与 OneHotEncoder 无关。不加该参数时,测试集出现新类别直接报错——数据类赛题的经典翻车点。
 </details>
 
 ## 🏆 竞赛实战链接

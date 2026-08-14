@@ -59,7 +59,7 @@ export interface StreamChatOptions {
   signal?: AbortSignal;
   useRag?: boolean;
   /** 对话模式：chat=自由问答（默认），teach=教学模式（引导式），learning=学习中心（单元感知） */
-  mode?: "chat" | "teach" | "learning" | "qa" | "practice";
+  mode?: "chat" | "teach" | "learning" | "practice";
   /** 本轮附带的文件引用 */
   files?: ChatFileRef[];
   /** 学习模式专用：当前学习单元的上下文 */

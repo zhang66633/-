@@ -208,56 +208,39 @@ print(summary)
 5. **中文乱码沿用旧习惯**。Seaborn 的中文支持与 Matplotlib 相同,`rcParams` 照设(见《Matplotlib数据可视化》单元);或干脆论文图用英文标签
 6. **`palette` 与 `hue` 数量不匹配**。手动指定颜色数量必须 ≥ 类别数,否则报错;拿不准就用 `palette="Set2"` 之类的定性色板,交给 Seaborn 自动分配
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:`sns.histplot` 与旧版 `sns.distplot` 的关系?迁移时注意什么?
+**第 1 题** `sns.pairplot` 返回的是 PairGrid 对象。想修改坐标轴标签,正确做法是:
 
-<details><summary>查看答案</summary>
+A. g.set_axis_labels("x", "y")
+B. g.set_xlabel("x")
+C. pairplot 返回的是 ax,直接 ax.set_xlabel("x")
+D. plt.xlabel("x")
 
-`distplot` 在 seaborn 0.11 弃用,由 `histplot`(直方图)、`kdeplot`(核密度)、`rugplot` 拆分替代。迁移:直方图用 `sns.histplot(x=data, bins=30)`,要平滑密度用 `sns.kdeplot(x=data, fill=True)`,两者叠加分别调用(histplot 也可加 `kde=True`)。新版还支持 `hue=` 分组,功能更强。
-
+<details><summary>查看答案与解析</summary>
+**答案:A**。figure-level 函数(pairplot/catplot/relplot)返回 Grid 对象,**不是 ax**,改轴标签用 `g.set_axis_labels(...)`,改总标题用 `g.fig.suptitle(...)`,保存用 `g.savefig(...)`。Grid 对象没有 set_xlabel 方法,直接调用会报 AttributeError;plt.xlabel 是 pyplot 状态机写法,多子图时作用到错误对象。axes-level 函数(scatterplot/boxplot/histplot)才返回 ax,那时才用 ax.set_xlabel——两类函数先分清。
 </details>
 
-**第 2 题(补全)**:画出「列 x 为数值、列 group 为三组类别」的箱线图,并说明各图形元素(箱、须、点)的含义。
+**第 2 题** 画相关系数矩阵热力图时,推荐的配色参数组合是:
 
-<details><summary>查看答案</summary>
+A. cmap="viridis",不设 center(默认配色即可)
+B. cmap="RdBu_r",center=0.5,vmin=0,vmax=1
+C. 默认参数即可,相关系数自带正负
+D. cmap="RdBu_r",center=0,vmin=-1,vmax=1
 
-```python
-import numpy as np
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-rng = np.random.default_rng(0)
-df = pd.DataFrame({
-    "group": np.repeat(["A", "B", "C"], 50),
-    "x": np.concatenate([rng.normal(0, 1, 50),
-                         rng.normal(1, 1.2, 50),
-                         rng.normal(0.5, 0.8, 50)]),
-})
-fig, ax = plt.subplots(figsize=(7, 4.5))
-sns.boxplot(data=df, x="group", y="x", ax=ax)
-fig.savefig("box.png", dpi=200)
-```
-
-箱体:第 1 到第 3 四分位数(中间线是中位数);须(whisker):延伸到 1.5 倍四分位距内的最远数据点;须外的散点是**离群值**。论文里必须给读者讲清这三层含义,否则箱线图会被误读。
-
+<details><summary>查看答案与解析</summary>
+**答案:D**。相关系数矩阵的标准配色:`cmap="RdBu_r"`(红正蓝负)+ `center=0`(0 恰好落在色标中点为白色)+ `vmin=-1, vmax=1`(色标固定全量程,不同热力图之间颜色深浅可直接比较)。viridis 没有正负语义;`RdBu` 方向反了(蓝正红负),center=0.5 让 0 偏离中点;默认配色下色标从数据最小值到最大值浮动,0 不在中点,正负关系被配色误导。
 </details>
 
-**第 3 题(计算)**:画出相关系数矩阵热力图时,`vmin=-1, vmax=1, center=0` 三个参数各起什么作用?少一个会怎样?
+**第 3 题** seaborn 0.11 之后,画直方图应该使用:
 
-<details><summary>查看答案</summary>
+A. sns.distplot
+B. sns.histplot
+C. sns.kdeplot
+D. sns.countplot
 
-`vmin/vmax` 固定色标范围为 $[-1, 1]$:即使实际相关系数只落在 $[-0.6, 0.8]$,颜色也按「全量程」映射,不同热力图之间可**直接比较颜色深浅**;`center=0` 使 0 恰好落在色标中点(白色),红/蓝才代表正/负。缺 `vmin/vmax`:色标随数据浮动,两张图颜色不可比;缺 `center`:0 不在中点,配色语义错误。
-
-</details>
-
-**第 4 题(概念)**:箱线图与小提琴图各擅长什么?什么情况下两者结论会不一致?
-
-<details><summary>查看答案</summary>
-
-箱线图:离群值检测与中位数对比最直观,但不显示分布形状;小提琴图:完整显示密度形状(双峰、偏态、厚尾),但离群值标记不如箱线图明确。结论不一致的典型情形:两组数据中位数相同但分布形状完全不同(如一组双峰、一组单峰),箱线图看起来「一样」,小提琴图差异巨大——所以严肃的分布对比两者都画,互相印证。
-
+<details><summary>查看答案与解析</summary>
+**答案:B**。`distplot` 自 seaborn 0.11 起已废弃(调用报 DeprecationWarning/错误),由 `histplot`(直方图)、`kdeplot`(核密度曲线)、`rugplot` 拆分替代。`kdeplot` 是平滑密度曲线,不是直方图(要叠加可 `histplot(..., kde=True)`);`countplot` 是类别频数条形图,用于分类型变量,画数值分布的直方图会得到每值一柱的错误图。
 </details>
 
 ## 🏆 竞赛实战链接

@@ -1,0 +1,1112 @@
+# 建模手 A 批题库:优化类 11 单元 + 预测类 6 单元,共 17 单元 51 题
+# modeler_lp_01 的 3 道黄金示例题见 quiz_data_seed.yaml(本文件不含,避免 id 重复)
+
+- id: modeler_lp_02_q1
+  unit_id: modeler_lp_02
+  role: modeler
+  category: 优化
+  difficulty: beginner
+  question: |
+    产销平衡的运输问题有 3 个产地、4 个销地。用单纯形法(或表上作业法)求得的任一基可行解中,基变量的个数应为:
+  options:
+    - 7(等于产地数 + 销地数)
+    - 12(等于产地数 × 销地数)
+    - 6(等于 $m + n - 1$)
+    - 5(等于 $m + n - 2$)
+  answer_index: 2
+  explanation: |
+    平衡运输问题的约束矩阵秩为 $m+n-1$,因此基变量恰有 $3+4-1 = 6$ 个。
+    手算检验方案时发现基变量多了或少了,说明有退化或漏填,先查再继续。
+    「$m+n$」把秩当成了满秩;「$m \times n$」混淆了基变量数与决策变量总数;
+    「$m+n-2$」是秩减 1 的常见记混。
+  tags: [线性规划, 运输问题, 基变量]
+
+- id: modeler_lp_02_q2
+  unit_id: modeler_lp_02
+  role: modeler
+  category: 优化
+  difficulty: beginner
+  question: |
+    对 $\max z = 3x_1 + 5x_2$,s.t. $x_1 \leq 4,\ 2x_2 \leq 12,\ 3x_1 + 2x_2 \leq 18,\ x_1,x_2 \geq 0$,
+    已知最优解 $(2,6)$、$z^* = 36$,第 2 个约束的影子价格为 1.5(允许范围 $[6,18]$)。
+    若第 2 个约束右端项从 12 增加到 17,新的最优利润为:
+  options:
+    - "36"
+    - "43.5"
+    - "45"
+    - "40.5"
+  answer_index: 1
+  explanation: |
+    17 未超过允许上限 18,影子价格 $y_2 = 1.5$ 有效:
+    $\Delta z = 1.5 \times (17-12) = 7.5$,$z^* = 36 + 7.5 = 43.5$。
+    直接验证:约束变为 $2x_2 \leq 17$,与 $3x_1 + 2x_2 = 18$ 联立得
+    $x_2 = 8.5,\ x_1 = 1/3$,$z = 1 + 42.5 = 43.5$ ✓。
+    「36」误以为第 2 约束是松约束、影子价格为 0;
+    「45」把增量 6 也按 1.5 算,越过了允许上限 18;
+    「40.5」是影子价格记错(按 0.9 计)。
+    注意影子价格只保证「每单位」的边际改善,跨多单位使用时必须先确认仍在允许范围内。
+  tags: [线性规划, 灵敏度分析, 影子价格]
+
+- id: modeler_lp_02_q3
+  unit_id: modeler_lp_02
+  role: modeler
+  category: 优化
+  difficulty: beginner
+  question: |
+    某运输问题的总供应量为 20,总需求量为 23。建模时正确的处理是:
+  options:
+    - 补一个需求量为 3 的虚拟销地,其运价取 0
+    - 直接交给求解器,等式约束会自动调整
+    - 把超出部分的需求运价设为大 M,强制不分配
+    - 补一个供应量为 3 的虚拟产地,其运价取 0
+  answer_index: 3
+  explanation: |
+    供不应求(供应 20 < 需求 23)时,应补一个供应量为 3 的**虚拟产地**,
+    其运价取 0——被虚拟产地「满足」的需求在论文中解释为缺货。
+    「补虚拟销地」方向写反,那是供过于求的处理;
+    等式约束相互矛盾时求解器直接报不可行,不会「自动调整」;
+    大 M 会抬高总成本,把「缺货」错当成「高成本运输」。
+    产销不平衡不处理直接求解,是运输问题建模的第一高频错误。
+  tags: [线性规划, 运输问题, 产销不平衡]
+
+- id: modeler_ip_01_q1
+  unit_id: modeler_ip_01
+  role: modeler
+  category: 优化
+  difficulty: beginner
+  question: |
+    某最大化整数规划(IP),其 LP 松弛的最优值为 41.25,已找到一个整数可行解的目标值为 39。
+    关于 IP 最优值 $z_{IP}$,下列说法**正确**的是:
+  options:
+    - $z_{IP} \leq 39$,因为整数解不可能超过已有的可行解
+    - $39 \leq z_{IP} \leq 41.25$
+    - $z_{IP} \geq 41.25$,因为整数约束会扩大可行域
+    - 无法得出任何结论
+  answer_index: 1
+  explanation: |
+    max 问题中松弛可行域更大,松弛最优值是**上界**:$z_{IP} \leq 41.25$;
+    整数可行解本身是 IP 可行解,给出**下界**:$z_{IP} \geq 39$。
+    两者夹出区间 $[39, 41.25]$——这正是分支定界的定界依据,也是论文里写 gap 的来源。
+    「$z_{IP} \leq 39$」「$z_{IP} \geq 41.25$」都是把上下界方向写反的典型错误;
+    界的方向写反,剪枝判据就会把最优解剪掉。
+  tags: [整数规划, LP松弛, 上下界]
+
+- id: modeler_ip_01_q2
+  unit_id: modeler_ip_01
+  role: modeler
+  category: 优化
+  difficulty: beginner
+  question: |
+    用分支定界求解 $\max z = 3x_1 + 2x_2$,s.t. $2x_1 + 3x_2 \leq 14,\ 2x_1 + x_2 \leq 9,\ x_1,x_2 \geq 0$ 且为整数。
+    最优解与最优值为:
+  options:
+    - $x_1 = 3,\ x_2 = 3,\ z = 15$
+    - $z = 14.75$(即 LP 松弛最优值)
+    - $x_1 = 4,\ x_2 = 1,\ z = 14$
+    - $x_1 = 3,\ x_2 = 2,\ z = 13$
+  answer_index: 2
+  explanation: |
+    LP 松弛最优解为 $(3.25, 2.5)$,$z = 14.75$——两个分量都是分数,必须分支。
+    分支定界后最优整数解是 $(4,1)$,$z = 12 + 2 = 14$。
+    $(3,2)$ 是「松弛解四舍五入」的结果,可行但不是最优($z=13$);
+    $(3,3)$ 违反 $2x_1+3x_2 = 15 > 14$,不可行——取整产生的解可能根本不可行;
+    $14.75$ 是松弛上界,不是整数可行解,不能当答案。
+    「松弛 + 取整」不可靠,必须走分支定界或直接交给求解器。
+  tags: [整数规划, 分支定界, 整数解]
+
+- id: modeler_ip_01_q3
+  unit_id: modeler_ip_01
+  role: modeler
+  category: 优化
+  difficulty: beginner
+  question: |
+    为什么运输问题(供应、需求均为整数)不需要分支定界,直接用 LP 求解就能得到整数最优解?
+  options:
+    - 因为运输问题规模通常很小,枚举即可
+    - 因为先解 LP 再四舍五入不会改变可行性
+    - 因为其约束矩阵全幺模,LP 松弛的每个顶点都是整数点
+    - 因为运输问题的目标系数都是整数
+  answer_index: 2
+  explanation: |
+    运输问题约束矩阵的元素只有 0/1,且每列恰有两个 1,这类矩阵**全幺模**:
+    任何子方阵行列式为 $0, \pm 1$,当右端项为整数时,LP 松弛的每个基解自动为整数。
+    于是 LP 最优解就是整数最优解,直接调用 linprog 即可。
+    「枚举」只适用于变量极少的玩具题,运输问题的变量是 $mn$ 量级;
+    「四舍五入」对一般 LP 既不保证可行也不保证最优(见上一题);
+    目标系数为整数与顶点是否整数无关。
+    指派问题、网络流问题同样全幺模,识别出它,IP 就退化成了 LP。
+  tags: [整数规划, 全幺模矩阵, 运输问题]
+
+- id: modeler_ip_02_q1
+  unit_id: modeler_ip_02
+  role: modeler
+  category: 优化
+  difficulty: beginner
+  question: |
+    用匈牙利算法求解成本矩阵 $\begin{bmatrix} 5 & 2 & 8 \\ 9 & 1 & 7 \\ 6 & 4 & 3 \end{bmatrix}$ 的指派问题,最小总成本为:
+  options:
+    - "14"
+    - "9"
+    - "21"
+    - "15"
+  answer_index: 1
+  explanation: |
+    最优指派:第 1 人做第 1 件、第 2 人做第 2 件、第 3 人做第 3 件,
+    总成本 $5 + 1 + 3 = 9$。枚举核对:其余 5 种指派的成本为 16、14、15、21、15,均大于 9 ✓。
+    14、15 是贪心或部分枚举得到的次优成本,21 是某个差指派的成本——
+    匈牙利算法通过「行减列减 + 盖线调整」保证得到全局最优,而非局部贪心结果。
+    另外注意:匈牙利算法求的是最小,最大化指派要先取负或做 $(\max p_{ij} - p_{ij})$ 变换。
+  tags: [0-1规划, 指派问题, 匈牙利算法]
+
+- id: modeler_ip_02_q2
+  unit_id: modeler_ip_02
+  role: modeler
+  category: 优化
+  difficulty: beginner
+  question: |
+    用 0-1 变量表达「若选择项目 A,则必须选择项目 B」($x_A, x_B \in \{0,1\}$ 表示是否选择),正确的约束是:
+  options:
+    - $x_A \geq x_B$
+    - $x_A = x_B$
+    - $x_A \leq x_B$
+    - $x_A + x_B = 1$
+  answer_index: 2
+  explanation: |
+    「选 A 必须选 B」即 B 不选则 A 必不选:$x_B = 0 \Rightarrow x_A = 0$,
+    用不等式表达为 $x_A \leq x_B$。
+    「$x_A \geq x_B$」方向写反,变成「选 B 必须选 A」;
+    「$x_A = x_B$」把依赖误写成同进退;
+    「$x_A + x_B = 1$」是互斥(恰好选一个)。
+    建模心法:先用中文把逻辑写成一句话,再逐句翻译成线性约束,最后给每条约束标注释。
+  tags: [0-1规划, 逻辑约束, 依赖]
+
+- id: modeler_ip_02_q3
+  unit_id: modeler_ip_02
+  role: modeler
+  category: 优化
+  difficulty: beginner
+  question: |
+    指派问题中,某人不适合做某项工作(禁止指派),成本矩阵中对应格应填:
+  options:
+    - 0,表示该格无需成本
+    - "-1,表示反向收益"
+    - 该行最小成本,便于行减
+    - 大 M,强制算法避开该格
+  answer_index: 3
+  explanation: |
+    禁止指派必须用**大 M**。0 会被匈牙利算法当作「免费且乐意」的格优先指派,
+    结果恰恰相反;负值、行最小值同理都会吸引指派而不是禁止。
+    另外注意:人数与任务数不等时补的虚拟行列才填 0——
+    虚拟行列表示「闲着/外包」,与「禁止」是两回事,别混用。
+  tags: [0-1规划, 指派问题, 禁止指派]
+
+- id: modeler_dp_01_q1
+  unit_id: modeler_dp_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    硬币面值为 1、5、11,要凑出 15 元。动态规划求得的最少硬币数与贪心策略(每次先取最大面值)的结果分别是:
+  options:
+    - 3 枚与 3 枚
+    - 5 枚与 3 枚
+    - 3 枚与 5 枚
+    - 4 枚与 5 枚
+  answer_index: 2
+  explanation: |
+    DP:$f(n) = \min\{f(n-1), f(n-5), f(n-11)\} + 1$,$f(0) = 0$,
+    $f(15) = \min\{f(14)+1,\ f(10)+1,\ f(4)+1\} = \min\{5, 3, 5\} = 3$,
+    最优方案是 $5+5+5$。
+    贪心先取 11,剩 4 只能再取 4 枚 1 元,共 **5 枚**。
+    贪心失败的原因:最大面值的选择与最优子问题不兼容——贪心选择性质不成立。
+    这正是「为什么需要 DP」的经典反例:局部最优拼不出全局最优。
+    「4 枚」是把问题算成了凑 14 元的结果。
+  tags: [动态规划, 贪心, 最优子结构]
+
+- id: modeler_dp_01_q2
+  unit_id: modeler_dp_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    0-1 背包:3 件物品价值/重量为 $(6, 2)$、$(10, 3)$、$(12, 4)$,容量 $W = 5$。最大总价值为:
+  options:
+    - 18(装物品 1 与 3)
+    - 12(只装物品 3)
+    - 22(装物品 2 与 3)
+    - 16(装物品 1 与 2)
+  answer_index: 3
+  explanation: |
+    转移 $dp[i][w] = \max(dp[i-1][w],\ dp[i-1][w-w_i] + v_i)$,填表得 $dp[3][5] = 16$:
+    装物品 1+2,重量 $2+3=5$ 恰好用满。
+    「18」按价值贪心先拿 12 再拿 6,但重量 $4+2=6>5$ 超重,不可行;
+    「22」更离谱,重量 $3+4=7>5$;
+    「12」是只装单件物品 3 的可行解,但放弃物品 2 的收益是错误决策。
+    DP 的每个格子只做一次比较,把指数级组合折叠成 $O(nW)$ 填表。
+  tags: [动态规划, 背包问题, 状态转移]
+
+- id: modeler_dp_01_q3
+  unit_id: modeler_dp_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    有人说:「0-1 背包是 NP-hard 问题,而 DP 给出了 $O(nW)$ 的多项式算法,这说明 P = NP。」该说法错在:
+  options:
+    - $O(nW)$ 关于输入规模不是多项式:$W$ 在输入中只占 $\log_2 W$ 位,复杂度随 $W$ 的数值指数增长
+    - 背包问题其实不是 NP-hard,$O(nW)$ 是真正的多项式算法
+    - $O(nW)$ 中的 $n$ 是物品数,与输入规模无关
+    - DP 解背包只对小容量有效,所以它不算算法
+  answer_index: 0
+  explanation: |
+    $O(nW)$ 是**伪多项式**复杂度:输入编码 $W$ 只需 $\log_2 W$ 个二进制位,
+    而算法耗时随 $W$ 的数值(即 $2^{\log_2 W}$)线性增长,相对于输入长度是指数级。
+    它不推翻 P≠NP。实践含义:容量数值小时 DP 非常高效,$W$ 很大时立即转向
+    分支定界或启发式——判断「$W$ 的数值大小」是竞赛中选算法的关键一步。
+    「背包不是 NP-hard」与事实相反;「$n$ 与输入规模无关」把问题答偏了。
+  tags: [动态规划, 伪多项式, 计算复杂度]
+
+- id: modeler_ga_01_q1
+  unit_id: modeler_ga_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    某 GA 问题的适应度函数可能出现负值(如利润为负的组合),下列处理最稳妥的是:
+  options:
+    - 对适应度取绝对值后继续用轮盘赌
+    - 改用锦标赛选择:随机抽 $k$ 个个体比适应度,冠军晋级,只依赖序关系
+    - 把负适应度的个体全部淘汰,只保留正值个体
+    - 给所有适应度加上一个足够大的常数后仍按原概率公式选择
+  answer_index: 1
+  explanation: |
+    轮盘赌要求概率为正,负适应度无法直接归一化;绝对值会扭曲「-5 比 -1 差」的事实,
+    且同样无法处理 0。锦标赛选择只比较大小,对适应度的平移、缩放天然免疫,
+    是竞赛中更稳妥的默认选择。
+    「全部淘汰负值个体」会提前丧失多样性,易早熟;
+    「加常数」只能让概率变正,但选择压力会被常数大小改变,仍需调参,不如直接换锦标赛。
+  tags: [遗传算法, 轮盘赌, 锦标赛选择]
+
+- id: modeler_ga_01_q2
+  unit_id: modeler_ga_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    用 5 位二进制编码整数 $x \in [0, 31]$,编码串 $11010$ 对应的实数值(整数)为:
+  options:
+    - "25"
+    - "11"
+    - "26"
+    - "21"
+  answer_index: 2
+  explanation: |
+    按「高位在前」解码:$11010_2 = 2^4 + 2^3 + 2^1 = 16 + 8 + 2 = 26$。
+    25 是 $11001_2$——把第三位的 1 错看成 0;
+    11 是把位序从右往左读($01011_2$);
+    21 是 $10101_2$,常见的手滑型错误。
+    若区间是 $[0, 10]$ 而非 $[0, 31]$,还需按 $\frac{26}{2^5-1} \times 10$ 换算——
+    分母是 $2^l - 1$ 而不是 $2^l$,这是编码设计的经典细节。
+  tags: [遗传算法, 二进制编码, 解码]
+
+- id: modeler_ga_01_q3
+  unit_id: modeler_ga_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    TSP 用 PMX 交叉,父代 $P_1 = [1,2,3,4,5,6]$,$P_2 = [2,4,6,1,3,5]$,交叉段为第 3–4 位。
+    子代 1($O_1$)为:
+  options:
+    - $[1,2,6,1,5,6]$
+    - $[4,2,6,1,5,3]$
+    - $[2,1,3,4,6,5]$
+    - $[1,2,6,4,5,3]$
+  answer_index: 1
+  explanation: |
+    段内映射:$3 \leftrightarrow 6$,$4 \leftrightarrow 1$。
+    把 $P_1$ 的第 3–4 位换成 $P_2$ 的段 $[6,1]$,得 $[1,2,6,1,5,6]$,再按映射修复冲突:
+    位置 1 的「1」与段内「1」冲突 → 换 4;位置 6 的「6」冲突 → 换 3。
+    得 $O_1 = [4,2,6,1,5,3]$ ✓(仍是 $\{1,\dots,6\}$ 的合法排列)。
+    「$[1,2,6,1,5,6]$」是**只换段不修复**的产物,含重复城市,非法;
+    「$[2,1,3,4,6,5]$」是另一个子代 $O_2$,把两个子代搞混;
+    「$[1,2,6,4,5,3]$」漏修了位置 1 的冲突。
+    PMX 的精髓:先交换段,再按映射修复,保证子代仍是合法路径。
+  tags: [遗传算法, 排列编码, PMX交叉]
+
+- id: modeler_sa_01_q1
+  unit_id: modeler_sa_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    最小化问题中,当前温度 $T = 10$,邻域解使目标值恶化 $\Delta = 5$。该解被接受的概率约为:
+  options:
+    - $e^{-5} \approx 0.0067$
+    - $e^{-1} \approx 0.368$
+    - $1 - 5/10 = 0.5$
+    - $e^{-0.5} \approx 0.607$
+  answer_index: 3
+  explanation: |
+    接受概率 $P = \exp(-\Delta/T) = \exp(-5/10) = e^{-0.5} \approx 0.607$——高温下小幅恶化照单全收。
+    $e^{-5}$ 漏了除以温度 $T$;$e^{-1}$ 是把 $\Delta/T = 0.5$ 记成了 1(即 $\Delta = T$ 的分水岭情形);
+    $0.5$ 是线性化的错误直觉。
+    温度是唯一的「容错旋钮」:同一差解,低温下几乎必拒——这正是「先探索、后收敛」的温度戏法。
+  tags: [模拟退火, Metropolis准则, 接受概率]
+
+- id: modeler_sa_01_q2
+  unit_id: modeler_sa_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    理论上能保证 SA 以概率 1 收敛到全局最优的降温函数是什么?实践中为什么不用它?
+  options:
+    - 对数降温 $T_k = T_0 / \ln(1+k)$,因为收敛太慢,计算上不可用
+    - 几何降温 $T_{k+1} = \alpha T_k$,因为它只在 $\alpha$ 接近 1 时收敛
+    - 对数降温,因为它会发散
+    - 指数降温,因为它需要先估计最优值
+  answer_index: 0
+  explanation: |
+    Geman 兄弟证明:对数降温 $T_k = T_0/\ln(1+k)$ 配充分长的内循环,SA 以概率 1 收敛到全局最优,
+    但从 $T_0 = 100$ 降到 $T = 1$ 需要 $k \approx e^{100} - 1$ 轮,慢到不可用。
+    实践中用几何降温 $T_{k+1} = \alpha T_k$($\alpha \in [0.8, 0.99]$),
+    速度快但**没有**全局收敛保证——所以论文里只能说「高质量近似解」,措辞必须谨慎。
+    「对数降温会发散」与定理结论相反;几何降温无论 $\alpha$ 取值都没有全局收敛保证。
+  tags: [模拟退火, 冷却计划, 收敛性]
+
+- id: modeler_sa_01_q3
+  unit_id: modeler_sa_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    用 SA 求解 TSP 时,swap(交换两个城市)与 2-opt(反转一段路径)两种邻域,2-opt 通常明显更强,原因是:
+  options:
+    - swap 一步只改变 1 条边,改动太小容易卡死
+    - 2-opt 一步改变 4 条边,探索更彻底
+    - 2-opt 每次只断开并重连 2 条边,保留了路径绝大部分结构,更符合「相近解质量相近」的光滑性假设
+    - 两者本质等价,强弱差异只来自随机种子
+  answer_index: 2
+  explanation: |
+    swap 交换两个城市会破坏 4 条边($i-1\to i,\ i\to i+1,\ j-1\to j,\ j\to j+1$),信息损失大;
+    2-opt 反转一段只断开 2 条边并换 2 条新边,保留了其余 $n-2$ 条边的结构。
+    SA 依赖「相近的解质量也相近」的光滑性假设,改动越小的邻域越能精细搜索。
+    「2-opt 改 4 条边」把两个算子的边数记反;swap 改的是 4 条而非 1 条;
+    两者差异是结构性的,与随机种子无关。
+    同实例实验:swap 邻域平均 gap 9.62%,换成 2-opt 后同样预算下质量显著提升。
+  tags: [模拟退火, 邻域结构, TSP]
+
+- id: modeler_pso_01_q1
+  unit_id: modeler_pso_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    $\min f(x) = x^2$。某粒子 $x = 3,\ v = 1$,其 $pbest = 3$;群体 $gbest = -1$。
+    取 $w = 0.8,\ c_1 = c_2 = 1.5$,设 $r_1 = r_2 = 1$。执行一步迭代后,位置 $x'$ 及 pbest、gbest 的更新情况为:
+  options:
+    - $x' = -2.2$,pbest 更新为 $-2.2$,gbest 也更新为 $-2.2$
+    - $x' = -2.2$,pbest 更新为 $-2.2$,gbest 保持 $-1$
+    - $x' = 9.8$,pbest 保持 3,gbest 保持 $-1$
+    - $x' = -2.2$,pbest 保持 3,gbest 保持 $-1$
+  answer_index: 1
+  explanation: |
+    速度更新:$v' = 0.8 \times 1 + 1.5 \times (3-3) + 1.5 \times (-1-3) = 0.8 + 0 - 6 = -5.2$,
+    故 $x' = 3 - 5.2 = -2.2$,$f(x') = 4.84$。
+    $f(x') = 4.84 < f(pbest) = 9$,故 pbest 更新为 $-2.2$;
+    但 $f(gbest) = f(-1) = 1 < 4.84$,gbest **不变**——gbest 只在有人刷新纪录时更新。
+    「pbest 不变」漏了 pbest 的比较;「gbest 也更新」忘了与 gbest 的目标值比较;
+    「$x' = 9.8$」是把 $(gbest - x)$ 的负号丢掉的计算错误。
+    该粒子被社会项大力拽向 $-1$,却因惯性「刹不住车」冲过了头——振荡收敛的典型表现。
+  tags: [粒子群, 速度更新, pbest, gbest]
+
+- id: modeler_pso_01_q2
+  unit_id: modeler_pso_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    关于 PSO 的 gbest 与 lbest 拓扑,下列说法**正确**的是:
+  options:
+    - gbest 信息传播即时、收敛快,但易全群落入局部最优;lbest 收敛慢但多样性好,适合多峰问题
+    - lbest 比 gbest 收敛更快,因为邻居之间竞争更激烈
+    - gbest 的多样性更好,因为它让所有粒子共享同一信息
+    - 两者只在实现代码上不同,收敛行为完全一致
+  answer_index: 0
+  explanation: |
+    gbest 全连接:所有粒子共享同一个全局最优,收敛快,但一旦 gbest 陷入局部最优,
+    全群会被一起拉进去(单点故障)。lbest 只与邻居子集比较,信息沿拓扑逐级传播,
+    收敛慢,但能形成多个「亚群」各自探索不同区域,多样性好。
+    选 lbest 的场景:多峰函数、高维问题、已知易早熟的问题;
+    工程做法:先跑 gbest,若收敛曲线过早平坦(早熟迹象),改 lbest 或混合拓扑。
+  tags: [粒子群, 拓扑结构, lbest]
+
+- id: modeler_pso_01_q3
+  unit_id: modeler_pso_01
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    收缩因子版 PSO 取 $c_1 = c_2 = 2.05$($\varphi = 4.1$)时,收缩因子 $\chi$ 约为:
+  options:
+    - "1.4945"
+    - "0.5"
+    - "0.7298"
+    - "2.05"
+  answer_index: 2
+  explanation: |
+    $\chi = \frac{2}{|2 - \varphi - \sqrt{\varphi^2 - 4\varphi}|} = \frac{2}{|-2.1 - \sqrt{0.41}|} \approx \frac{2}{2.7403} \approx 0.7298$。
+    它同时缩放三项,等价于「无收缩因子 + $w = 0.729$、$c_1 = c_2 = 2.05\chi \approx 1.4945$」——
+    文献中「$w=0.729,\ c_1=c_2=1.49445$」这组神秘参数正是从这里推出的,不是凑出来的。
+    「1.4945」把缩放后的等效系数当成了 $\chi$;「2.05」是原始系数;「0.5」是拍脑袋。
+  tags: [粒子群, 收缩因子, 参数设置]
+
+- id: modeler_multiobj_q1
+  unit_id: modeler_multiobj
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    同一前沿层上有 4 个解(最小化):$(0,10)$、$(1,4)$、$(2,1)$、$(3,0)$。解 $(1,4)$ 的拥挤度距离为:
+  options:
+    - "1.667"
+    - "0.667"
+    - "1.567"
+    - "2.567"
+  answer_index: 2
+  explanation: |
+    按 $f_1$ 排序后,$(1,4)$ 的相邻解是 $(0,10)$ 与 $(2,1)$:
+    $d = \frac{2-0}{3-0} + \frac{10-1}{10-0} = \frac23 + \frac{9}{10} \approx 1.567$。
+    分子是相邻两解的目标差,分母是该目标在全层的极差,逐目标归一化后相加。
+    0.667 只算了第一个目标;1.667 把第二项的分母误用相邻差($10-1$);
+    两个端点 $(0,10)$ 与 $(3,0)$ 的拥挤度记 $\infty$——端点永远优先保留,
+    这正是前沿「展得开」的机制。
+  tags: [多目标优化, 拥挤度距离, NSGA-II]
+
+- id: modeler_multiobj_q2
+  unit_id: modeler_multiobj
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    线性双目标问题 $\max (x_1, x_2)$ s.t. $x_1 + 2x_2 \leq 6,\ 2x_1 + x_2 \leq 6,\ x_1,x_2 \geq 0$,
+    Pareto 前沿是折线 $(3,0)-(2,2)-(0,3)$。用加权和法能取到前沿上的哪些点?
+  options:
+    - 折线上的全部点,只要权重扫得足够细
+    - 只能取到折点 $(3,0)$、$(2,2)$、$(0,3)$ 三个支撑点
+    - 只能取到 $(2,2)$ 一点
+    - 前沿上的点一个都取不到
+  answer_index: 1
+  explanation: |
+    线性加权目标的最优解总出现在可行域的**顶点**上,而折线内部不是顶点,
+    所以加权和法只能取到三个折点(支撑点),两段连续的前沿漏掉了。
+    要完整刻画前沿,用 ε-约束法逐档扫描或 NSGA-II 这类进化多目标方法。
+    「只要权重扫得够细就能取全」是加权和最常见的误解——非凸前沿存在原理性盲区,
+    与扫描密度无关。加权和只适合「快速预览个别点」或作为论文的标量化辅助。
+  tags: [多目标优化, 加权和法, Pareto前沿]
+
+- id: modeler_multiobj_q3
+  unit_id: modeler_multiobj
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    NSGA-II 的精英保留与普通 GA 的精英策略有何不同?
+  options:
+    - GA 把历史最优 1–2 个个体原样塞回下一代;NSGA-II 把父代与子代合并成 $2N$ 个解,按(层号, 拥挤度)截取前 $N$ 个
+    - NSGA-II 也把历史最优个体原样塞回下一代,只是个数更多
+    - NSGA-II 不保留精英,靠锦标赛选择自然淘汰
+    - 两者完全一致,只是叫法不同
+  answer_index: 0
+  explanation: |
+    NSGA-II 把第 $t$ 代父代 $P_t$ 与子代 $Q_t$ 合并成 $R_t = P_t \cup Q_t$($2N$ 个),
+    统一非支配排序后按(层号, 拥挤度)依次截取 $N$ 个进入下一代。
+    GA 的精英策略保的是**单点**(历史最优 1–2 个),
+    NSGA-II 保的是**整个最优层**——一整片前沿都不会因交叉变异而丢失。
+    「NSGA-II 不保留精英」恰好说反,合并截取正是它的标志性设计。
+  tags: [多目标优化, NSGA-II, 精英保留]
+
+- id: modeler_heuristic_practice_q1
+  unit_id: modeler_heuristic_practice
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    20 城 TSP,要求在 1 小时内给出尽可能好的解。最合适的算法选型是:
+  options:
+    - 匈牙利算法(多项式时间精确求解)
+    - ACO 或 GA + 2-opt 局部搜索(组合路径类,精确解不现实)
+    - 梯度下降(路径问题可微)
+    - 单纯形法(LP 建模求解)
+  answer_index: 1
+  explanation: |
+    选型五问第一问:有没有已知的精确算法?TSP 的精确算法(Held-Karp 动态规划)
+    在 $n=20$ 时约 $2^{20}$ 量级,勉强可算但只用于验证启发式,1 小时内求精确解不现实。
+    TSP 是路径类组合问题,ACO 的正反馈天然契合「边选择」,GA + 2-opt 也是成熟方案。
+    匈牙利算法只适用于指派问题,不能解 TSP;路径问题不可微,梯度下降无从谈起;
+    TSP 不是线性规划,单纯形法不适用。
+    精确算法能用就不要上启发式;精确算法不现实时,选对问题结构的启发式。
+  tags: [启发式算法, 算法选型, TSP]
+
+- id: modeler_heuristic_practice_q2
+  unit_id: modeler_heuristic_practice
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    对比 GA 与 SA 求解同一问题时,为什么不能直接比较「迭代数」?
+  options:
+    - 因为 GA 的收敛曲线不是单调的,SA 是单调的
+    - 因为 SA 的迭代含随机性,GA 不含
+    - 因为一次 GA 迭代 = 种群规模次目标评估,一次 SA 迭代 = 1 次评估,预算口径不同
+    - 因为 GA 每代都有交叉变异,SA 没有
+  answer_index: 2
+  explanation: |
+    一次 GA 迭代要评估整个种群(如 100 个个体),而 SA/PSO 一步只评估 1 个解——
+    直接比迭代数,GA 必输无疑。公平对比要统一预算:按**评估次数**或 CPU 时间计。
+    另两条军规:统一调参工作量(只调自己算法的参数等于作弊)、
+    多次独立运行 + 均值 ± 标准差 + 统计检验(Wilcoxon 等)。
+    「收敛曲线单调性」「随机性有无」都不是预算口径问题的答案。
+  tags: [启发式算法, 实验设计, 公平对比]
+
+- id: modeler_heuristic_practice_q3
+  unit_id: modeler_heuristic_practice
+  role: modeler
+  category: 优化
+  difficulty: intermediate
+  question: |
+    用 GA 求解带约束优化问题时,处理约束的三种手段中,优先级最高(应最先考虑)的是:
+  options:
+    - 设计编码与算子,使解从源头保持可行(如排列编码 + PMX 交叉)
+    - 罚函数:目标加 $\lambda \sum \max(0, g_k(x))^2$
+    - 修复:把不可行解修回可行域
+    - 忽略约束,最后在可行解中挑一个
+  answer_index: 0
+  explanation: |
+    优先级:编码保可行 > 修复 > 罚函数。
+    编码保可行从源头消灭不可行解,没有额外评估成本,是最干净的方案;
+    修复保持「解总是可行」,但修复过程要计入评估成本;
+    罚函数实现最简单,但 $\lambda$ 难调——太小不可行解泛滥,太大可行域被「罚墙」扭曲。
+    「忽略约束最后再挑」是最危险的做法:搜索过程被不可行区带偏,最后往往没有可行解可挑。
+  tags: [启发式算法, 约束处理, 罚函数]
+
+- id: modeler_ant_colony_q1
+  unit_id: modeler_ant_colony
+  role: modeler
+  category: 优化
+  difficulty: advanced
+  question: |
+    蚂蚁在城市 0,候选城市 1、2:$\tau_{01} = 2,\ \tau_{02} = 3$,$d_{01} = 2,\ d_{02} = 1$。
+    取 $\alpha = 1,\ \beta = 2$,蚂蚁选择城市 2 的概率约为:
+  options:
+    - "0.6"
+    - "0.667"
+    - "0.857"
+    - "0.143"
+  answer_index: 2
+  explanation: |
+    分子 $\tau_{ij}^\alpha \eta_{ij}^\beta$($\eta = 1/d$):城市 1:$2 \times 0.5^2 = 0.5$;城市 2:$3 \times 1^2 = 3$。
+    $P(2) = \frac{3}{0.5+3} \approx 0.857$。
+    $\beta$ 是**指数**:$\beta = 2$ 时距离优势被平方放大,城市 2 的信息素只多一半,概率却占 86%——
+    这就是 $\beta$ 越大越贪心的数学根源。
+    0.6 是只看信息素的比例 $3/(2+3)$;0.667 是只看能见度的比例 $1/(1+0.5)$;
+    0.143 是城市 1 的概率,选反了。
+  tags: [蚁群算法, 状态转移概率, 信息素]
+
+- id: modeler_ant_colony_q2
+  unit_id: modeler_ant_colony
+  role: modeler
+  category: 优化
+  difficulty: advanced
+  question: |
+    若把蚁群算法的挥发率设为 $\rho = 0$(信息素永不挥发),会发生什么?
+  options:
+    - 早期随机踩出的路径格局被永久固化,信息素只增不减,搜索停滞
+    - 收敛更快且解的质量更好
+    - 多样性提高,能探索到更多新路径
+    - 没有影响,挥发只是数值细节
+  answer_index: 0
+  explanation: |
+    挥发是 ACO 的**遗忘机制**:没有它,首轮随机构建的路径沉积的信息素永远不会衰减,
+    后期即使发现好路径也难以撼动早期格局——停滞的极端形态。
+    $\rho$ 大则忘得快(多样性好但收敛慢),$\rho$ 小则记忆长(收敛快但易停滞)。
+    防停滞的正规武器是 MMAS:信息素限幅 $[\tau_{\min}, \tau_{\max}]$ 且只让最优蚂蚁沉积。
+    「收敛更快更好」把「记忆长」误当成「学得好」——没有遗忘就没有纠错能力。
+  tags: [蚁群算法, 信息素挥发, 停滞]
+
+- id: modeler_ant_colony_q3
+  unit_id: modeler_ant_colony
+  role: modeler
+  category: 优化
+  difficulty: advanced
+  question: |
+    用 ACO 求解带容量约束的车辆路径问题(VRP)时,处理容量约束最干净的做法是:
+  options:
+    - 对超载路径加罚函数项 $\lambda \max(0, \text{载重} - Q)^2$
+    - 允许蚂蚁任意构建路径,完成后统一修复
+    - 计算转移概率时,把「当前车辆剩余容量装不下」的客户从候选集 $J_k(i)$ 中剔除,只在可行客户中归一化
+    - 用大 M 把容量写成线性约束加入信息素更新
+  answer_index: 2
+  explanation: |
+    VRP 中一只蚂蚁构建多辆车的路线:装满就回仓库、开下一辆车,直到所有客户被服务。
+    容量约束做进**候选集**:转移概率只在装得下的客户中归一化——
+    这是「编码保可行」思想在 ACO 中的实现,比罚函数干净得多。
+    罚函数、事后修复都要付出额外的评估/修复成本且需调参;
+    「大 M + 线性约束」是 MIP 建模语言,无法直接作用于信息素更新。
+  tags: [蚁群算法, 车辆路径问题, 约束处理]
+
+- id: modeler_convex_opt_q1
+  unit_id: modeler_convex_opt
+  role: modeler
+  category: 优化
+  difficulty: advanced
+  question: |
+    $\min x_1^2 - x_2^2$ s.t. $x_1 + x_2 = 1$ 是凸优化问题吗?
+  options:
+    - 是,目标函数是二次函数,二次函数都是凸的
+    - 不是,目标函数的 Hessian 为 $\mathrm{diag}(2, -2)$,不定
+    - 是,等式约束是仿射的,已满足凸优化的全部要求
+    - 不是,因为约束是等式
+  answer_index: 1
+  explanation: |
+    凸优化要求目标与不等式约束都是**凸函数**。$x_1^2 - x_2^2$ 的 Hessian 为 $\mathrm{diag}(2,-2)$,
+    有负特征值,是不定矩阵,函数非凸——所以这不是凸问题,KKT 点只是驻点,不能保证全局最优。
+    「二次函数都是凸的」是最常见的记混($x^TAx$ 要求 $A \succeq 0$ 才凸);
+    约束是仿射的没错,但目标函数已经不合格;
+    等式约束本身不影响凸性判定,它的存在与否与凸性无关。
+  tags: [凸优化, 凸函数, Hessian]
+
+- id: modeler_convex_opt_q2
+  unit_id: modeler_convex_opt
+  role: modeler
+  category: 优化
+  difficulty: advanced
+  question: |
+    用 KKT 条件求解 $\min x^2$ s.t. $x \geq 2$,最优解与对应乘子为:
+  options:
+    - $x^* = 0,\ \lambda^* = 0$
+    - $x^* = 4,\ \lambda^* = 2$
+    - $x^* = 2,\ \lambda^* = 0$
+    - $x^* = 2,\ \lambda^* = 4$
+  answer_index: 3
+  explanation: |
+    标准化:$g(x) = 2 - x \leq 0$;$L = x^2 + \lambda(2-x)$,$\lambda \geq 0$。
+    稳定性:$2x - \lambda = 0 \Rightarrow x = \lambda/2$。
+    若 $\lambda = 0$ 则 $x = 0$,违反 $x \geq 2$,故 $\lambda > 0$;
+    互补松弛得 $2 - x = 0$,即 $x^* = 2$,$\lambda^* = 4$,最优值 4。
+    「$x^*=0$」是无约束最优,漏掉了约束;
+    「$\lambda^*=0$」忽略了约束是紧的;
+    「$x^*=4$」把互补松弛的等式套反了。
+    乘子的灵敏度含义:约束放松到 $x \geq 1.9$,最优值约改善 $4 \times 0.1 = 0.4$。
+  tags: [凸优化, KKT条件, 互补松弛]
+
+- id: modeler_convex_opt_q3
+  unit_id: modeler_convex_opt
+  role: modeler
+  category: 优化
+  difficulty: advanced
+  question: |
+    关于对偶问题与强对偶,下列说法**正确**的是:
+  options:
+    - 凸问题满足 Slater 条件(存在严格可行点)时,强对偶成立,即 $d^* = p^*$
+    - 任何优化问题都满足强对偶
+    - 弱对偶($d^* \leq p^*$)只在凸问题中成立
+    - Slater 条件与对偶性无关,可以忽略
+  answer_index: 0
+  explanation: |
+    弱对偶 $d^* \leq p^*$ 对**任何**问题都成立(对偶最优值不超过原问题最优值);
+    强对偶 $d^* = p^*$ 则需要条件——凸问题满足 Slater 条件时强对偶成立。
+    「任何问题都强对偶」忽略了非凸问题存在对偶间隙(duality gap);
+    「弱对偶只在凸问题成立」说反了,弱对偶是无条件成立的;
+    涉及等式约束时,Slater 条件要求存在同时满足等式与严格不等式的点,
+    用对偶解之前先检查,忽略它可能误用对偶解。
+  tags: [凸优化, 对偶理论, Slater条件]
+
+- id: modeler_reg_01_q1
+  unit_id: modeler_reg_01
+  role: modeler
+  category: 预测
+  difficulty: beginner
+  question: |
+    两个变量的样本相关系数 $r = 0$,能否断定它们之间没有任何关系?
+  options:
+    - 能,$r = 0$ 意味着两个变量相互独立
+    - 不能,但画出散点图并观察即可断定没有关系
+    - 不能,$r = 0$ 只说明没有线性关系,如 $y = x^2$ 在对称数据上就有 $r = 0$
+    - 能,只要样本量足够大
+  answer_index: 2
+  explanation: |
+    $r$ 只度量**线性**关联。反例:取 $x = -4,-3,\dots,4$,$y = x^2$,
+    则 $\sum x = 0$ 且 $\sum xy = \sum x^3 = 0$,故 $r = 0$,但 $y$ 与 $x$ 存在确定性的二次关系。
+    下「没关系」的结论前先画散点图;独立性强于不相关,$r=0$ 更谈不上因果。
+    「$r=0$ ⇒ 独立」混淆了相关与独立;样本量再大,该结论也不成立。
+  tags: [线性回归, 相关系数, 散点图]
+
+- id: modeler_reg_01_q2
+  unit_id: modeler_reg_01
+  role: modeler
+  category: 预测
+  difficulty: beginner
+  question: |
+    对数据 $(1,3)$、$(2,5)$、$(3,7)$、$(4,9)$ 做一元线性回归,最小二乘直线与 $R^2$ 为:
+  options:
+    - $\hat y = 1 + 2x$,$R^2 = 1$
+    - $\hat y = 2x$,$R^2 = 1$
+    - $\hat y = 0.17 + 2.33x$,$R^2 \approx 0.95$
+    - $\hat y = 1 + 2x$,$R^2 = 0.968$
+  answer_index: 0
+  explanation: |
+    $\bar x = 2.5,\ \bar y = 6$;$S_{xy} = 10,\ S_{xx} = 5$,故 $\hat\beta_1 = 2$,
+    $\hat\beta_0 = 6 - 2 \times 2.5 = 1$,直线 $\hat y = 1 + 2x$ 恰好经过全部四个点,
+    $SSE = 0$,故 $R^2 = 1$。
+    「$\hat y = 2x$」是强制过原点——数据明明显示 $x=0$ 时 $y \approx 1$,无物理依据不要默认截距为 0;
+    「$0.17 + 2.33x$」是直接用 $\sum xy / \sum x^2$、漏减均值项的常见计算错误;
+    「$R^2 = 0.968$」把另一组数据的数值记串了。
+  tags: [线性回归, 最小二乘, R²]
+
+- id: modeler_reg_01_q3
+  unit_id: modeler_reg_01
+  role: modeler
+  category: 预测
+  difficulty: beginner
+  question: |
+    单个新观测的预测区间与 $E(y \mid x_0)$ 的置信区间相比:
+  options:
+    - 两者一样宽,因为用的是同一个 $t$ 分布
+    - 预测区间更宽,多出了新观测自身误差方差对应的「1」这一项
+    - 置信区间更宽,因为它还要考虑均值的不确定性
+    - 谁宽谁窄取决于 $x_0$ 离 $\bar x$ 的远近
+  answer_index: 1
+  explanation: |
+    置信区间的方差为 $s^2[\frac1n + \frac{(x_0-\bar x)^2}{S_{xx}}]$,只包含**估计均值**的不确定性;
+    预测区间还要叠加新观测自身的随机误差 $\varepsilon_0$,即多出根号里的「1」:
+    $s^2[1 + \frac1n + \frac{(x_0-\bar x)^2}{S_{xx}}]$。
+    均值可以被更多数据逼近,但个体的随机波动永远存在——预测区间恒比置信区间宽,
+    两者别混用(statsmodels 里 `obs=True` 才给预测区间)。
+  tags: [线性回归, 预测区间, 置信区间]
+
+- id: modeler_reg_02_q1
+  unit_id: modeler_reg_02
+  role: modeler
+  category: 预测
+  difficulty: beginner
+  question: |
+    某多元回归中 $X^TX = 4I_3$($p = 2$,含截距),$X^Ty = (16, 8, -4)^T$。最小二乘估计与拟合方程为:
+  options:
+    - $\hat y = 16 + 8x_1 - 4x_2$
+    - $\hat y = 4 - x_1 + 2x_2$
+    - $\hat y = 4 + 2x_1 - x_2$
+    - $\hat y = 4 + 2x_1 + x_2$
+  answer_index: 2
+  explanation: |
+    $(X^TX)^{-1} = \frac14 I$,故 $\hat\beta = \frac14(16, 8, -4) = (4, 2, -1)$,
+    拟合方程 $\hat y = 4 + 2x_1 - x_2$。
+    「$16 + 8x_1 - 4x_2$」漏乘了 $(X^TX)^{-1}$,直接把 $X^Ty$ 当系数;
+    「$4 - x_1 + 2x_2$」把 $\beta$ 分量顺序颠倒;
+    「$4 + 2x_1 + x_2$」把 $-4$ 的符号丢掉。
+    列正交时每个系数退化成「一元公式」独立给出,这正是正交试验设计追求的效果。
+  tags: [多元回归, 正规方程, 最小二乘]
+
+- id: modeler_reg_02_q2
+  unit_id: modeler_reg_02
+  role: modeler
+  category: 预测
+  difficulty: beginner
+  question: |
+    把变量 $x_3$ 对其余所有自变量做回归,得到 $R^2 = 0.9$。$x_3$ 的方差膨胀因子(VIF)为:
+  options:
+    - "10"
+    - "0.9"
+    - "1.11"
+    - "9"
+  answer_index: 0
+  explanation: |
+    $\mathrm{VIF} = \frac{1}{1 - R_j^2} = \frac{1}{1 - 0.9} = 10$,恰好到达「严重共线性」的常用警戒线
+    (若 $R^2 = 0.95$,VIF = 20)。
+    0.9 是直接抄 $R^2$;1.11 是 $\frac{1}{R^2}$ 方向的错误;9 是 $\frac{R^2}{1-R^2}$ 的记混。
+    VIF 是软指标,要结合「整体 F 显著而单个 t 不显著、系数符号反常」等现象与业务理解综合判断。
+  tags: [多元回归, 多重共线性, VIF]
+
+- id: modeler_reg_02_q3
+  unit_id: modeler_reg_02
+  role: modeler
+  category: 预测
+  difficulty: beginner
+  question: |
+    为什么不能用 $R^2$ 比较变量个数不同的模型?
+  options:
+    - 因为 $R^2$ 只在样本量足够大时才有效
+    - 变量越多 $R^2$ 必然越大,必须用调整 $R^2$/AIC/BIC 等带惩罚的准则
+    - 因为 $R^2$ 的上限是 1,无法区分好坏
+    - 因为 $R^2$ 在多元回归中没有定义
+  answer_index: 1
+  explanation: |
+    每加一个变量,SSE 只可能减小、$R^2$ 只可能增大——看 $R^2$ 永远会选全模型,直到过拟合。
+    模型比较必须用带惩罚的准则:调整 $R^2$、AIC、BIC(数值小者优,BIC 对变量数惩罚更重)。
+    「$R^2$ 在多元回归中没有定义」与事实相反,多元回归同样有 $R^2$,只是没有「方向」一说;
+    「样本量足够大才有效」因果颠倒——样本量小的时候 $R^2$ 反而更容易虚高。
+  tags: [多元回归, 变量选择, AIC, BIC]
+
+- id: modeler_arima_01_q1
+  unit_id: modeler_arima_01
+  role: modeler
+  category: 预测
+  difficulty: intermediate
+  question: |
+    对某序列做 ADF 单位根检验得 $p = 0.3$。下列解读**正确**的是:
+  options:
+    - 序列平稳,可以直接建模
+    - 不能拒绝「有单位根」的原假设,序列非平稳,应先差分
+    - 检验失效,需要增大样本量重做
+    - 序列存在季节性,应改用 SARIMA
+  answer_index: 1
+  explanation: |
+    ADF 的原假设是「序列有单位根(非平稳)」,备择假设是平稳——与普通检验相反,
+    这里我们希望**拒绝** $H_0$。$p = 0.3 > 0.05$ 不能拒绝原假设,判定序列非平稳,
+    处理:做一阶差分 $\nabla y_t = y_t - y_{t-1}$,对差分序列建模($d = 1$)。
+    「$p > 0.05$ ⇒ 平稳」是把 ADF 结论解读颠倒的最常见翻车;
+    季节性要结合 ACF 在季节滞后处的表现判断,与本次检验结果无关。
+  tags: [时间序列, ADF检验, 平稳性]
+
+- id: modeler_arima_01_q2
+  unit_id: modeler_arima_01
+  role: modeler
+  category: 预测
+  difficulty: intermediate
+  question: |
+    拟合得 AR(1) 模型 $y_t = 2 + 0.5 y_{t-1} + \varepsilon_t$($\sigma = 1$),最后一期观测 $y_T = 8$。
+    两步之后的点预测 $\hat y_{T+2}$ 与长期预测极限分别为:
+  options:
+    - 5 与 4
+    - 6 与 4
+    - 5 与 6
+    - 4 与 4
+  answer_index: 0
+  explanation: |
+    $\hat y_{T+1} = 2 + 0.5 \times 8 = 6$;$\hat y_{T+2} = 2 + 0.5 \times 6 = 5$。
+    长期极限:点预测按 $\phi_1^h$ 几何收敛到无条件均值 $\frac{c}{1-\phi_1} = \frac{2}{0.5} = 4$。
+    「6 与 4」把一步预测当成了两步预测;
+    「5 与 6」把长期极限与近期预测搞混;
+    「4 与 4」忘了前两步仍受当前观测 $y_T=8$ 的影响。
+    这就是平稳序列的「均值回复」:离均值越远,回拉的力越大,点预测按几何速率回归均值。
+  tags: [时间序列, AR(1), 均值回复]
+
+- id: modeler_arima_01_q3
+  unit_id: modeler_arima_01
+  role: modeler
+  category: 预测
+  difficulty: intermediate
+  question: |
+    某平稳序列的样本 ACF 为 $(0.80, 0.64, 0.51, 0.41, \dots)$ 缓慢衰减、显著不为零;
+    PACF 为 $(0.80, 0.05, -0.02, \dots)$,一阶之后即落入显著性带。应定阶为:
+  options:
+    - MA(1)
+    - ARMA(1,1)
+    - MA(2)
+    - AR(1)
+  answer_index: 3
+  explanation: |
+    定阶规则:AR(p) 的 PACF 在 $p$ 阶后截尾、ACF 拖尾;MA(q) 恰好相反。
+    本题 ACF 拖尾、PACF 一阶后截尾 → **AR(1)**;
+    ACF 按 $0.8^k$ 衰减与 $\phi_1 = 0.8$ 一致($\rho_k = \phi_1^k$)。
+    把 ACF/PACF 特征记反会选成 MA(1);看到 ACF 衰减就选 ARMA(1,1) 是偷懒;
+    定阶之后仍需用 AIC/BIC 网格与残差 Ljung-Box 白噪声检验复核——图 + 准则 + 诊断三管齐下。
+  tags: [时间序列, ACF, PACF, 模型定阶]
+
+- id: modeler_grey_01_q1
+  unit_id: modeler_grey_01
+  role: modeler
+  category: 预测
+  difficulty: beginner
+  question: |
+    GM(1,1) 最适合的数据特征是:
+  options:
+    - 大样本、平稳、允许负值
+    - 震荡明显、样本量大的序列
+    - 任意形态的序列,只要数据点连续
+    - 小样本(4–10 个)、非负单调、近似指数增长
+  answer_index: 3
+  explanation: |
+    GM(1,1) 用一阶微分方程描述累加序列,其解是指数型单调曲线,
+    因此要求数据**非负且单调**(近似指数增长效果最好),适合 **4–10 个数据点**的贫信息场景,
+    且只做短期预测(一般 3 步以内)。
+    大样本平稳序列是 ARIMA 的主场;震荡序列应改用 ARIMA 或灰色 Verhulst;
+    负值数据无法支撑指数拟合。
+    建模前先做级比检验与散点图判断形态——这是竞赛里常被跳过的第一步,也是评委最看重的一步。
+  tags: [灰色预测, GM(1,1), 适用条件]
+
+- id: modeler_grey_01_q2
+  unit_id: modeler_grey_01
+  role: modeler
+  category: 预测
+  difficulty: beginner
+  question: |
+    某 GM(1,1) 模型检验得后验差比值 $C = 0.30$,小误差概率 $P = 0.90$,平均相对误差 4.5%。
+    对照精度等级表,综合精度为:
+  options:
+    - 一级(优)
+    - 二级(合格)
+    - 三级(勉强)
+    - 四级(不合格)
+  answer_index: 1
+  explanation: |
+    等级判定要取**较差的指标**:$C = 0.30 < 0.35$ 达到一级标准,
+    但 $P = 0.90$ 只满足 $P > 0.80$ 的二级标准(一级要求 $P > 0.95$),
+    综合为**二级(合格)**。
+    只报 $C$ 不报 $P$(或反过来)是「选择性报告」;
+    这个陷阱考的是「两指标都要看,且按较低者定级」。
+  tags: [灰色预测, 精度检验, 后验差比值]
+
+- id: modeler_grey_01_q3
+  unit_id: modeler_grey_01
+  role: modeler
+  category: 预测
+  difficulty: beginner
+  question: |
+    序列 $x^{(0)} = (5, 7, 10, 14)$($n = 4$)的级比为 $(0.714, 0.700, 0.714)$。
+    可容覆盖为 $\left(e^{-2/5},\ e^{2/5}\right) \approx (0.670, 1.492)$。下列判断**正确**的是:
+  options:
+    - 级比全部落入可容覆盖,数据适合 GM(1,1)
+    - 级比计算方向错了,应为 $(1.4, 1.43, 1.4)$,故越界,不适合
+    - 级比 0.714 小于 1,说明序列递减,不适合 GM(1,1)
+    - 无法判断,因为 $n = 4$ 样本太少
+  answer_index: 0
+  explanation: |
+    级比定义 $\sigma(k) = x^{(0)}(k-1)/x^{(0)}(k)$:$5/7 = 0.714$、$7/10 = 0.700$、$10/14 = 0.714$,
+    全部落在 $(0.670, 1.492)$ 内 → 通过级比检验,数据适合 GM(1,1) ✓。
+    「级比方向写反」得到 $>1$ 的比值并误判越界,是常见错误——级比是前一期比当期;
+    级比小于 1 恰说明序列**递增**(发展系数 $a<0$),不是递减;
+    级比检验本身就是为小样本设计的,$n=4$ 完全可以判断。
+  tags: [灰色预测, 级比检验, 可容覆盖]
+
+- id: modeler_nn_01_q1
+  unit_id: modeler_nn_01
+  role: modeler
+  category: 预测
+  difficulty: intermediate
+  question: |
+    对 sigmoid 激活函数 $\sigma(z) = \frac{1}{1+e^{-z}}$,求 $\sigma(0)$ 与 $\sigma'(0)$ 的值:
+  options:
+    - 0.5 与 0.5
+    - 0.25 与 0.5
+    - 0.5 与 0.25
+    - 0 与 0
+  answer_index: 2
+  explanation: |
+    $\sigma(0) = \frac{1}{1+e^0} = 0.5$,$\sigma'(z) = \sigma(z)(1-\sigma(z))$,
+    故 $\sigma'(0) = 0.5 \times 0.5 = 0.25$。
+    sigmoid 导数最大也只有 0.25——梯度每反向穿过一层最多保留四分之一,
+    穿 4 层后不足 0.4%,这就是**梯度消失**的数值根源;
+    ReLU 正半轴导数恒为 1,是深层网络得以训练的关键。
+    「0.5 与 0.5」把导数记成了函数值;「0.25 与 0.5」把两者颠倒。
+  tags: [神经网络, sigmoid, 梯度消失]
+
+- id: modeler_nn_01_q2
+  unit_id: modeler_nn_01
+  role: modeler
+  category: 预测
+  difficulty: intermediate
+  question: |
+    为什么神经网络的激活函数必须是非线性的?
+  options:
+    - 线性变换的复合仍是线性变换,多层网络会退化为单层线性回归,无法拟合非线性关系
+    - 线性激活函数不可导,无法进行反向传播
+    - 非线性激活可以彻底消除梯度消失
+    - 为了增加网络的参数量
+  answer_index: 0
+  explanation: |
+    $\hat y = W_2(W_1 x) = (W_2 W_1)x$——线性变换的复合仍是线性变换,
+    无论堆多少层都等价于一次线性回归,表达能力没有增加。
+    非线性激活「掰弯」每一层的输出,多层叠加才有逼近任意光滑函数的能力(万能逼近定理)。
+    线性函数(如 $f(z)=z$)可导且导数为 1,「不可导」与事实不符;
+    非线性并不能消除梯度消失(sigmoid 恰好是梯度消失的来源),缓解它靠 ReLU 等设计;
+    参数量与激活函数无关。
+  tags: [神经网络, 激活函数, 万能逼近定理]
+
+- id: modeler_nn_01_q3
+  unit_id: modeler_nn_01
+  role: modeler
+  category: 预测
+  difficulty: intermediate
+  question: |
+    训练过程中,训练损失持续下降而验证损失先降后升。这说明了什么,正确的对策是:
+  options:
+    - 网络欠拟合,应加大网络规模继续训练
+    - 数据存在泄露,应清洗数据
+    - 网络过拟合,应早停/L2 正则/Dropout
+    - 学习率太小,应增大学习率
+  answer_index: 2
+  explanation: |
+    训练损失下降、验证损失上升是过拟合的标准剧本:网络开始「背」训练数据的噪声,泛化能力下降。
+    对策:①早停(在验证损失最低点停止);②L2 正则(权重衰减);③Dropout(随机丢弃神经元);
+    以及减小网络规模、增加数据。
+    「欠拟合」的表现是两个损失都还很高且都在下降;
+    「学习率太小」的典型表现是损失下降极慢,而不是分叉;
+    数据泄露(如时间序列随机打乱)会导致验证损失**虚低**,方向相反。
+    竞赛中画出训练/验证双曲线并标注早停点,比堆十个模型更有说服力。
+  tags: [神经网络, 过拟合, 早停]
+
+- id: modeler_rf_01_q1
+  unit_id: modeler_rf_01
+  role: modeler
+  category: 预测
+  difficulty: advanced
+  question: |
+    Bagging 方差公式 $\mathrm{Var} = \rho\sigma^2 + (1-\rho)\sigma^2/B$。取 $\sigma^2 = 1$,$B = 100$:
+    树间相关性 $\rho = 0.8$ 与 $\rho = 0.2$ 时,森林方差分别为:
+  options:
+    - 0.8 与 0.2
+    - 1.0 与 0.5
+    - 0.802 与 0.208
+    - 0.802 与 0.208,但说明应继续把树加到 1000 才能压方差
+  answer_index: 2
+  explanation: |
+    $\rho = 0.8$:$\mathrm{Var} = 0.8 + 0.2/100 = 0.802$——平均 100 棵几乎没降方差(单树为 1.0),
+    Bagging 接近白做;$\rho = 0.2$:$\mathrm{Var} = 0.2 + 0.8/100 = 0.208$,降了约 5 倍。
+    结论:**降低相关性(特征随机、限制树深)远胜增加树数**——
+    方差下限 $\rho\sigma^2$ 被相关性锁死,树从 100 加到 1000 边际收益只有 0.0045。
+    「0.8 与 0.2」漏掉了 $B$ 有限时的那一项。
+  tags: [随机森林, Bagging, 方差分解]
+
+- id: modeler_rf_01_q2
+  unit_id: modeler_rf_01
+  role: modeler
+  category: 预测
+  difficulty: advanced
+  question: |
+    随机森林对 $n = 50$ 的训练集做 bootstrap 抽样(有放回抽 $n$ 个),某样本一次都不被抽中、可作为袋外(OOB)样本的概率约为:
+  options:
+    - 36.4%
+    - 50%
+    - 63.6%
+    - 2%
+  answer_index: 0
+  explanation: |
+    落选概率 $= (1 - 1/50)^{50} = 0.3642 \approx 36.4\%$,已经非常接近极限 $1/e \approx 0.368$。
+    63.6% 是「被抽中」的概率 $1 - 0.364$,方向搞反;
+    50% 是「一半一半」的直觉;2% 是 $1/50$ 的直接套用。
+    OOB 的妙用:每棵树只用「没抽中」的样本评估自己,OOB 误差近似交叉验证,
+    省去单独切验证集——小样本竞赛题尤其宝贵。
+  tags: [随机森林, Bootstrap, OOB]
+
+- id: modeler_rf_01_q3
+  unit_id: modeler_rf_01
+  role: modeler
+  category: 预测
+  difficulty: advanced
+  question: |
+    模型报告特征重要性最高的是 $x_3$,能否在论文中写「$x_3$ 是导致 $y$ 变化的原因」?
+  options:
+    - 能,重要性就是变量对结果的影响力
+    - 不能,但改用置换重要性之后就可以下因果结论
+    - 能,只要重要性数值超过 0.5
+    - 不能,重要性描述的是模型对 $x_3$ 的使用程度,不是因果关系;应写「$x_3$ 是预测贡献最大的特征」
+  answer_index: 3
+  explanation: |
+    特征重要性(不纯度下降或置换)度量「模型在预测中依赖该特征的程度」,**不是因果**。
+    它可能因共线分摊、高基数偏差、混杂变量(温度同时驱动冰淇淋销量与溺水人数)而虚高或虚低。
+    置换重要性解决的是评估口径问题,同样不能导出因果——
+    因果结论需要实验设计或因果推断方法支撑。
+    论文正确写法:「$x_3$ 是模型预测贡献最大的特征」,并给业务解释留余地。
+  tags: [随机森林, 特征重要性, 因果推断]

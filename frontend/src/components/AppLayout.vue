@@ -76,7 +76,6 @@ const currentSection = computed(() => {
   if (p.startsWith("/solution")) return { num: "§2", label: "方案" };
   if (p.startsWith("/learn")) return { num: "§3", label: "学习中心" };
   if (p.startsWith("/practice")) return { num: "§3", label: "训练场" };
-  if (p.startsWith("/qa")) return { num: "§3", label: "答疑室" };
   if (p.startsWith("/progress")) return { num: "§3", label: "成长档案" };
   if (p.startsWith("/task")) return { num: "§4", label: "任务" };
   if (p.startsWith("/knowledge")) return { num: "§4", label: "知识库" };

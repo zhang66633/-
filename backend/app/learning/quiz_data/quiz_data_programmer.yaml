@@ -1,0 +1,916 @@
+# 编程手题库(prog 批次): 13 个单元 × 3 题 = 39 题
+# role=programmer, category 统一「编程」; 难度与单元难度一致
+# 涉及代码行为的题目均已在本地 Python 3.13 实跑验证
+
+- id: prog_py_01_q1
+  unit_id: prog_py_01
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    建模竞赛中,拿到题目附件的 `.csv` 数据后,需要完成「读取 → 清洗 → 分组聚合」,应优先使用 Python 科学计算四件套中的哪个库?
+  options:
+    - Pandas —— 专攻表格数据的读取、清洗、聚合
+    - NumPy —— 多维数组与向量化运算的地基
+    - SciPy —— 数值算法工具箱
+    - Matplotlib —— 数据可视化
+  answer_index: 0
+  explanation: |
+    四件套分工:Pandas 洗(表格数据)、NumPy 算(数值计算)、SciPy 解(数值算法)、Matplotlib 画(可视化)。
+    建模题的典型链路是「Pandas 读入并清洗 → NumPy 数值计算 → SciPy 求解 → Matplotlib 出图」。
+    选 NumPy 是最常见的混淆——它是数值计算的地基,但读取 csv、按列分组聚合这类结构化表格操作是 Pandas 的职责。
+  tags: [四件套, 库分工, Pandas]
+
+- id: prog_py_01_q2
+  unit_id: prog_py_01
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    下面代码的输出是什么?
+    ```python
+    import numpy as np
+    a = np.array([1, 2, 3])
+    b = np.array([1, 2, 3])
+    print(a * b)
+    print(a @ b)
+    ```
+  options:
+    - '[2 4 6] 和 14'
+    - '[1 2 3 1 2 3] 和 14'
+    - '[1 4 9] 和 [1 4 9]'
+    - '[1 4 9] 和 14'
+  answer_index: 3
+  explanation: |
+    ndarray 之间的 `*` 是逐元素乘(Hadamard 积):[1,2,3]*[1,2,3] = [1,4,9];
+    `@`(或 np.dot / np.matmul)才是矩阵乘法,对一维向量即内积:1+4+9 = 14。
+    [2 4 6] 是把 `*` 当成了逐元素加;[1 2 3 1 2 3] 是 Python list 的拼接语义;
+    [1 4 9] 和 [1 4 9] 是以为 `@` 也做逐元素运算。形状不匹配时 `*` 还会触发广播「悄悄错了形状」,这是高频坑。
+  tags: [NumPy, 逐元素乘, 矩阵乘法, 广播]
+
+- id: prog_py_01_q3
+  unit_id: prog_py_01
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    ```python
+    import numpy as np
+    rng = np.random.default_rng(2024)
+    scores = rng.normal(75, 12, 500)
+    print(f"{(scores >= 60).mean():.2f}")
+    ```
+    输出最接近:
+  options:
+    - "0.750"
+    - "0.892"
+    - "0.500"
+    - 报错:布尔数组不能求均值
+  answer_index: 1
+  explanation: |
+    `scores >= 60` 得到布尔数组,True 按 1 参与求均值,结果就是及格比例——这是 NumPy 的经典技巧,
+    相当于统计里 P(X ≥ 60)。均值 75、标准差 12 的正态分布,及格率 = Φ(1.25) ≈ 0.894,
+    实跑(seed=2024)得到 0.892。
+    0.750 是把均值 75 误当成了比例;0.500 是拿期望当比例;布尔数组完全支持求均值,不会报错。
+  tags: [NumPy, 布尔数组, 向量化, 统计]
+
+- id: prog_py_02_q1
+  unit_id: prog_py_02
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    ```python
+    import numpy as np
+    a = np.arange(10)
+    b = a[3:7]
+    b[0] = 99
+    print(a)
+    ```
+    输出是:
+  options:
+    - '[ 0  1  2 99  4  5  6  7  8  9]'
+    - '[ 0  1  2  3  4  5  6  7  8  9]'
+    - '[ 0  1  2  3 99  5  6  7  8  9]'
+    - 报错:视图对象不可赋值
+  answer_index: 0
+  explanation: |
+    基础切片返回的是**视图**,与原数组共享内存:`b[0]` 就是 `a[3]`,改成 99 后原数组同步变化。
+    [0 1 2 3 4 5 6 7 8 9] 是以为切片返回拷贝(布尔/花式索引才是拷贝);
+    [0 1 2 3 99 ...] 是把 `b[0]` 误当成了 `a[4]`;
+    视图当然可以赋值——这正是「视图陷阱」危险的地方。需要独立副本时显式 `b = a[3:7].copy()`。
+  tags: [NumPy, 切片, 视图, 拷贝]
+
+- id: prog_py_02_q2
+  unit_id: prog_py_02
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    ```python
+    import numpy as np
+    X = np.arange(1, 13).reshape(3, 4)
+    print(X.sum(axis=0))
+    ```
+    输出是:
+  options:
+    - '[10 26 42]'
+    - '78'
+    - '[15 18 21 24]'
+    - '[6 15 24 33]'
+  answer_index: 2
+  explanation: |
+    axis 指向**被压缩掉的那根轴**:axis=0 压掉行轴,得到每一列之和
+    1+5+9=15、2+6+10=18、3+7+11=21、4+8+12=24。
+    [10 26 42] 是 axis=1(每行之和),axis 方向搞反是最常见错误;
+    78 是全局总和(不指定 axis);[6 15 24 33] 是把矩阵误想成 4×3 布局的列和。
+    口诀:axis=0 沿行方向压缩(得列统计),axis=1 沿列方向压缩(得行统计)。
+  tags: [NumPy, axis, 聚合, 求和]
+
+- id: prog_py_02_q3
+  unit_id: prog_py_02
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    ```python
+    import numpy as np
+    r = np.ones((3, 1)) + np.arange(4)
+    print(r.shape)
+    ```
+    输出是:
+  options:
+    - 报错:形状不兼容
+    - '(1, 4)'
+    - '(3,)'
+    - '(3, 4)'
+  answer_index: 3
+  explanation: |
+    广播从尾部对齐:(3,1) 与 (4,)——维数少的 (4,) 先补成 (1,4),再逐维比较:
+    3 对 1 → 拉伸为 3;1 对 4 → 拉伸为 4。结果是 (3,4) 的矩阵,第 i 行第 j 列元素为 1 + j。
+    这是广播最容易让人意外的情形:两个向量相加得到的是**矩阵**。
+    (3,)/(1,4) 都是只拉伸一边的错误预期;报错是把规则记成了「维度必须完全相等」。
+    拿不准时用 `np.broadcast_shapes((3,1), (4,))` 直接查。
+  tags: [NumPy, 广播, 形状]
+
+- id: prog_pandas_01_q1
+  unit_id: prog_pandas_01
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    ```python
+    import pandas as pd
+    df = pd.DataFrame({"x": [-1, 2, -3, 4], "y": [1, 2, 3, 4]})
+    df[df["x"] > 0]["y"] = 0
+    print(df["y"].tolist())
+    ```
+    输出是:
+  options:
+    - '[1, 2, 3, 4]'
+    - '[1, 0, 3, 0]'
+    - '[0, 2, 0, 4]'
+    - 报错并中断执行
+  answer_index: 0
+  explanation: |
+    `df[df["x"] > 0]` 先返回一个**中间副本**,再对副本的 `["y"]` 赋值,原 DataFrame 不受影响——
+    这就是链式赋值。pandas 3.x 会发出 ChainedAssignmentError 警告(旧版为 SettingWithCopyWarning),但不会报错中断。
+    [1, 0, 3, 0] 是「期望的结果」(x>0 的行 y 置 0);[0, 2, 0, 4] 是掩码方向反了(x≤0 的行);
+    正确写法是布尔掩码与列选择在同一次 `loc` 中完成:`df.loc[df["x"] > 0, "y"] = 0`。
+  tags: [Pandas, 链式赋值, loc, SettingWithCopyWarning]
+
+- id: prog_pandas_01_q2
+  unit_id: prog_pandas_01
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    ```python
+    import pandas as pd
+    df = pd.DataFrame({"地区": ["华东", "华南", "华东", "华南"],
+                       "销量": [10, 20, 30, 40],
+                       "利润": [1, 2, 6, 8]})
+    out = df.groupby("地区").agg(平均销量=("销量", "mean"),
+                                总利润=("利润", "sum"))
+    print(out.loc["华东", "平均销量"], out.loc["华东", "总利润"])
+    ```
+    输出是:
+  options:
+    - '40.0 和 7'
+    - '20.0 和 3.5'
+    - '30.0 和 10.0'
+    - '20.0 和 7'
+  answer_index: 3
+  explanation: |
+    华东两行:平均销量 (10+30)/2 = 20.0,总利润 1+6 = 7。
+    40.0 是把「平均销量」误用成 sum(华东销量合计 40);
+    20.0 和 3.5 是对利润也取了 mean((1+6)/2 = 3.5);
+    30.0 和 10.0 是把华南的结果当成了华东(华南平均销量 (20+40)/2 = 30、总利润 10)。
+    新式命名写法 `agg(新列名=("原列", "函数"))` 比旧式字典更能控制输出列名。
+  tags: [Pandas, groupby, agg, 分组聚合]
+
+- id: prog_pandas_01_q3
+  unit_id: prog_pandas_01
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    ```python
+    left = pd.DataFrame({"id": [1, 2, 3], "x": ["a", "b", "c"]})
+    right = pd.DataFrame({"id": [2, 3, 4], "y": ["B", "C", "D"]})
+    print(len(pd.merge(left, right, on="id")))
+    ```
+    输出是:
+  options:
+    - "3"
+    - "4"
+    - "2"
+    - "6"
+  answer_index: 2
+  explanation: |
+    `pd.merge` 默认 `how="inner"`,只保留两表**共有键**的行:共有 id 为 {2, 3},共 2 行。
+    3 是 `how="left"` 的结果(左表 3 行全保留,右表匹配不上填 NaN);
+    4 是 `how="outer"`(并集);6 是误以为做了笛卡尔积/纵向拼接。
+    清洗阶段合并多表时先 `how="left"` 再检查新增缺失(`df.isna().sum()`),防止「数据被悄悄丢掉」。
+  tags: [Pandas, merge, inner, 数据合并]
+
+- id: prog_viz_01_q1
+  unit_id: prog_viz_01
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    用面向对象 API 画图时,设置横轴标签的正确方式是:
+    ```python
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    ax.plot(x, y)
+    ```
+  options:
+    - plt.xlabel("x")
+    - ax.set_xlabel("x")
+    - fig.set_xlabel("x")
+    - ax.xlabel("x")
+  answer_index: 1
+  explanation: |
+    面向对象 API 下所有绘图元素都挂在明确的 `ax` 上,标签用 `ax.set_xlabel`。
+    `plt.xlabel` 是 pyplot 状态机写法,作用于「当前坐标系」——单图时碰巧没事,多子图/封装成函数时就会标错地方;
+    `fig` 是整张画布,没有 set_xlabel 方法;`ax.xlabel` 方法名不存在。
+    竞赛代码一律 `fig, ax = plt.subplots()`,只用 `ax.*`,不碰 `plt` 的绘图函数。
+  tags: [Matplotlib, 面向对象API, 子图]
+
+- id: prog_viz_01_q2
+  unit_id: prog_viz_01
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    用 `imshow` 显示数学意义的二维场(地形高程、概率密度)时,必须设置 `origin="lower"`,原因是:
+  options:
+    - 默认 origin="lower" 会把图像左右颠倒
+    - 不设置时颜色映射会失效
+    - 默认 origin="upper" 会把图像上下颠倒
+    - 不设置时无法指定坐标轴范围
+  answer_index: 2
+  explanation: |
+    `imshow` 默认 `origin="upper"`,第 0 行显示在顶部;而数学场的 y 轴向上增长,
+    不设置时显示的其实是「上下翻转后的矩阵」——图像上下颠倒。
+    左右颠倒混淆了 extent 参数的职责;颜色映射失效混淆了 cmap;坐标范围由 `extent` 参数负责,与 origin 无关。
+    画数学意义的矩阵/场一律加 `origin="lower"`(或改用 `ax.matshow`,它会自动设置正确的 origin 与坐标)。
+  tags: [Matplotlib, imshow, origin, 热力图]
+
+- id: prog_viz_01_q3
+  unit_id: prog_viz_01
+  role: programmer
+  category: 编程
+  difficulty: beginner
+  question: |
+    论文插图应该用什么格式保存,为什么?
+  options:
+    - 用 plt.show() 展示后截图进论文
+    - 保存 JPG,压缩率高最适合论文
+    - 保存 PNG 默认 dpi 即可,位图打印不糊
+    - 保存 PDF/SVG 矢量格式,放大不糊;汇报 PPT 用 PNG(dpi=300)
+  answer_index: 3
+  explanation: |
+    论文插图必须是程序 `savefig` 出的**矢量图**(PDF/SVG),放大任意倍数不糊;
+    PNG 是位图,打印前至少 `dpi=300`,默认 dpi(100)会糊。
+    截图进论文既糊又会被评委一眼看穿;JPG 是有损压缩,会产生压缩伪影,不适合线条与文字密集的学术图。
+    论文定稿再统一导出矢量图,不要截图。
+  tags: [Matplotlib, savefig, 矢量图, 论文插图]
+
+- id: prog_optimize_01_q1
+  unit_id: prog_optimize_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    ```python
+    from scipy.optimize import linprog
+    res = linprog([-3, -5], A_ub=[[1, 3], [2, 1]], b_ub=[9, 8],
+                  bounds=[(0, None), (0, None)], method="highs")
+    print(res.x, -res.fun)
+    ```
+    输出是:
+  options:
+    - '[3. 2.] 19.0'
+    - '[0. 0.] 0.0'
+    - '[3. 2.] -19.0'
+    - '[2. 3.] 19.0'
+  answer_index: 0
+  explanation: |
+    `linprog` 只能求 **min**:max 3x₁+5x₂ 等价于 min -3x₁-5x₂,系数取负;
+    求解后真实最优值 = `-res.fun` = 19.0,最优解 (3, 2)。
+    [0. 0.] 0.0 是忘给目标取负(用 c=[3,5] 求 min,最优解跑到原点);
+    [3. 2.] -19.0 是忘了把 res.fun 取负回 max 问题;
+    [2. 3.] 19.0 违反约束 1×2+3×3=11>9,不可行——是把解分量记反。
+    每次求解后还应检查 res.success 与 res.message。
+  tags: [scipy, linprog, 线性规划, 最大化取负]
+
+- id: prog_optimize_01_q2
+  unit_id: prog_optimize_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    用 SLSQP 求 $\min\ f(x,y) = x^2 + y^2$,约束 $x + y \geq 3$。以下约束写法**正确**的是:
+  options:
+    - '{"type": "ineq", "fun": lambda v: 3 - v[0] - v[1]}'
+    - '{"type": "ineq", "fun": lambda v: v[0] + v[1] - 3}'
+    - '{"type": "ineq", "fun": lambda v: v[0] + v[1]}'
+    - bounds=[(0, 3), (0, 3)] 即可表达 x+y≥3,无需 constraints
+  answer_index: 1
+  explanation: |
+    `ineq` 约束的可行条件是 **fun(x) ≥ 0**:要表达 x+y ≥ 3,直写 v[0]+v[1]-3。
+    正确写法解得 (1.5, 1.5),f=4.5。
+    第一个选项方向反了,可行域变成 x+y ≤ 3,求解器给出 (0,0)、f=0——约束完全失效;
+    第三个漏掉常数项 -3,约束变成 x+y ≥ 0,原约束没生效;
+    bounds 是**逐变量**的矩形界,[0,3]² 不能表达「x+y ≥ 3」这种跨变量约束(如 (0,0) 在界内却不满足原约束)。
+  tags: [scipy, minimize, SLSQP, 不等式约束]
+
+- id: prog_optimize_01_q3
+  unit_id: prog_optimize_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    求 $f(x) = x\sin(10\pi x) + 2$ 在 $[0, 4]$ 上的最大值。用 `minimize`(BFGS)从 $x_0 = 1.5$ 出发得到
+    $x \approx 0.452,\ f \approx 2.451$;用 `differential_evolution` 得到 $x \approx 3.8503,\ f \approx 5.8501$。
+    以下判断正确的是:
+  options:
+    - 两个结果都正确,取平均即可
+    - differential_evolution 不基于梯度,结果必然不如 minimize 可靠
+    - 函数多峰,minimize 陷入初值附近的局部最优;应先画图判断多峰,再改用全局方法(或全局粗搜 + 局部精修)
+    - minimize 的结果是求解器 bug,增大 maxiter 重新求解即可
+  answer_index: 2
+  explanation: |
+    f 在 [0,4] 上有约 40 个峰,`minimize` 类方法沿梯度爬到**初值附近的**山头就停:
+    初值 1.5 落在 0.45 峰的引力范围内,得到的 2.45 甚至比初值处的函数值还差——这是多峰问题的本质,不是 bug。
+    增大 maxiter 只会让局部收敛更精确,不会跳出局部极值;差分进化在可行域全域撒种群,多峰场景更可靠(代价是慢);
+    两个结果「取平均」毫无意义。应对口诀:画图判断多峰 → 全局粗搜 + 局部精修,多组初值启动取最优。
+  tags: [scipy, 全局优化, differential_evolution, 局部最优]
+
+- id: prog_cvxpy_01_q1
+  unit_id: prog_cvxpy_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    以下哪个模型是**非 DCP** 的(`prob.is_dcp()` 为 False,`solve()` 时抛 `DCPError`)?
+  options:
+    - cp.Problem(cp.Minimize(cp.sum_squares(x)))
+    - cp.Problem(cp.Maximize(cp.sum_squares(x)))
+    - cp.Problem(cp.Minimize(cp.norm2(A @ x - b)))
+    - cp.Problem(cp.Minimize(c @ x), [x >= 0])
+  answer_index: 1
+  explanation: |
+    DCP 规则:`Minimize` 的目标必须是**凸**的,`Maximize` 的目标必须是**凹**的。
+    `sum_squares` 是凸表达式,放在 Maximize 下违反规则 → is_dcp() 为 False,solve() 抛 DCPError。
+    其余三个都是合法模型:sum_squares 与 norm2 的 Minimize 是凸问题,c@x 是仿射(既凸又凹)。
+    DCPError 是好事——它在建模阶段就拦住「数学上就不是凸问题」的错误;报错先怀疑模型本身。
+  tags: [cvxpy, DCP, 凸优化, 曲率]
+
+- id: prog_cvxpy_01_q2
+  unit_id: prog_cvxpy_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    ```python
+    import cvxpy as cp
+    import numpy as np
+    x = cp.Variable(2)
+    prob = cp.Problem(cp.Minimize(cp.sum_squares(x - np.array([1.0, 2.0]))))
+    print(x.value)      # ①
+    prob.solve()
+    print(x.value)      # ②
+    ```
+    两处输出分别是:
+  options:
+    - ① None,② 约 [1. 2.]
+    - ① 约 [0. 0.],② 约 [1. 2.]
+    - ① 报 AttributeError,② 约 [1. 2.]
+    - ① None,② 仍是 None
+  answer_index: 0
+  explanation: |
+    `solve()` 之前变量尚未被赋值,`x.value` 是 None(不是 0,也不是报错);
+    solve() 之后才能取到最优解——本题 min ‖x-(1,2)‖² 的最优解显然就是 [1, 2]。
+    取值顺序不能乱:先 solve → 查 `prob.status == "optimal"` → 再取 value。
+    若 status 是 infeasible/unbounded,此时 value 是 ±∞ 或 None,直接拿去做后续计算会静默出错。
+  tags: [cvxpy, solve, value, status]
+
+- id: prog_cvxpy_01_q3
+  unit_id: prog_cvxpy_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    `c` 是单位运输成本矩阵(np.ndarray),`x = cp.Variable((2, 2))` 是运输量矩阵,
+    目标函数 $\sum_{i,j} c_{ij} x_{ij}$ 的正确写法是:
+  options:
+    - cp.sum(c @ x)
+    - cp.sum(c * x)
+    - cp.sum(cp.multiply(c, x))
+    - cp.sum(x) * c
+  answer_index: 2
+  explanation: |
+    逐元素乘必须用 `cp.multiply`:成本矩阵与变量矩阵逐元素相乘再求和,才是总运输成本。
+    `@` 是矩阵乘:`c @ x` 算出的是另一个矩阵,求和后语义完全不对(实跑:c=[[1,2],[3,4]]、x 全 1 时,
+    cp.sum(cp.multiply(c, x)) = 10 而 cp.sum(c @ x) = 20);
+    `*` 在 cvxpy 中同样按矩阵乘法处理(该用法已弃用并发出警告),不是逐元素乘;
+    最后一项先求和再乘矩阵,维度与语义都不对。
+  tags: [cvxpy, multiply, 矩阵乘法, 声明式建模]
+
+- id: prog_sklearn_01_q1
+  unit_id: prog_sklearn_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    ```python
+    from sklearn.datasets import make_classification
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.model_selection import train_test_split
+    from sklearn.linear_model import LogisticRegression
+
+    X, y = make_classification(n_samples=300, n_features=6, random_state=0)
+    X_s = StandardScaler().fit_transform(X)          # 全量标准化
+    X_train, X_test, y_train, y_test = train_test_split(X_s, y, test_size=0.2)
+    model = LogisticRegression(max_iter=2000).fit(X_train, y_train)
+    print(model.score(X_test, y_test))
+    ```
+    以下说法正确的是:
+  options:
+    - 完全正确,标准化与划分顺序无关
+    - 有数据泄露:缩放器在全量数据上 fit,测试集信息混入缩放参数;应先划分、训练集 fit_transform、测试集只 transform(或装进 Pipeline)
+    - 代码会报错,fit_transform 返回的 ndarray 不能传给 train_test_split
+    - 没有泄露,但评估结果必然虚低
+  answer_index: 1
+  explanation: |
+    缩放器在**全量数据**上 fit,均值/方差用到了测试集的取值,测试集信息泄漏进预处理,评估不再严格无偏。
+    正确顺序:先 train_test_split,再对训练集 fit_transform、测试集只 transform;
+    或直接把 scaler 和模型装进 Pipeline,由 cross_val_score 在折内调度(参见《建模数据处理流水线》单元)。
+    代码不会报错——这正是泄漏能静默发生的原因;泄漏的方向通常让评估**虚高**,不是虚低。
+  tags: [sklearn, 数据泄露, StandardScaler, 训练测试划分]
+
+- id: prog_sklearn_01_q2
+  unit_id: prog_sklearn_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    二分类问题的混淆矩阵为(行=真实,列=预测):
+    ```python
+    cm = [[50, 5],
+          [10, 35]]
+    ```
+    准确率是:
+  options:
+    - "77.8%"
+    - "87.5%"
+    - "85%"
+    - "90%"
+  answer_index: 2
+  explanation: |
+    读法:行=真实,列=预测。50 真负、5 假正、10 假负、35 真正,总数 100。
+    准确率 = (50+35)/100 = **85%**。
+    77.8% 是召回率(35/(10+35),正类找回了多少);
+    87.5% 是精确率(35/(5+35),预测为正的里面对了多少);
+    90% 是 (50+35+5)/100——漏掉了 10 个假负,典型的算错方式。
+    类别不均衡时准确率会失真,要看精确率/召回率/F1(classification_report)。
+  tags: [sklearn, 混淆矩阵, 准确率, 评估指标]
+
+- id: prog_sklearn_01_q3
+  unit_id: prog_sklearn_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    为什么 KMeans 聚类前通常要做标准化?
+  options:
+    - 标准化能自动确定最优簇数
+    - 不标准化 KMeans 会抛出异常
+    - 标准化能防止 KMeans 过拟合
+    - 欧氏距离对量纲敏感,量纲大的特征会主导距离,聚类被「大数特征」绑架
+  answer_index: 3
+  explanation: |
+    KMeans 用欧氏距离,每个特征的量纲直接决定它对距离的贡献:
+    某特征取值 0~1000、另一特征 0~1,聚类几乎完全被第一个特征主导。
+    标准化(StandardScaler)把各特征拉到可比尺度,距离才有意义。
+    簇数靠肘部法则等确定,与标准化无关;不标准化照常运行,只是结果差;
+    「过拟合」是监督学习的概念,不适用于 KMeans。所有特征同量纲(如像素灰度 0~255)可不做,但做了也几乎无害。
+  tags: [sklearn, KMeans, 标准化, 欧氏距离]
+
+- id: prog_networkx_01_q1
+  unit_id: prog_networkx_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    ```python
+    import networkx as nx
+    G = nx.Graph()
+    G.add_weighted_edges_from([
+        ("A", "B", 120), ("A", "C", 150), ("B", "D", 100),
+        ("C", "D", 80), ("B", "E", 200), ("D", "E", 90),
+        ("C", "F", 110), ("E", "F", 70),
+    ], weight="length")            # 里程存进 "length" 属性
+    print(nx.dijkstra_path_length(G, "A", "F"))   # 忘了传 weight="length"
+    ```
+    输出是:
+  options:
+    - "2"
+    - "260"
+    - "380"
+    - 抛 NetworkXNoPath
+  answer_index: 0
+  explanation: |
+    默认权重键是 `"weight"`,而这里里程存进了 `"length"` 属性;不传 weight 参数时,
+    Dijkstra 把所有边按权重 1 处理,退化成「数边数」——A→C→F 只经过 2 条边,返回 2。
+    正确写法 `weight="length"` 得到 260(A→C→F,150+110);380 是 A→B→D→E→F 的加权里程
+    (一条看似「顺路」但更长的路径);图是连通的,不会抛 NetworkXNoPath。
+    属性名与默认键不一致时忘记显式传 weight,得到的是「边数最少」而不是「里程最短」,结果完全错误。
+  tags: [networkx, Dijkstra, 权重, 最短路径]
+
+- id: prog_networkx_01_q2
+  unit_id: prog_networkx_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    供水管网建模:水从水源经管道流向汇点,管道容量有方向性。应使用:
+  options:
+    - nx.Graph
+    - nx.DiGraph
+    - 两者等价,结果相同
+    - nx.MultiGraph
+  answer_index: 1
+  explanation: |
+    水沿管道**单向**流动,必须用 `nx.DiGraph`(有向图)。
+    `nx.Graph` 无向图允许反向流动,最大流结果会错误;
+    「两者等价」错误——有向图中 `dijkstra_path(G, s, t)` 与 `dijkstra_path(G, t, s)` 可能不同甚至无路;
+    `MultiGraph` 用于两节点间有多条平行边的场景,与方向性无关。
+    判断口诀:信息/物质能否沿边反向流动——公路、光缆用 Graph,水流、物流、资金流用 DiGraph。
+  tags: [networkx, DiGraph, 有向图, 最大流]
+
+- id: prog_networkx_01_q3
+  unit_id: prog_networkx_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    建图时把容量存进了默认的 `"weight"` 键,随后调用 `nx.maximum_flow(D, "s", "t")`(未显式传 `capacity` 参数),会发生什么?
+  options:
+    - 自动读取 "weight" 属性作为容量,结果正确
+    - 与显式传 capacity="weight" 的结果完全一致
+    - 静默返回一个偏大的荒谬值
+    - 边缺少 "capacity" 属性,检测到无限容量路径,抛 NetworkXUnbounded
+  answer_index: 3
+  explanation: |
+    `maximum_flow` 默认找 `"capacity"` 属性;边没有该属性时容量被当作**无穷大**,
+    存在无限容量的 s-t 路径时直接抛 `NetworkXUnbounded`(networkx 3.x 实跑验证)。
+    它既不会自动读取 "weight",也不会静默给出结果——但数据已经「错了」:
+    正确姿势是 `add_weighted_edges_from(..., weight="capacity")` 把权重存成容量键,
+    再 `nx.maximum_flow(D, "s", "t", capacity="capacity")`。这与 Dijkstra 的 weight 键陷阱是同一类错误。
+  tags: [networkx, maximum_flow, capacity, 最大流]
+
+- id: prog_ga_impl_q1
+  unit_id: prog_ga_impl
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    二进制编码 GA 中,10 位染色体、变量区间 $[0, 5]$,位串 `1010101010` 解码后的 $x$ 约等于:
+  options:
+    - 约 3.333
+    - 约 3.330
+    - 约 5.000
+    - 约 1.667
+  answer_index: 0
+  explanation: |
+    位串十进制值 D = 2⁹+2⁷+2⁵+2³+2¹ = 682,解码公式
+    $x = lb + (ub-lb)\cdot D/(2^L-1) = 5 \times 682/1023 \approx 3.3333$。
+    3.330 是分母误写成 $2^L = 1024$(这样 ub 永远取不到,边界上的最优解会系统性错过);
+    1.667 是把位串误读成 0101010101(D=341);
+    5.000 是全 1 串 1111111111 的解码结果。分母是 $2^L - 1$ 不是 $2^L$,这是解码最常见的错误。
+  tags: [遗传算法, 二进制编码, 解码]
+
+- id: prog_ga_impl_q2
+  unit_id: prog_ga_impl
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    罚函数处理约束后,个体适应度可能是负数。为什么此时轮盘赌选择不能用,而锦标赛选择可以用?
+  options:
+    - 轮盘赌计算太慢,拖累进化速度
+    - 轮盘赌只支持整数适应度
+    - 锦标赛选择比轮盘赌更快收敛到全局最优
+    - 轮盘赌按 p_i = f_i/Σf_j 抽样要求 f_i ≥ 0,负适应度破坏概率语义;锦标赛只看排序,与正负无关
+  answer_index: 3
+  explanation: |
+    轮盘赌把适应度当概率权重:$p_i = f_i/\sum f_j$ 要求 $f_i \geq 0$,
+    负的 f_i 会产生负概率,抽样语义崩溃(求和也可能抵消为 0 报错)。
+    锦标赛随机抽 k 个个体取最优,只依赖相对大小,与正负无关,是罚函数场景下更稳的选择。
+    轮盘赌的替代方案还有先把 min 问题变换成 max:$f' = -f$ 或 $f' = 1/(1+f)$。
+    速度与收敛快慢的说法都不是本质原因。
+  tags: [遗传算法, 轮盘赌, 锦标赛, 罚函数]
+
+- id: prog_ga_impl_q3
+  unit_id: prog_ga_impl
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    若删掉二进制 GA 中「每代把历史最优个体原样复制进下一代」的精英保留步骤,最可能观察到:
+  options:
+    - 程序报错,无法运行
+    - 收敛会更快,因为少了复制开销
+    - 收敛曲线剧烈震荡,已找到的最优解可能被交叉/变异毁掉
+    - 结果与有精英保留完全一致
+  answer_index: 2
+  explanation: |
+    交叉和变异都是「破坏性」算子:没有精英保留,历史最优个体随时可能被交叉打散或被变异破坏,
+    收敛曲线会剧烈震荡,最终解也差一截。
+    精英保留一行代码(如 `pop[0] = elite`)就能稳定收敛,几乎必加;
+    它不影响运行(不会报错),也不是冗余——「结果完全一致」与事实相反,「更快收敛」颠倒了因果。
+  tags: [遗传算法, 精英保留, 收敛曲线]
+
+- id: prog_seaborn_01_q1
+  unit_id: prog_seaborn_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    `sns.pairplot` 返回的是 PairGrid 对象。想修改坐标轴标签,正确做法是:
+  options:
+    - g.set_axis_labels("x", "y")
+    - g.set_xlabel("x")
+    - pairplot 返回的是 ax,直接 ax.set_xlabel("x")
+    - plt.xlabel("x")
+  answer_index: 0
+  explanation: |
+    figure-level 函数(pairplot/catplot/relplot)返回 Grid 对象,**不是 ax**,
+    改轴标签用 `g.set_axis_labels(...)`,改总标题用 `g.fig.suptitle(...)`,保存用 `g.savefig(...)`。
+    Grid 对象没有 set_xlabel 方法,直接调用会报 AttributeError;
+    plt.xlabel 是 pyplot 状态机写法,多子图时作用到错误对象。
+    axes-level 函数(scatterplot/boxplot/histplot)才返回 ax,那时才用 ax.set_xlabel——两类函数先分清。
+  tags: [seaborn, pairplot, FacetGrid, figure-level]
+
+- id: prog_seaborn_01_q2
+  unit_id: prog_seaborn_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    画相关系数矩阵热力图时,推荐的配色参数组合是:
+  options:
+    - cmap="viridis",不设 center(默认配色即可)
+    - cmap="RdBu_r",center=0.5,vmin=0,vmax=1
+    - 默认参数即可,相关系数自带正负
+    - cmap="RdBu_r",center=0,vmin=-1,vmax=1
+  answer_index: 3
+  explanation: |
+    相关系数矩阵的标准配色:`cmap="RdBu_r"`(红正蓝负)+ `center=0`(0 恰好落在色标中点为白色)
+    + `vmin=-1, vmax=1`(色标固定全量程,不同热力图之间颜色深浅可直接比较)。
+    viridis 没有正负语义;`RdBu` 方向反了(蓝正红负),center=0.5 让 0 偏离中点;
+    默认配色下色标从数据最小值到最大值浮动,0 不在中点,正负关系被配色误导。
+  tags: [seaborn, heatmap, 相关系数, 配色]
+
+- id: prog_seaborn_01_q3
+  unit_id: prog_seaborn_01
+  role: programmer
+  category: 编程
+  difficulty: intermediate
+  question: |
+    seaborn 0.11 之后,画直方图应该使用:
+  options:
+    - sns.distplot
+    - sns.histplot
+    - sns.kdeplot
+    - sns.countplot
+  answer_index: 1
+  explanation: |
+    `distplot` 自 seaborn 0.11 起已废弃(调用报 DeprecationWarning/错误),由 `histplot`(直方图)、
+    `kdeplot`(核密度曲线)、`rugplot` 拆分替代。
+    `kdeplot` 是平滑密度曲线,不是直方图(要叠加可 `histplot(..., kde=True)`);
+    `countplot` 是类别频数条形图,用于分类型变量,画数值分布的直方图会得到每值一柱的错误图。
+  tags: [seaborn, histplot, distplot, 直方图]
+
+- id: prog_sympy_01_q1
+  unit_id: prog_sympy_01
+  role: programmer
+  category: 编程
+  difficulty: advanced
+  question: |
+    ```python
+    import sympy as sp
+    x = sp.symbols("x")
+    print(sp.diff(sp.sin(x) * sp.exp(x), x))
+    ```
+    该一阶导数等于:
+  options:
+    - $(\sin x + \cos x)\, e^x$
+    - $\sin x \cdot e^x$
+    - $\cos x \cdot e^x$
+    - $(\cos x - \sin x)\, e^x$
+  answer_index: 0
+  explanation: |
+    乘法法则:$\dfrac{d}{dx}(\sin x \cdot e^x) = (\sin x + \cos x) e^x$。
+    SymPy 实际输出的是未合并形式 `exp(x)*sin(x) + exp(x)*cos(x)`,与上式相等(可用 simplify 合并)。
+    $\sin x \cdot e^x$ 是忘了求导;$\cos x \cdot e^x$ 只对 sin 求导、漏了 $e^x$ 部分的乘积项;
+    $(\cos x - \sin x) e^x$ 是乘法法则符号记反。手算一遍再对照输出,是练习符号工具的正确姿势。
+  tags: [SymPy, diff, 求导, 乘法法则]
+
+- id: prog_sympy_01_q2
+  unit_id: prog_sympy_01
+  role: programmer
+  category: 编程
+  difficulty: advanced
+  question: |
+    ```python
+    sp.solve(sp.Eq(x**5 - x - 1, 0), x)
+    ```
+    返回的不是数值解(而是空列表或 RootOf 形式),原因是:
+  options:
+    - 方程没有实根,所以 solve 返回空
+    - 一般五次方程无根式解析解,solve 返回 RootOf/空;改用 nsolve(给初值)求数值根(约 1.1673)
+    - SymPy 的 bug,重新安装即可
+    - 变量声明错误导致的
+  answer_index: 1
+  explanation: |
+    伽罗瓦理论:五次及以上多项式一般没有根式解析解,`solve` 无法给出初等函数形式,
+    返回 RootOf 占位或空列表——这不是 SymPy 的 bug,也不代表无根。
+    该方程有实根 x ≈ 1.1673:用 `sp.nsolve(eq, x, 1)`(牛顿法,需给初值)或 `sp.nroots(x**5 - x - 1)` 一次求全部复根。
+    先画图确认根的大致位置再给初值,是数值求根的标准流程。
+  tags: [SymPy, solve, nsolve, 数值求根]
+
+- id: prog_sympy_01_q3
+  unit_id: prog_sympy_01
+  role: programmer
+  category: 编程
+  difficulty: advanced
+  question: |
+    想对 NumPy 数组调用 lambdify 生成的函数,以下哪段代码会抛 TypeError?
+  options:
+    - sp.lambdify(x, sp.sin(x))(默认模块),再对 np.array([0.0, 1.0]) 调用
+    - 以上都不会报错
+    - sp.lambdify(x, sp.sin(x), "math"),再对 np.array([0.0, 1.0]) 调用
+    - sp.lambdify(x, sp.sin(x), "numpy"),再对 np.array([0.0, 1.0]) 调用
+  answer_index: 2
+  explanation: |
+    显式指定 `modules="math"` 会把 sin 绑定到 math.sin,数组输入报
+    TypeError(only 0-dimensional arrays can be converted to Python scalars)。
+    传 `"numpy"` 生成的是向量化函数,数组输入正常;新版 SymPy 默认(不传 modules)会自动选 numpy,也能处理数组——
+    但为明确起见,对数组计算一律显式写 `lambdify(x, expr, "numpy")`,
+    再交给 integrate.quad / Matplotlib 画图,避免「默认模块」随版本变化的坑。
+  tags: [SymPy, lambdify, NumPy, 符号数值桥接]
+
+- id: prog_perf_01_q1
+  unit_id: prog_perf_01
+  role: programmer
+  category: 编程
+  difficulty: advanced
+  question: |
+    关于 `np.vectorize(f)`,下列说法正确的是:
+  options:
+    - 是语法糖:内部仍是 Python 层循环,不加速甚至更慢
+    - 与 Numba 的 @njit 等价,都是 JIT 编译
+    - 会自动利用多核并行加速
+    - 只能作用于 numpy 的 ufunc
+  answer_index: 0
+  explanation: |
+    `np.vectorize` 只是把函数调用「循环」包了一层语法糖:内部仍是 Python 层的逐元素调用,
+    加上类型转换开销,往往比直接循环还慢——它**不是**加速器。
+    它的价值是语义糖:让标量函数接受数组输入、支持广播,方便书写。
+    要性能只有两条路:真向量化(把计算写进 NumPy 的广播/ufunc,让运算发生在 C 层),
+    或必须写循环时用 Numba 的 @njit 编译。它也不是并行工具,不限于 ufunc。
+  tags: [性能优化, np.vectorize, 向量化, Numba]
+
+- id: prog_perf_01_q2
+  unit_id: prog_perf_01
+  role: programmer
+  category: 编程
+  difficulty: advanced
+  question: |
+    给函数加 `@njit` 后,第一次调用明显比后续调用慢,原因是:
+  options:
+    - 首次调用要初始化 GPU
+    - 是 Numba 的 bug,第二次才会正常
+    - 首次调用含 JIT 编译时间;基准测试应先预热一次再计时
+    - 首次调用包含 Python 解释器启动开销
+  answer_index: 2
+  explanation: |
+    第一次调用时 Numba 把 Python 函数**编译**成机器码(约 0.1~1 秒),之后直接执行机器码。
+    不同参数**类型**(如 float64 数组 vs int64 数组)还会触发不同的编译版本。
+    因此基准测试必须「先预热一次再计时」,否则编译时间混进基准,得出「Numba 反而慢」的假象;
+    生产代码加 `@njit(cache=True)` 把编译结果缓存到磁盘。小数据量、单次调用时 @njit 也可能因编译开销反而更慢。
+  tags: [Numba, njit, JIT编译, 基准测试]
+
+- id: prog_perf_01_q3
+  unit_id: prog_perf_01
+  role: programmer
+  category: 编程
+  difficulty: advanced
+  question: |
+    某段双重循环代码复杂度为 $O(n^2)$,用 Numba 可加速约 50 倍;同时存在 $O(n\log n)$ 的替代算法。
+    $n = 10^5$ 时,最优策略是:
+  options:
+    - 直接用 Numba 加速现有代码即可,50 倍已足够
+    - 优先换 O(n log n) 算法:复杂度收益是数量级的(n²/(n log n) ≈ 6000 倍,远超 50 倍)
+    - 两者收益相当,任选其一
+    - 先做常数级微调(局部变量、缓存属性),不够再改算法
+  answer_index: 1
+  explanation: |
+    复杂度差异是数量级的:$n^2 = 10^{10}$ 对 $n\log_2 n \approx 1.7\times 10^6$,差距约 6000 倍,
+    远超 Numba 的 50 倍常数级收益——把一个 O(n²) 双重循环用 Numba 加速,不如改成 O(n log n) 算法快。
+    常数级微调(局部变量、in-place)只有 1~3 倍,且往往牺牲可读性。
+    优化顺序:先测量定位热点 → 降复杂度(算法/数据结构)→ 向量化或 JIT → 最后才常数级微调。
+  tags: [性能优化, 复杂度, 算法, 优化层级]
+
+- id: prog_pipeline_01_q1
+  unit_id: prog_pipeline_01
+  role: programmer
+  category: 编程
+  difficulty: advanced
+  question: |
+    ```python
+    pipe = Pipeline([("scaler", StandardScaler()), ("model", Ridge())])
+    ```
+    用 GridSearchCV 同时调 Ridge 的 alpha 与 StandardScaler 的 with_mean,参数网格应写成:
+  options:
+    - '{"model__alpha": [0.1, 1.0], "scaler__with_mean": [True, False]}'
+    - '{"alpha": [0.1, 1.0], "with_mean": [True, False]}'
+    - '{"Ridge__alpha": [0.1, 1.0], "StandardScaler__with_mean": [True, False]}'
+    - '{"model.alpha": [0.1, 1.0], "scaler.with_mean": [True, False]}'
+  answer_index: 0
+  explanation: |
+    流水线内调参用**双下划线**连接「步骤名」与「参数名」:`步骤名__参数名`。
+    直写参数名会报 Invalid parameter 错误(GridSearchCV 找不到它们);
+    用类名 Ridge/StandardScaler 也不行——键必须是你给步骤起的名字 scaler/model;
+    单下划线或点号语法不存在。
+    嵌套流水线(ColumnTransformer 里套 Pipeline)的名字更长,如 `pre__num__sc__with_mean`,
+    不确定时用 `print(grid.estimator.get_params().keys())` 照抄。
+  tags: [sklearn, Pipeline, GridSearchCV, 双下划线]
+
+- id: prog_pipeline_01_q2
+  unit_id: prog_pipeline_01
+  role: programmer
+  category: 编程
+  difficulty: advanced
+  question: |
+    为什么保存模型时应该 `joblib.dump` 整条 Pipeline,而不是只保存模型?
+  options:
+    - 单独保存模型会导致文件损坏
+    - 流水线序列化后文件体积更小
+    - joblib 只能序列化 Pipeline 对象,不能保存裸模型
+    - 预测时新数据必须走与训练完全相同的预处理,只存模型预处理状态丢失,预测静默漂移
+  answer_index: 3
+  explanation: |
+    预测时的新数据必须经过与训练**完全相同**的预处理:同样的填充值、缩放均值/标准差、独热类别表。
+    只存模型意味着这些状态丢失或手写重建,一旦有出入(如训练时众数填充、预测时均值填充),
+    特征分布漂移,预测静默变差。
+    joblib 能序列化任意 Python 对象,裸模型也能存——但存整条 Pipeline,load 后直接 predict,
+    训练/预测环境零漂移,这是竞赛论文「可复现性」的工程保证。
+  tags: [sklearn, Pipeline, joblib, 可复现性]
+
+- id: prog_pipeline_01_q3
+  unit_id: prog_pipeline_01
+  role: programmer
+  category: 编程
+  difficulty: advanced
+  question: |
+    ColumnTransformer 中 `OneHotEncoder(handle_unknown="ignore")` 的作用是:
+  options:
+    - 自动把未知类别填充为众数
+    - 预测时遇到训练集未见过的类别,输出全 0 行而不是抛 ValueError
+    - 忽略数值列的缺失值
+    - 把未知类别合并为一个「其他」列
+  answer_index: 1
+  explanation: |
+    `handle_unknown="ignore"` 保证预测时若出现训练集没见过的类别(如新城市「深圳」),
+    编码器输出全 0 行而不是抛 ValueError——这是部署场景的头号保险。
+    它不会把未知类别填充为众数(那是 SimpleImputer 的事),也不会合并成「其他」列
+    (合并稀有类别要用 handle_unknown="infrequent_if_exist");数值缺失值处理与 OneHotEncoder 无关。
+    不加该参数时,测试集出现新类别直接报错——数据类赛题的经典翻车点。
+  tags: [sklearn, OneHotEncoder, ColumnTransformer, 部署]

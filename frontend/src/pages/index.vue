@@ -237,7 +237,6 @@ import {
   Key,
   Library,
   Loader2,
-  MessageCircleQuestion,
   MessageSquare,
   ShieldAlert,
   TrendingUp,
@@ -317,12 +316,6 @@ const learnModules = [
     desc: "每日推荐练习，智能体出题批改",
     path: "/practice",
     icon: Dumbbell,
-  },
-  {
-    label: "答疑室",
-    desc: "随时 @智能体 提问，联网推荐资源",
-    path: "/qa",
-    icon: MessageCircleQuestion,
   },
   {
     label: "成长档案",

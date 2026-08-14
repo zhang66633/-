@@ -5,6 +5,8 @@
     </div>
     <div class="px-8 py-6 max-w-2xl mx-auto">
       <div ref="contentRef" class="prose prose-sm prose-gray dark:prose-invert max-w-none" v-html="renderedHtml" />
+      <!-- 文档末尾扩展区(如单元自测块) -->
+      <slot />
     </div>
     <div class="h-64" />
 

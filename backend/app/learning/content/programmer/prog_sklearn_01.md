@@ -275,9 +275,9 @@ ARI(降维后)= 1.000
 5. **拿测试集反复调参后报成绩**。测试集只允许**用一次**(最终评估);调参全程用交叉验证,否则「测试准确率」已经变成训练信息的一部分,论文里会被质疑
 6. **忽略随机性**。随机森林、KMeans、划分都含随机成分;固定 `random_state`,论文复现才有一致结果;随机森林等集成模型多跑几个种子报告均值 ± 标准差更严谨
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:下面的代码哪里违反了「不泄漏」原则?
+**第 1 题**
 
 ```python
 from sklearn.datasets import make_classification
@@ -286,53 +286,50 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
 X, y = make_classification(n_samples=300, n_features=6, random_state=0)
-model = LogisticRegression(max_iter=2000)    # 题目设定的模型
-
-X_s = StandardScaler().fit_transform(X)      # 全量标准化(题目代码)
+X_s = StandardScaler().fit_transform(X)          # 全量标准化
 X_train, X_test, y_train, y_test = train_test_split(X_s, y, test_size=0.2)
-model.fit(X_train, y_train)
+model = LogisticRegression(max_iter=2000).fit(X_train, y_train)
 print(model.score(X_test, y_test))
 ```
 
-<details><summary>查看答案</summary>
+以下说法正确的是:
 
-第一步在全量数据上 `fit_transform`,缩放参数(均值/标准差)用到了测试集的取值,测试集信息泄漏进预处理。正确顺序:先 `train_test_split`,再在训练集上 `fit_transform`、测试集上仅 `transform`;或直接把 scaler 和模型装进 `Pipeline` 再划分(参见《建模数据处理流水线》单元)。
+A. 完全正确,标准化与划分顺序无关
+B. 有数据泄露:缩放器在全量数据上 fit,测试集信息混入缩放参数;应先划分、训练集 fit_transform、测试集只 transform(或装进 Pipeline)
+C. 代码会报错,fit_transform 返回的 ndarray 不能传给 train_test_split
+D. 没有泄露,但评估结果必然虚低
 
+<details><summary>查看答案与解析</summary>
+**答案:B**。缩放器在**全量数据**上 fit,均值/方差用到了测试集的取值,测试集信息泄漏进预处理,评估不再严格无偏。正确顺序:先 train_test_split,再对训练集 fit_transform、测试集只 transform;或直接把 scaler 和模型装进 Pipeline,由 cross_val_score 在折内调度(参见《建模数据处理流水线》单元)。代码不会报错——这正是泄漏能静默发生的原因;泄漏的方向通常让评估**虚高**,不是虚低。
 </details>
 
-**第 2 题(补全)**:写出用 5 折交叉验证评估随机森林分类器准确率的代码。
-
-<details><summary>查看答案</summary>
+**第 2 题** 二分类问题的混淆矩阵为(行=真实,列=预测):
 
 ```python
-from sklearn.datasets import make_classification
-from sklearn.model_selection import cross_val_score
-from sklearn.ensemble import RandomForestClassifier
-
-X, y = make_classification(n_samples=300, n_features=6, random_state=0)
-model = RandomForestClassifier(n_estimators=100, random_state=0)
-scores = cross_val_score(model, X, y, cv=5, scoring="accuracy")
-print(f"{scores.mean():.3f} ± {scores.std():.3f}")
+cm = [[50, 5],
+      [10, 35]]
 ```
 
-注意:若需要标准化,应把 `StandardScaler` 放进 Pipeline 再交叉验证,否则每折都在「看过测试折」的缩放上训练,仍是泄漏。
+准确率是:
 
+A. 77.8%
+B. 87.5%
+C. 85%
+D. 90%
+
+<details><summary>查看答案与解析</summary>
+**答案:C**。读法:行=真实,列=预测。50 真负、5 假正、10 假负、35 真正,总数 100。准确率 = (50+35)/100 = **85%**。77.8% 是召回率(35/(10+35),正类找回了多少);87.5% 是精确率(35/(5+35),预测为正的里面对了多少);90% 是 (50+35+5)/100——漏掉了 10 个假负,典型的算错方式。类别不均衡时准确率会失真,要看精确率/召回率/F1(classification_report)。
 </details>
 
-**第 3 题(计算)**:给定真实标签与预测结果,解释混淆矩阵 `[[50, 5], [10, 35]]` 的含义,并计算准确率。
+**第 3 题** 为什么 KMeans 聚类前通常要做标准化?
 
-<details><summary>查看答案</summary>
+A. 标准化能自动确定最优簇数
+B. 不标准化 KMeans 会抛出异常
+C. 标准化能防止 KMeans 过拟合
+D. 欧氏距离对量纲敏感,量纲大的特征会主导距离,聚类被「大数特征」绑架
 
-行=真实,列=预测:50 个负类预测正确(真负)、5 个负类误判为正(假正)、10 个正类误判为负(假负)、35 个正类正确(真正)。准确率 = (50+35)/(50+5+10+35) = 85/100 = **85%**。同时可算:精确率 = 35/(5+35) = 87.5%,召回率 = 35/(10+35) = 77.8%。
-
-</details>
-
-**第 4 题(概念)**:为什么说「KMeans 聚类前必须标准化」?什么样的数据集可以例外?
-
-<details><summary>查看答案</summary>
-
-KMeans 用欧氏距离 $\sqrt{\sum (x_{ik} - x_{jk})^2}$,每个特征的量纲直接决定它对距离的贡献:某特征若取值 0~1000、另一特征 0~1,聚类几乎完全被第一个特征主导。标准化(或 MinMax 缩放)把各特征拉到可比尺度,距离才有意义。例外:所有特征本身同量纲、同尺度(如都是像素灰度 0~255),可不标准化——但标准化也几乎无害,拿不准就做。
-
+<details><summary>查看答案与解析</summary>
+**答案:D**。KMeans 用欧氏距离,每个特征的量纲直接决定它对距离的贡献:某特征取值 0~1000、另一特征 0~1,聚类几乎完全被第一个特征主导。标准化(StandardScaler)把各特征拉到可比尺度,距离才有意义。簇数靠肘部法则等确定,与标准化无关;不标准化照常运行,只是结果差;「过拟合」是监督学习的概念,不适用于 KMeans。所有特征同量纲(如像素灰度 0~255)可不做,但做了也几乎无害。
 </details>
 
 ## 🏆 竞赛实战链接

@@ -222,61 +222,52 @@ print("总成本:", round(prob.value, 2))
 5. **MIP 忘了装求解器**。默认求解器不支持整数变量,报 `SolverError`;解决方案:指定 `solver=cp.SCIPY`(走 scipy 的 HiGHS)或安装 CBC(`pip install cylp`)/Gurobi 学术版
 6. **`quad_form` 的矩阵非半正定**。$\Sigma$ 必须是半正定的;实际协方差矩阵因样本误差可能带微小负特征值,先用 `(Sigma + Sigma.T)/2` 对称化并投影到 PSD(如特征值截断),否则求解失败
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:`cp.Maximize(cp.sum_squares(x))` 能通过 DCP 检查吗?为什么?
+**第 1 题** 以下哪个模型是**非 DCP** 的(`prob.is_dcp()` 为 False,`solve()` 时抛 `DCPError`)?
 
-<details><summary>查看答案</summary>
+A. cp.Problem(cp.Minimize(cp.sum_squares(x)))
+B. cp.Problem(cp.Maximize(cp.sum_squares(x)))
+C. cp.Problem(cp.Minimize(cp.norm2(A @ x - b)))
+D. cp.Problem(cp.Minimize(c @ x), [x >= 0])
 
-不能,报 `DCPError`。`sum_squares(x)` 是**凸**表达式,而 `Maximize` 要求目标是**凹**的(凸函数最大化一般不是凸问题,可能有无界/非凸最优)。正确写法是 `cp.Minimize(cp.sum_squares(x))`,或最大化凹目标如 `cp.Maximize(cp.sqrt(x))`($x \geq 0$ 时 sqrt 是凹函数)。
-
+<details><summary>查看答案与解析</summary>
+**答案:B**。DCP 规则:`Minimize` 的目标必须是**凸**的,`Maximize` 的目标必须是**凹**的。`sum_squares` 是凸表达式,放在 Maximize 下违反规则 → is_dcp() 为 False,solve() 抛 DCPError。其余三个都是合法模型:sum_squares 与 norm2 的 Minimize 是凸问题,c@x 是仿射(既凸又凹)。DCPError 是好事——它在建模阶段就拦住「数学上就不是凸问题」的错误;报错先怀疑模型本身。
 </details>
 
-**第 2 题(补全)**:用 cvxpy 求解「最小化 $\|x\|_2$,约束 $Ax = b$」的完整代码(这是欠定方程组的最小范数解)。
-
-<details><summary>查看答案</summary>
+**第 2 题**
 
 ```python
 import cvxpy as cp
 import numpy as np
-
-A = np.random.default_rng(0).normal(size=(5, 8))
-b = np.ones(5)
-x = cp.Variable(8)
-prob = cp.Problem(cp.Minimize(cp.norm2(x)), [A @ x == b])
+x = cp.Variable(2)
+prob = cp.Problem(cp.Minimize(cp.sum_squares(x - np.array([1.0, 2.0]))))
+print(x.value)      # ①
 prob.solve()
-print(prob.status, x.value)
+print(x.value)      # ②
 ```
 
-它等价于解析解 $x^* = A^T(AA^T)^{-1}b$,可以用 `np.linalg.pinv(A) @ b` 验证。cvxpy 的版本可以直接加更多约束(如 $x \geq 0$),解析式就做不到了——这是建模语言的威力。
+两处输出分别是:
 
+A. ① None,② 约 [1. 2.]
+B. ① 约 [0. 0.],② 约 [1. 2.]
+C. ① 报 AttributeError,② 约 [1. 2.]
+D. ① None,② 仍是 None
+
+<details><summary>查看答案与解析</summary>
+**答案:A**。`solve()` 之前变量尚未被赋值,`x.value` 是 None(不是 0,也不是报错);solve() 之后才能取到最优解——本题 min ‖x-(1,2)‖² 的最优解显然就是 [1, 2]。取值顺序不能乱:先 solve → 查 `prob.status == "optimal"` → 再取 value。若 status 是 infeasible/unbounded,此时 value 是 ±∞ 或 None,直接拿去做后续计算会静默出错。
 </details>
 
-**第 3 题(计算)**:写出「最小化 $c^Tx$,约束 $x \in [0, 1]^n$、$\sum x_i = 1$」的 cvxpy 代码,并说明该问题的解析解。
+**第 3 题** `c` 是单位运输成本矩阵(np.ndarray),`x = cp.Variable((2, 2))` 是运输量矩阵,
+目标函数 $\sum_{i,j} c_{ij} x_{ij}$ 的正确写法是:
 
-<details><summary>查看答案</summary>
+A. cp.sum(c @ x)
+B. cp.sum(c * x)
+C. cp.sum(cp.multiply(c, x))
+D. cp.sum(x) * c
 
-```python
-import cvxpy as cp
-import numpy as np
-
-c = np.array([3.0, 1.0, 2.0])
-x = cp.Variable(3, nonneg=True)
-prob = cp.Problem(cp.Minimize(c @ x), [cp.sum(x) == 1, x <= 1])
-prob.solve()
-print(x.value)   # [0. 1. 0.]
-```
-
-解析解:把全部权重给 $c$ 最小的分量,即 $x = [0, 1, 0]$,$f_{\min} = 1$。这是线性规划「最优解在顶点」的体现(参见《线性规划与单纯形法》单元);`nonneg=True` 声明避免了手写 `x >= 0`。
-
-</details>
-
-**第 4 题(概念)**:cvxpy 相比 scipy.optimize 的优势与代价分别是什么?
-
-<details><summary>查看答案</summary>
-
-**优势**:①声明式,模型与数学公式一一对应,不易写错约束方向、不易漏约束;②自动选求解器、支持 LP/QP/SOCP/SDP/MIP 统一语法;③直接给出对偶变量,便于影子价格分析。**代价**:①问题必须写成 DCP 形式,非凸问题(如某些非线性规划)写不了;②求解速度依赖底层求解器,小问题开销比 scipy 略高;③建模表达力受限于凸性,复杂非凸模型仍需 scipy/全局优化。实践中:**凸问题用 cvxpy 写,非凸问题用 scipy**。
-
+<details><summary>查看答案与解析</summary>
+**答案:C**。逐元素乘必须用 `cp.multiply`:成本矩阵与变量矩阵逐元素相乘再求和,才是总运输成本。`@` 是矩阵乘:`c @ x` 算出的是另一个矩阵,求和后语义完全不对(实跑:c=[[1,2],[3,4]]、x 全 1 时,cp.sum(cp.multiply(c, x)) = 10 而 cp.sum(c @ x) = 20);`*` 在 cvxpy 中同样按矩阵乘法处理(该用法已弃用并发出警告),不是逐元素乘;最后一项先求和再乘矩阵,维度与语义都不对。
 </details>
 
 ## 🏆 竞赛实战链接

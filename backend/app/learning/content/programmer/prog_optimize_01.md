@@ -239,55 +239,54 @@ fig.savefig("multimodal.png", dpi=200)
 5. **非线性规划只跑一个初值**。多峰问题一个初值一个答案;多组初值(如网格采样)启动,取目标最优者,是论文里「解的稳健性」论述的素材
 6. **`bounds` 缺漏变量**。`bounds` 的长度必须等于变量个数,且每个变量都要明确上下界;省略变量界常常得到负产量、负价格这类物理上荒谬的解
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:`linprog` 与 `minimize` 默认求最大还是最小?求 $\max 2x_1 + x_2$ 时目标系数向量怎么写?
-
-<details><summary>查看答案</summary>
-
-都求**最小**。求 $\max 2x_1 + x_2$ 等价于 $\min -2x_1 - x_2$,系数向量写 `c = [-2, -1]`;求解后真实最优值 = `-res.fun`。同理 `minimize` 里最大化的目标要整体取负。
-
-</details>
-
-**第 2 题(补全)**:用 `minimize`(Nelder-Mead)求 $f(x, y) = (x-1)^2 + 2(y+2)^2$ 的最小值。
-
-<details><summary>查看答案</summary>
+**第 1 题**
 
 ```python
-from scipy.optimize import minimize
-
-res = minimize(lambda v: (v[0] - 1)**2 + 2 * (v[1] + 2)**2,
-               x0=[0.0, 0.0], method="Nelder-Mead")
-print(res.x, res.fun)   # [1. -2.] 约 0
+from scipy.optimize import linprog
+res = linprog([-3, -5], A_ub=[[1, 3], [2, 1]], b_ub=[9, 8],
+              bounds=[(0, None), (0, None)], method="highs")
+print(res.x, -res.fun)
 ```
 
-最优解 $(1, -2)$,$f_{\min} = 0$。Nelder-Mead 不需要梯度,适合快速验证;光滑问题用 BFGS 会收敛更快。
+输出是:
 
+A. [3. 2.] 19.0
+B. [0. 0.] 0.0
+C. [3. 2.] -19.0
+D. [2. 3.] 19.0
+
+<details><summary>查看答案与解析</summary>
+**答案:A**。`linprog` 只能求 **min**:max 3x₁+5x₂ 等价于 min -3x₁-5x₂,系数取负;求解后真实最优值 = `-res.fun` = 19.0,最优解 (3, 2)。[0. 0.] 0.0 是忘给目标取负(用 c=[3,5] 求 min,最优解跑到原点);[3. 2.] -19.0 是忘了把 res.fun 取负回 max 问题;[2. 3.] 19.0 违反约束 1×2+3×3=11>9,不可行——是把解分量记反。每次求解后还应检查 res.success 与 res.message。
 </details>
 
-**第 3 题(计算)**:用 SLSQP 求 $f = x^2 + y^2$ 在约束 $x + y \geq 3$ 下的最小值,约束怎么写?
+**第 2 题** 用 SLSQP 求 $\min\ f(x,y) = x^2 + y^2$,约束 $x + y \geq 3$。以下约束写法**正确**的是:
 
-<details><summary>查看答案</summary>
+A. {"type": "ineq", "fun": lambda v: 3 - v[0] - v[1]}
+B. {"type": "ineq", "fun": lambda v: v[0] + v[1] - 3}
+C. {"type": "ineq", "fun": lambda v: v[0] + v[1]}
+D. bounds=[(0, 3), (0, 3)] 即可表达 x+y≥3,无需 constraints
 
-```python
-from scipy.optimize import minimize
-
-cons = [{"type": "ineq", "fun": lambda v: v[0] + v[1] - 3}]   # x+y-3 ≥ 0
-res = minimize(lambda v: v[0]**2 + v[1]**2, x0=[0.0, 0.0],
-               method="SLSQP", constraints=cons)
-print(res.x, res.fun)   # [1.5 1.5] 4.5
-```
-
-最优解 $(1.5, 1.5)$(几何直觉:原点到直线 $x+y=3$ 的垂足),$f_{\min} = 4.5$。注意约束写作 $g(x) = x + y - 3 \geq 0$,而不是 $-3$。
-
+<details><summary>查看答案与解析</summary>
+**答案:B**。`ineq` 约束的可行条件是 **fun(x) ≥ 0**:要表达 x+y ≥ 3,直写 v[0]+v[1]-3。
+正确写法解得 (1.5, 1.5),f=4.5。
+第一个选项方向反了,可行域变成 x+y ≤ 3,求解器给出 (0,0)、f=0——约束完全失效;
+第三个漏掉常数项 -3,约束变成 x+y ≥ 0,原约束没生效;
+bounds 是**逐变量**的矩形界,[0,3]² 不能表达「x+y ≥ 3」这种跨变量约束(如 (0,0) 在界内却不满足原约束)。
 </details>
 
-**第 4 题(概念)**:为什么说「`minimize` 找到的只是局部最优」?如何降低被局部最优欺骗的风险?
+**第 3 题** 求 $f(x) = x\sin(10\pi x) + 2$ 在 $[0, 4]$ 上的最大值。用 `minimize`(BFGS)从 $x_0 = 1.5$ 出发得到
+$x \approx 0.452,\ f \approx 2.451$;用 `differential_evolution` 得到 $x \approx 3.8503,\ f \approx 5.8501$。
+以下判断正确的是:
 
-<details><summary>查看答案</summary>
+A. 两个结果都正确,取平均即可
+B. differential_evolution 不基于梯度,结果必然不如 minimize 可靠
+C. 函数多峰,minimize 陷入初值附近的局部最优;应先画图判断多峰,再改用全局方法(或全局粗搜 + 局部精修)
+D. minimize 的结果是求解器 bug,增大 maxiter 重新求解即可
 
-`minimize` 类方法(梯度下降/拟牛顿/SLSQP)从初值出发,只保证收敛到**附近**的驻点。目标函数多峰时,初值落在哪个峰的「引力范围」就收敛到哪个峰。降低风险的组合拳:①先画图或网格采样判断单峰/多峰;②多组初值启动取最优;③多峰问题直接用 `differential_evolution` 等全局方法;④「全局粗搜 + 局部精修」两步走。论文中说明「采用了多种初值验证解的一致性」是很强的稳健性论据。
-
+<details><summary>查看答案与解析</summary>
+**答案:C**。f 在 [0,4] 上有约 40 个峰,`minimize` 类方法沿梯度爬到**初值附近的**山头就停:初值 1.5 落在 0.45 峰的引力范围内,得到的 2.45 甚至比初值处的函数值还差——这是多峰问题的本质,不是 bug。增大 maxiter 只会让局部收敛更精确,不会跳出局部极值;差分进化在可行域全域撒种群,多峰场景更可靠(代价是慢);两个结果「取平均」毫无意义。应对口诀:画图判断多峰 → 全局粗搜 + 局部精修,多组初值启动取最优。
 </details>
 
 ## 🏆 竞赛实战链接

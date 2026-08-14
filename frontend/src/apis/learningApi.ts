@@ -91,3 +91,75 @@ export function diagnose(
 export function fetchProgress() {
   return request.get("/profile/progress");
 }
+
+// ── 题库与练习(选择题)───────────────────────────────
+
+export type QuizStatus = "untried" | "wrong" | "mastered";
+
+export interface QuizQuestion {
+  id: string;
+  unit_id: string;
+  role: "modeler" | "programmer" | "writer";
+  category: string;
+  difficulty: "beginner" | "intermediate" | "advanced";
+  question: string;
+  options: string[];
+  tags: string[];
+  status: QuizStatus;
+  wrong_times: number;
+}
+
+export interface QuizBankResponse {
+  total: number;
+  categories: { name: string; count: number }[];
+  questions: QuizQuestion[];
+}
+
+/** 题库浏览(可筛选,不含答案) */
+export function fetchQuizBank(params?: {
+  category?: string;
+  difficulty?: string;
+  role?: string;
+  unit_id?: string;
+}) {
+  return request.get<QuizBankResponse>("/learning/quiz/bank", { params });
+}
+
+/** 按勾选题目创建一轮练习 */
+export function startQuizPractice(question_ids: string[]) {
+  return request.post<{ questions: QuizQuestion[] }>(
+    "/learning/quiz/practice",
+    {
+      question_ids,
+    },
+  );
+}
+
+export interface QuizAnswerResult {
+  question_id: string;
+  correct: boolean;
+  answer_index: number;
+  explanation: string;
+}
+
+/** 判分一道选择题(答错自动入错题本) */
+export function submitQuizAnswer(question_id: string, choice: number) {
+  return request.post<QuizAnswerResult>("/learning/quiz/answer", {
+    question_id,
+    choice,
+  });
+}
+
+/** 错题本列表 */
+export function fetchQuizMistakes() {
+  return request.get<{ total: number; questions: QuizQuestion[] }>(
+    "/learning/quiz/mistakes",
+  );
+}
+
+/** 某学习单元的自测题(单元页「单元自测」块) */
+export function fetchUnitQuiz(unitId: string) {
+  return request.get<{ questions: QuizQuestion[] }>(
+    `/learning/quiz/by-unit/${unitId}`,
+  );
+}

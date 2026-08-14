@@ -133,56 +133,39 @@ $$x_{ij} = \frac{1}{2}(\frac{a}{b} + \frac{c}{d})$$   % 用 $$...$$,分数套分
 5. **公式后无标点**。中文论文的独立公式末尾要按句子加逗号/句号,公式是句子的组成部分
 6. **图片路径或命名问题**。文件名含中文/空格导致找不到;建议 `fig/fig3.pdf` 小写英文命名
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:论文中独立成行的公式用 `$$...$$` 包裹即可,与 equation 环境效果相同。
+**第 1 题**:用 pdfLaTeX 编译中文论文出现乱码或报错,正确的做法是:
 
-<details><summary>查看答案</summary>
+A. 把中文全部替换为英文
+B. 改用 XeLaTeX 编译 + ctex 文档类,并确认文件为 UTF-8 编码
+C. 升级 pdfLaTeX 到最新版本
+D. 在导言区加入 \usepackage{chinese}
 
-**错误**。`$$...$$` 是 TeX 原始语法,在 LaTeX 中存在间距异常、与 fleqn 等选项不兼容、无法编号引用等问题。应使用 `\[...\]`(无编号)或 equation 环境(有编号);需要编号的公式配 `\label`,后文用 `\eqref` 引用,编号变动时全文自动更新。
-
+<details><summary>查看答案与解析</summary>
+**答案:B**。中文文档必须用 XeLaTeX + ctex 文档类(ctexart/cumcmthesis),且文件编码为 UTF-8;pdfLaTeX 引擎不支持中文。A 逃避问题;C 解决不了引擎不支持中文的根本原因;D 的宏包不存在,属于编造命令。
 </details>
 
-**第 2 题(改错)**:指出下列代码的全部错误:
+**第 2 题**:编译报错 `Missing $ inserted`,报错定位在 `x_i 是第 i 个变量,其中 x_i >= 0`。原因与修复正确的是:
 
-```latex
-\documentclass{article}
-\begin{document}
-x_i 是第 i 个变量,其中 x_i >= 0。
-$$
-y = \frac{a}{b}
-$$
-\end{document}
-```
+A. 变量不能带下标,应把 $x_i$ 改写为 $xi$
+B. 中文与数学混排不被支持,应全部改英文
+C. article 文档类不支持行内变量,应改为 report
+D. 下划线 `_` 与 `>=` 在文本模式使用——应改为数学模式「$x_i$ 是第 $i$ 个变量,其中 $x_i \geq 0$」
 
-<details><summary>查看答案</summary>
-
-四处错误:①article 类不支持中文,应改 `\documentclass{ctexart}` 并用 XeLaTeX 编译;②`x_i` 中的 `_` 在文本模式下触发 `Missing $ inserted`,应为 `$x_i$`;③`>=` 应为 `\geq` 且置于数学模式内:$x_i \geq 0$;④`$$...$$` 应改 equation 环境或 `\[...\]`。修正后核心代码:`$x_i$ 是第 $i$ 个变量,其中 $x_i \geq 0$。` 加 `\begin{equation} y = \frac{a}{b} \end{equation}`。
-
+<details><summary>查看答案与解析</summary>
+**答案:D**。下划线、上标、希腊字母等数学符号出现在文本模式会触发 `Missing $ inserted`;应放进 `$...$`,且比较符号写作 `\geq` 而不是 `>=`。A 错——下标是 LaTeX 常规能力,问题在于漏了数学模式;B、C 都与病因无关。
 </details>
 
-**第 3 题(选择)**:正文出现 `??` 表示引用未解析,最可能的原因与正确做法是?
+**第 3 题**:交叉引用处出现 `??`(如「见表 ??」),最可能的原因与正确处理是:
 
-<details><summary>查看答案</summary>
+A. 公式太长,需要拆分成多个 equation 环境
+B. 图片路径错误,应检查 \includegraphics 的文件名
+C. 只编译了一次——引用编号需完整编译流水线 XeLaTeX → BibTeX/Biber → XeLaTeX → XeLaTeX;若仍为 ??,检查 \label 与 \ref 名称是否一致
+D. 文档类版本过低,应更换
 
-最可能原因:只编译了一次——`\ref` 的编号信息需要第二次编译写入辅助文件。正确做法:执行完整编译流水线 XeLaTeX → BibTeX/Biber → XeLaTeX → XeLaTeX,引用即稳定。若多次编译后仍为 `??`,则检查 `\label` 与 `\ref` 的名称是否一致(注意大小写与拼写)。
-
-</details>
-
-**第 4 题(实操)**:写出一个带编号、可在后文引用的分段函数公式,以及正文中的引用语句。
-
-<details><summary>查看答案</summary>
-
-```latex
-\begin{equation}\label{eq:fare}
-  P(d) = \begin{cases}
-    10, & 0 < d \leq 3, \\
-    10 + 2(d - 3), & d > 3,
-  \end{cases}
-\end{equation}
-```
-正文引用:「起步价 10 元,超过 3 公里后每公里 2 元,即式 \eqref{eq:fare} 所示的分段计价函数。」要点:equation 环境自动编号;\label 命名语义化(eq:fare);\eqref 引用带圆括号,编号变动时自动更新。
-
+<details><summary>查看答案与解析</summary>
+**答案:C**。`\ref` 的编号信息需要第二、三次编译写入辅助文件并稳定,只编译一次必然 `??`;多次编译后仍为 `??`,则是 \label 与 \ref 拼写不一致(注意大小写)。A、D 与引用机制无关;B 是「图片找不到」的病因,不是引用未解析。
 </details>
 
 ## 🏆 竞赛实战链接

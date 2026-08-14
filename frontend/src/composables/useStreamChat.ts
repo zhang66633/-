@@ -19,7 +19,7 @@ function generateId() {
 
 export function useStreamChat(
   sessionMode: SessionMode,
-  chatMode: "chat" | "learning" | "qa" | "practice",
+  chatMode: "chat" | "learning" | "practice",
 ) {
   const chatSession = useChatSessionStore();
   // 每次发送独立 AbortController，按 (mode, sessionId) 键控，避免并发会话互串

@@ -247,59 +247,52 @@ print("移除度数最高节点后,最大连通片规模变化:", sizes)
 5. **节点编号混乱**。节点是任意可哈希对象(整数、字符串、坐标元组);但「节点 i 就是下标 i」只在显式编号时成立,`G.nodes` 是节点集合不是下标列表
 6. **大图直接 `nx.draw`**。节点上千时默认布局又慢又糊;先抽子图/聚合社区,布局用 `spring_layout(seed=)` 固定,论文里标注「节点大小 ∝ 度数」等图例说明
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:双向公路网络应该用 `nx.Graph` 还是 `nx.DiGraph`?如果用错,`dijkstra_path` 的结果会有什么问题?
-
-<details><summary>查看答案</summary>
-
-双向公路用 `nx.Graph`(每条边双向可达)。若误用 `DiGraph` 且只添加了单向边,则从 B 到 A 可能无路可走——`dijkstra_path(G, "A", "B")` 正常而反方向抛 `NetworkXNoPath`;若加了往返两条边,结果虽对但建模啰嗦且易漏边。判断口诀:信息/物质能否沿边**反向流动**,能则无向。
-
-</details>
-
-**第 2 题(补全)**:给定带权图 G(边属性为 `"length"`),写出求 s 到 t 最短路径及长度的代码。
-
-<details><summary>查看答案</summary>
+**第 1 题**
 
 ```python
 import networkx as nx
-
 G = nx.Graph()
-G.add_weighted_edges_from([("s", "a", 4), ("a", "t", 3),
-                           ("s", "b", 5), ("b", "t", 2)], weight="length")
-path = nx.dijkstra_path(G, "s", "t", weight="length")
-length = nx.dijkstra_path_length(G, "s", "t", weight="length")
-print(path, length)   # ['s', 'a', 't'] 7
+G.add_weighted_edges_from([
+    ("A", "B", 120), ("A", "C", 150), ("B", "D", 100),
+    ("C", "D", 80), ("B", "E", 200), ("D", "E", 90),
+    ("C", "F", 110), ("E", "F", 70),
+], weight="length")            # 里程存进 "length" 属性
+print(nx.dijkstra_path_length(G, "A", "F"))   # 忘了传 weight="length"
 ```
 
-关键在 `weight="length"`:属性名与默认的 `"weight"` 不一致时必须显式指定,否则算法把所有边按权重 1 计算,得到「边数最少」而不是「里程最短」。
+输出是:
 
+A. 2
+B. 260
+C. 380
+D. 抛 NetworkXNoPath
+
+<details><summary>查看答案与解析</summary>
+**答案:A**。默认权重键是 `"weight"`,而这里里程存进了 `"length"` 属性;不传 weight 参数时,Dijkstra 把所有边按权重 1 处理,退化成「数边数」——A→C→F 只经过 2 条边,返回 2。正确写法 `weight="length"` 得到 260(A→C→F,150+110);380 是 A→B→D→E→F 的加权里程(一条看似「顺路」但更长的路径);图是连通的,不会抛 NetworkXNoPath。属性名与默认键不一致时忘记显式传 weight,得到的是「边数最少」而不是「里程最短」,结果完全错误。
 </details>
 
-**第 3 题(计算)**:用代码求下图的最小生成树总权重:A-B:3、A-C:4、B-C:1、B-D:5、C-D:2。
+**第 2 题** 供水管网建模:水从水源经管道流向汇点,管道容量有方向性。应使用:
 
-<details><summary>查看答案</summary>
+A. nx.Graph
+B. nx.DiGraph
+C. 两者等价,结果相同
+D. nx.MultiGraph
 
-```python
-import networkx as nx
-
-G = nx.Graph()
-G.add_weighted_edges_from([("A", "B", 3), ("A", "C", 4),
-                           ("B", "C", 1), ("B", "D", 5), ("C", "D", 2)])
-mst = nx.minimum_spanning_tree(G)
-print(sum(d["weight"] for _, _, d in mst.edges(data=True)))   # 6
-```
-
-MST 边为 B-C(1)、C-D(2)、A-B(3),总权重 6。Kruskal 算法:边按权重升序,不成环就加入——三条边恰好连通 4 个点。
-
+<details><summary>查看答案与解析</summary>
+**答案:B**。水沿管道**单向**流动,必须用 `nx.DiGraph`(有向图)。`nx.Graph` 无向图允许反向流动,最大流结果会错误;「两者等价」错误——有向图中 `dijkstra_path(G, s, t)` 与 `dijkstra_path(G, t, s)` 可能不同甚至无路;`MultiGraph` 用于两节点间有多条平行边的场景,与方向性无关。判断口诀:信息/物质能否沿边反向流动——公路、光缆用 Graph,水流、物流、资金流用 DiGraph。
 </details>
 
-**第 4 题(概念)**:为什么「最大流 = 最小割」?这个定理在建模论文里怎么用?
+**第 3 题** 建图时把容量存进了默认的 `"weight"` 键,随后调用 `nx.maximum_flow(D, "s", "t")`(未显式传 `capacity` 参数),会发生什么?
 
-<details><summary>查看答案</summary>
+A. 自动读取 "weight" 属性作为容量,结果正确
+B. 与显式传 capacity="weight" 的结果完全一致
+C. 静默返回一个偏大的荒谬值
+D. 边缺少 "capacity" 属性,检测到无限容量路径,抛 NetworkXUnbounded
 
-直观上,任何割(把图分成含源与含汇的两部分)的容量都是流量的上界——流要从源到汇,必须穿过割的某条边,流量不可能超过割边总容量;福特-富尔克森定理保证存在一个割,其容量恰等于最大流。论文用法:①输出 `minimum_cut` 的割集,指出「卡脖子」的关键边(扩容依据);②把网络改造问题转化为「找出并加大最小割边容量」,使分析有的放矢;③最大流问题可 LP 建模(每条边流量 ≤ 容量、中间节点流量守恒),networkx 的数值结果可与 LP 求解互验。
-
+<details><summary>查看答案与解析</summary>
+**答案:D**。`maximum_flow` 默认找 `"capacity"` 属性;边没有该属性时容量被当作**无穷大**,存在无限容量的 s-t 路径时直接抛 `NetworkXUnbounded`(networkx 3.x 实跑验证)。它既不会自动读取 "weight",也不会静默给出结果——但数据已经「错了」:正确姿势是 `add_weighted_edges_from(..., weight="capacity")` 把权重存成容量键,再 `nx.maximum_flow(D, "s", "t", capacity="capacity")`。这与 Dijkstra 的 weight 键陷阱是同一类错误。
 </details>
 
 ## 🏆 竞赛实战链接

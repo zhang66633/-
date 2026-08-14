@@ -2,7 +2,7 @@ import type { Message, ToolStatus } from "@/types/response";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-export type SessionMode = "chat" | "solution" | "learning" | "qa" | "practice";
+export type SessionMode = "chat" | "solution" | "learning" | "practice";
 
 export interface ChatSession {
   id: string;
@@ -27,13 +27,11 @@ export const useChatSessionStore = defineStore(
     const chatSessions = ref<ChatSession[]>([]);
     const solutionSessions = ref<ChatSession[]>([]);
     const learningSessions = ref<ChatSession[]>([]);
-    const qaSessions = ref<ChatSession[]>([]);
     const practiceSessions = ref<ChatSession[]>([]);
 
     const activeChatId = ref<string | null>(null);
     const activeSolutionId = ref<string | null>(null);
     const activeLearningId = ref<string | null>(null);
-    const activeQaId = ref<string | null>(null);
     const activePracticeId = ref<string | null>(null);
 
     /** 当前正在运行的模式（仅允许一个，避免三页互串）。null = 空闲。 */
@@ -54,8 +52,6 @@ export const useChatSessionStore = defineStore(
           return solutionSessions;
         case "learning":
           return learningSessions;
-        case "qa":
-          return qaSessions;
         case "practice":
           return practiceSessions;
       }
@@ -69,8 +65,6 @@ export const useChatSessionStore = defineStore(
           return activeSolutionId;
         case "learning":
           return activeLearningId;
-        case "qa":
-          return activeQaId;
         case "practice":
           return activePracticeId;
       }
@@ -86,9 +80,6 @@ export const useChatSessionStore = defineStore(
           break;
         case "learning":
           activeLearningId.value = id;
-          break;
-        case "qa":
-          activeQaId.value = id;
           break;
         case "practice":
           activePracticeId.value = id;
@@ -114,12 +105,6 @@ export const useChatSessionStore = defineStore(
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
       ),
     );
-    const sortedQaSessions = computed(() =>
-      [...qaSessions.value].sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      ),
-    );
     const sortedPracticeSessions = computed(() =>
       [...practiceSessions.value].sort(
         (a, b) =>
@@ -135,8 +120,6 @@ export const useChatSessionStore = defineStore(
           return sortedSolutionSessions;
         case "learning":
           return sortedLearningSessions;
-        case "qa":
-          return sortedQaSessions;
         case "practice":
           return sortedPracticeSessions;
       }
@@ -155,9 +138,6 @@ export const useChatSessionStore = defineStore(
         learningSessions.value.find((s) => s.id === activeLearningId.value) ??
         null,
     );
-    const activeQaSession = computed(
-      () => qaSessions.value.find((s) => s.id === activeQaId.value) ?? null,
-    );
     const activePracticeSession = computed(
       () =>
         practiceSessions.value.find((s) => s.id === activePracticeId.value) ??
@@ -172,8 +152,6 @@ export const useChatSessionStore = defineStore(
           return activeSolutionSession;
         case "learning":
           return activeLearningSession;
-        case "qa":
-          return activeQaSession;
         case "practice":
           return activePracticeSession;
       }
@@ -188,9 +166,6 @@ export const useChatSessionStore = defineStore(
     const activeLearningMessages = computed(
       () => activeLearningSession.value?.messages ?? [],
     );
-    const activeQaMessages = computed(
-      () => activeQaSession.value?.messages ?? [],
-    );
     const activePracticeMessages = computed(
       () => activePracticeSession.value?.messages ?? [],
     );
@@ -203,8 +178,6 @@ export const useChatSessionStore = defineStore(
           return activeSolutionMessages;
         case "learning":
           return activeLearningMessages;
-        case "qa":
-          return activeQaMessages;
         case "practice":
           return activePracticeMessages;
       }
@@ -237,7 +210,6 @@ export const useChatSessionStore = defineStore(
         chat: "新对话",
         solution: "新方案",
         learning: "新学习",
-        qa: "新问题",
         practice: "新练习",
       };
       const session: ChatSession = {
@@ -291,7 +263,6 @@ export const useChatSessionStore = defineStore(
         chat: "新对话",
         solution: "新方案",
         learning: "新学习",
-        qa: "新问题",
         practice: "新练习",
       };
       if (
@@ -344,28 +315,23 @@ export const useChatSessionStore = defineStore(
       chatSessions,
       solutionSessions,
       learningSessions,
-      qaSessions,
       practiceSessions,
       activeChatId,
       activeSolutionId,
       activeLearningId,
-      activeQaId,
       activePracticeId,
       runningMode,
       sortedChatSessions,
       sortedSolutionSessions,
       sortedLearningSessions,
-      sortedQaSessions,
       sortedPracticeSessions,
       activeChatSession,
       activeSolutionSession,
       activeLearningSession,
-      activeQaSession,
       activePracticeSession,
       activeChatMessages,
       activeSolutionMessages,
       activeLearningMessages,
-      activeQaMessages,
       activePracticeMessages,
       createSession,
       newSession,
@@ -392,12 +358,10 @@ export const useChatSessionStore = defineStore(
         "chatSessions",
         "solutionSessions",
         "learningSessions",
-        "qaSessions",
         "practiceSessions",
         "activeChatId",
         "activeSolutionId",
         "activeLearningId",
-        "activeQaId",
         "activePracticeId",
       ],
     },

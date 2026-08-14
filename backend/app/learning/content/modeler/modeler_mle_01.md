@@ -155,46 +155,39 @@ $$\ell'(\lambda) = \frac{3}{\lambda} - 3 = 0 \quad \Rightarrow \quad \hat{\lambd
 5. **漏掉独立性条件**。$L(\theta) = \prod f(x_i \mid \theta)$ 只在样本独立同分布时成立;时间序列、空间相关数据不能直接连乘,应改用条件似然
 6. **EM 算法中混淆隐变量与参数**。E 步计算的是隐变量 $z$ 的条件期望(责任度),M 步才更新参数 $\theta$;把两者混在一起「一并最大化」是常见错误
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(推导)**:设 $X_1, \dots, X_n \sim \text{Poisson}(\lambda)$,推导 $\lambda$ 的 MLE。
+**第 1 题** 设 $X \sim N(\mu, \sigma^2)$,样本为 $(2,\ 4,\ 6)$。求 $\mu$ 与 $\sigma^2$ 的极大似然估计,并指出 $\hat{\sigma}^2$ 的性质:
 
-<details><summary>查看答案</summary>
+A. $\hat{\mu} = 4$,$\hat{\sigma}^2 = \dfrac{8}{3} \approx 2.667$(分母为 $n$),这是有偏估计
+B. $\hat{\mu} = 4$,$\hat{\sigma}^2 = 4$(分母为 $n-1$),这是无偏估计
+C. $\hat{\mu} = 4$,$\hat{\sigma}^2 = \dfrac{8}{3}$,且它是无偏估计
+D. $\hat{\mu} = 3$,$\hat{\sigma}^2 = \dfrac{8}{3}$
 
-$$L(\lambda) = \prod_{i=1}^{n} \frac{e^{-\lambda}\lambda^{x_i}}{x_i!}, \qquad \ell(\lambda) = -n\lambda + \left(\sum_{i=1}^{n} x_i\right)\ln\lambda - \sum_{i=1}^{n}\ln(x_i!)$$
-
-$$\ell'(\lambda) = -n + \frac{\sum x_i}{\lambda} = 0 \quad \Rightarrow \quad \hat{\lambda} = \bar{x}$$
-
-$\ell''(\lambda) = -\sum x_i / \lambda^2 < 0$(只要至少有一个 $x_i > 0$),故 $\hat{\lambda} = \bar{x}$ 是 MLE。
-
+<details><summary>查看答案与解析</summary>
+**答案:A**。对数似然对 $\mu$、$\sigma^2$ 求偏导得 $\hat{\mu} = \bar{x} = 4$,$\hat{\sigma}^2 = \frac{1}{n}\sum_{i=1}^{n}(x_i - \hat{\mu})^2 = \frac{(2-4)^2 + (4-4)^2 + (6-4)^2}{3} = \frac{8}{3} \approx 2.667$。注意分母是 $n$ 而不是 $n-1$:MLE 的 $\hat{\sigma}^2$ 是**有偏**估计($E[\hat{\sigma}^2] = \frac{n-1}{n}\sigma^2$,系统性偏小),无偏版本 $s^2 = \frac{1}{n-1}\sum(x_i-\bar{x})^2 = 4$,二者关系 $s^2 = \frac{n}{n-1}\hat{\sigma}^2$。选项 B 把无偏估计当成了 MLE(这是最常见的混淆);选项 C 数值对但性质判断错;选项 D 把均值算成了 $(2+4)/2 = 3$(漏了 6)。
 </details>
 
-**第 2 题(概念)**:均匀分布 $U(0, \theta)$ 的 MLE 为什么是 $\hat{\theta} = \max\{x_i\}$?为什么不能通过求导得到?
+**第 2 题** 设 $X_1, \dots, X_n \sim U(0, \theta)$($\theta > 0$ 未知)。$\theta$ 的极大似然估计是:
 
-<details><summary>查看答案</summary>
+A. $\hat{\theta} = \max\{x_i\}$,这是边界解:似然 $1/\theta^n$ 关于 $\theta$ 单调递减,求导无驻点,最大值在可行域下边界取到
+B. $\hat{\theta} = \bar{x}$,由得分方程 $\ell'(\theta) = 0$ 解得
+C. $\hat{\theta} = 2\bar{x}$,因为均匀分布的期望是 $\theta/2$
+D. $\hat{\theta} = \min\{x_i\}$,因为似然关于 $\theta$ 单调递增
 
-似然函数为
-
-$$L(\theta) = \prod_{i=1}^{n} \frac{1}{\theta} \cdot \mathbf{1}\{0 < x_i < \theta\} = \frac{1}{\theta^{n}} \cdot \mathbf{1}\left\{\max_i x_i < \theta\right\}$$
-
-当 $\theta < \max\{x_i\}$ 时,至少一个样本落在区间外,似然为 0;当 $\theta \geq \max\{x_i\}$ 时,$L(\theta) = 1/\theta^n$ 随 $\theta$ 增大而**单调递减**。所以最大值在可行域的下边界 $\hat{\theta} = \max\{x_i\}$ 取到。单调函数没有驻点,求导法自然失效——这提醒我们:得分方程只能找到内部极值,边界必须单独检查。
-
+<details><summary>查看答案与解析</summary>
+**答案:A**。似然函数 $L(\theta) = \frac{1}{\theta^n}\cdot\mathbf{1}\{\max_i x_i < \theta\}$:当 $\theta < \max\{x_i\}$ 时至少一个样本落在区间外,似然为 0(该参数根本不可能产生这批数据);当 $\theta \ge \max\{x_i\}$ 时 $L(\theta) = 1/\theta^n$ 随 $\theta$ 增大而**单调递减**。所以最大值在可行域的下边界 $\hat{\theta} = \max\{x_i\}$ 取到。单调函数没有驻点,得分方程自然无解——这提醒我们:求导只能找到**内部**极值,参数空间的边界必须单独检查。选项 B 误用求导法;选项 C 是**矩估计**的结果($\bar{x} = \theta/2 \Rightarrow \hat{\theta} = 2\bar{x}$),混淆了两种估计方法;选项 D 把单调方向说反。
 </details>
 
-**第 3 题(判断)**:MLE 一定是无偏估计吗?请举出反例或给出无偏的例子。
+**第 3 题** 关于极大似然估计(MLE)的性质,下列说法**正确**的是:
 
-<details><summary>查看答案</summary>
+A. MLE 具有一致性、渐近正态性与渐近有效性,且满足不变性($g(\hat{\theta})$ 是 $g(\theta)$ 的 MLE);但它不一定无偏
+B. MLE 一定是无偏估计,这是它优于矩估计的原因
+C. MLE 一定存在且唯一,并且总能由求导得到
+D. MLE 只适用于连续型分布,离散分布无法定义似然函数
 
-**不一定**。正态分布的 $\hat{\mu} = \bar{x}$ 无偏,但 $\hat{\sigma}^2 = \frac{1}{n}\sum(x_i - \bar{x})^2$ 有偏:$E[\hat{\sigma}^2] = \frac{n-1}{n}\sigma^2 < \sigma^2$,系统性偏小。均匀分布 $U(0, \theta)$ 的 $\hat{\theta} = \max\{x_i\}$ 也偏小($E[\hat{\theta}] = \frac{n}{n+1}\theta$)。不过 MLE 具有**渐近无偏性**:$n \to \infty$ 时偏差消失,这正是它在大样本下表现优秀的原因。
-
-</details>
-
-**第 4 题(应用)**:已知泊松参数 $\lambda$ 的 MLE 是 $\hat{\lambda} = \bar{x}$。利用不变性,求「一个观测时段内没有事件发生」的概率 $P(X = 0) = e^{-\lambda}$ 的 MLE。
-
-<details><summary>查看答案</summary>
-
-由不变性原理,可逆函数 $g(\lambda) = e^{-\lambda}$ 的 MLE 就是 $g(\hat{\lambda}) = e^{-\bar{x}}$。例如 10 个时段共观测到 30 个事件,$\bar{x} = 3$,则 $P(X=0)$ 的 MLE 为 $e^{-3} \approx 0.0498$。即使 $\lambda$ 真值未知,这个估计在大样本下依然渐近最优——不变性是 MLE 相比矩估计的一大优势。
-
+<details><summary>查看答案与解析</summary>
+**答案:A**。MLE 的四大优良性质:一致性($n\to\infty$ 时依概率收敛到真值)、渐近正态($\sqrt{n}(\hat{\theta}-\theta)$ 渐近 $N(0, 1/I(\theta))$)、渐近有效(方差达到 Cramér-Rao 下界)、不变性(如 $\hat{\lambda}=\bar{x}$ 是泊松参数的 MLE,则 $e^{-\lambda}$ 的 MLE 就是 $e^{-\bar{x}}$)。但它**不一定无偏**:正态的 $\hat{\sigma}^2 = \frac{1}{n}\sum(x_i-\bar{x})^2$ 偏小,$U(0,\theta)$ 的 $\hat{\theta} = \max\{x_i\}$ 也偏小($E[\hat{\theta}] = \frac{n}{n+1}\theta$);MLE 拥有的是**渐近无偏性**。选项 B 把「渐近无偏」当成了「无偏」;选项 C 被 $U(0,\theta)$ 的边界解反例否决(驻点法失效、需数值优化);选项 D 忘了伯努利、泊松等离散分布的 MLE 正是教科书标准内容。
 </details>
 
 ## 🏆 竞赛实战链接

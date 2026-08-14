@@ -155,42 +155,39 @@ $$u(x) = 100 - 80x$$
 5. **对流占优时中心差分振荡**。对流扩散方程中若对流远强于扩散(Peclet 数大),中心差分会产生非物理振荡,应改用**迎风格式**——这是水质、大气模型里最常见的数值陷阱
 6. **参数单位混乱**。$\alpha$ 的标准单位是 m²/s,时间必须用秒;把「分钟」代入 $\Delta t \le \Delta x^2/(2\alpha)$ 会差 3600 倍
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:显式格式取 $s = 0.25$ 稳定,取 $s = 0.5$ 临界稳定,取 $s = 0.6$ 发散。对吗?
+**第 1 题** 一维热方程 $u_t = \alpha u_{xx}$ 的显式格式(FTCS),取 $s = \dfrac{\alpha \Delta t}{\Delta x^2}$。关于三种取值的数值行为,下列说法**正确**的是:
 
-<details><summary>查看答案</summary>
+A. $s = 0.25$ 稳定,$s = 0.5$ 临界稳定,$s = 0.6$ 发散——von Neumann 分析给出稳定条件 $s \le 1/2$
+B. $s = 0.25$ 与 $s = 0.6$ 都稳定,只是后者精度略差
+C. $s = 0.6$ 只是精度下降,不会发散
+D. $s = 0.25$ 也不稳定,必须 $s \le 0.1$ 才安全
 
-**对**。由 von Neumann 分析,稳定条件为 $s \le 1/2$:$s = 0.25$ 稳定;$s = 0.5$ 时 $|g|$ 可达 1(临界,误差不增也不减);$s = 0.6$ 时高频模态 $|g| > 1$,解按 $(-1)^n$ 逐层放大而发散。实际计算建议取 $s = 0.2\sim 0.4$,留出安全裕度。
-
+<details><summary>查看答案与解析</summary>
+**答案:A**。von Neumann 分析:设模态 $u_i^n = g^n e^{ikx_i}$,代入显式格式得增长因子 $g = 1 - 4s\sin^2\frac{k\Delta x}{2}$。稳定要求所有波数 $|g| \le 1$,最坏情形 $\sin^2 = 1$ 给出 $-1 \le 1 - 4s \Rightarrow s \le \frac{1}{2}$。$s = 0.25$:一切模态 $|g| < 1$,稳定衰减;$s = 0.5$:高频模态 $|g| = 1$,误差不增不减,临界;$s = 0.6$:高频模态 $|g| > 1$,解按 $(-1)^n$ 逐层交替振荡并指数发散(画出来像锯齿噪音)。选项 B/C 把「发散」误判为「精度差」——发散是灾难性的,不是精度问题;选项 D 的 $s \le 0.1$ 没有依据。实际计算建议取 $s = 0.2 \sim 0.4$,留出安全裕度;跑显式程序前先手算 $s$ 并确认 $\le 1/2$。
 </details>
 
-**第 2 题(计算)**:某材料 $\alpha = 5\times 10^{-5}$ m²/s,$\Delta x = 0.02$ m。用显式格式模拟,时间步长最大可取多少?
+**第 2 题** 某材料热扩散率 $\alpha = 5\times10^{-5}\ \text{m}^2/\text{s}$,空间步长取 $\Delta x = 0.02\ \text{m}$。用显式格式模拟一维热传导,时间步长最大可取多少?
 
-<details><summary>查看答案</summary>
+A. $4\ \text{s}$:$\Delta t_{\max} = \dfrac{\Delta x^2}{2\alpha} = \dfrac{(0.02)^2}{2\times5\times10^{-5}}$
+B. $8\ \text{s}$:$\Delta t_{\max} = \dfrac{\Delta x^2}{\alpha}$
+C. $200\ \text{s}$:$\Delta t_{\max} = \dfrac{\Delta x}{2\alpha}$
+D. $0.04\ \text{s}$:把 $\Delta x$ 误作 $0.002\ \text{m}$ 计算
 
-$$\Delta t_{\max} = \frac{\Delta x^2}{2\alpha} = \frac{(0.02)^2}{2\times 5\times 10^{-5}} = \frac{4\times 10^{-4}}{10^{-4}} = 4\ \text{s}$$
-
-取 $\Delta t = 4$ s 时 $s = 0.5$(临界),稳妥起见实际取 2 s($s = 0.25$)。
-
+<details><summary>查看答案与解析</summary>
+**答案:A**。由稳定性条件 $s = \frac{\alpha\Delta t}{\Delta x^2} \le \frac{1}{2}$:$\Delta t_{\max} = \frac{\Delta x^2}{2\alpha} = \frac{4\times10^{-4}}{10^{-4}} = 4\ \text{s}$。取 4 s 时 $s = 0.5$ 处于临界,稳妥做法取 2 s($s = 0.25$)。干扰项:选项 B 忘了分母里的 2(稳定条件记成 $s \le 1$);选项 C 把 $\Delta x^2$ 误用成 $\Delta x$(量纲错:秒与米² 必须配平,$\alpha$ 的单位是 $\text{m}^2/\text{s}$);选项 D 是米/厘米单位混乱(0.02 m = 2 cm 误作 2 mm = 0.002 m)的典型翻车。另注意:空间步长减半,允许的 $\Delta t$ 缩小到 $1/4$——加密网格时必须同步收紧时间步长,否则反而发散。
 </details>
 
-**第 3 题(概念)**:简述 von Neumann 稳定性分析的三个步骤。
+**第 3 题** 二维热方程显式格式,取 $\alpha = 0.1$、$\Delta x = \Delta y = 0.1$。时间步长上限是多少?若退化为同参数的一维问题($\Delta x = 0.1$),上限又是多少?
 
-<details><summary>查看答案</summary>
+A. 二维 $\Delta t \le \dfrac{h^2}{4\alpha} = 0.025$;一维 $\Delta t \le \dfrac{h^2}{2\alpha} = 0.05$——二维上限恰好是一维的一半
+B. 二维 $\Delta t \le 0.05$;一维 $\Delta t \le 0.025$
+C. 二维与一维上限相同,都是 $0.05$
+D. 二维 $\Delta t \le 0.0025$;一维 $\Delta t \le 0.005$
 
-① 设数值解可分解为傅里叶模态 $u_i^n = g^n e^{ikx_i}$($k$ 任意波数);② 代入差分格式,消去公共因子,解出**增长因子** $g = g(k\Delta x, s)$;③ 要求对所有 $k$ 都有 $|g| \le 1$,由此解出对 $s$(或 $\Delta t$)的限制。对显式热方程:$g = 1 - 4s\sin^2(k\Delta x/2)$,最坏情形 $\sin^2 = 1$ 给出 $s \le 1/2$。
-
-</details>
-
-**第 4 题(计算)**:二维热方程,$\alpha = 0.1$,$\Delta x = \Delta y = 0.1$。显式格式的时间步长上限是多少?若只算一维(同 $\Delta x$),上限是多少?
-
-<details><summary>查看答案</summary>
-
-二维:$s = \alpha\Delta t(1/\Delta x^2 + 1/\Delta y^2) \le 1/2 \Rightarrow \Delta t \le \dfrac{h^2}{4\alpha} = \dfrac{0.01}{0.4} = 0.025$(时间单位与 $\alpha$ 一致)。
-
-一维:$\Delta t \le \dfrac{h^2}{2\alpha} = \dfrac{0.01}{0.2} = 0.05$,恰好是二维的两倍——维数越高,显式格式的时间步长限制越严,这是「维数灾难」在数值求解中的体现。
-
+<details><summary>查看答案与解析</summary>
+**答案:A**。二维稳定性条件为 $s = \alpha\Delta t(\frac{1}{\Delta x^2} + \frac{1}{\Delta y^2}) \le \frac{1}{2}$;$\Delta x = \Delta y = h$ 时 $\Delta t \le \frac{h^2}{4\alpha} = \frac{0.01}{0.4} = 0.025$。一维对应 $\Delta t \le \frac{h^2}{2\alpha} = \frac{0.01}{0.2} = 0.05$,恰好是二维的两倍——**维数越高,显式格式的时间步长限制越严**,这是「维数灾难」在数值求解中的体现。选项 B 把一维与二维对调;选项 C 忽略了第二维的贡献(误以为两个方向共享一个时间步);选项 D 是 $h^2 = 0.01$ 计算错位(把 $0.1^2$ 算成 0.001)。空间步长加密时该限制按平方收紧,显式格式对细网格成本暴涨,工程上此时通常转向隐式格式或直接解稳态方程。
 </details>
 
 ## 🏆 竞赛实战链接

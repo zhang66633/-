@@ -225,7 +225,6 @@ const currentMode = computed<SessionMode>(() => {
   if (route.path.startsWith("/solution")) return "solution";
   if (route.path.startsWith("/learn")) return "learning";
   if (route.path.startsWith("/practice")) return "practice";
-  if (route.path.startsWith("/qa")) return "qa";
   return "chat";
 });
 
@@ -234,7 +233,6 @@ const sessionListTitle = computed(() => {
     chat: "最近对话",
     solution: "最近方案",
     learning: "学习对话",
-    qa: "答疑记录",
     practice: "练习记录",
   };
   return titles[currentMode.value];
@@ -288,7 +286,6 @@ function isNavActive(path: string): boolean {
   // 精确匹配避免 /learn 匹配到 / 等
   if (path.startsWith("/learn")) return route.path.startsWith("/learn");
   if (path.startsWith("/practice")) return route.path.startsWith("/practice");
-  if (path.startsWith("/qa")) return route.path.startsWith("/qa");
   if (path.startsWith("/progress")) return route.path.startsWith("/progress");
   if (path.startsWith("/knowledge")) return route.path.startsWith("/knowledge");
   if (path.startsWith("/archive")) return route.path.startsWith("/archive");

@@ -243,53 +243,53 @@ x→∞ 极限: 0
 5. **`lambdify` 模块不匹配**。`lambdify(x, expr)` 默认模块的 `sin`/`cos` 不是 NumPy 实现,数组输入会报错;对数组计算一律 `lambdify(x, expr, "numpy")`
 6. **`sp.pi` 与 `np.pi` 混用**。符号表达式里写 `np.pi` 会把浮点近似值带进推导,`limit`/`integrate` 的化简识别不了 $\pi$;符号世界用 `sp.pi`、`sp.E`、`sp.oo`(无穷),数值化交给最后的 `evalf`
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:`sp.solve(sp.Eq(x**5 - x - 1, 0), x)` 会返回什么?想要数值根怎么办?
-
-<details><summary>查看答案</summary>
-
-$x^5 - x - 1 = 0$ 的根**没有根式解析解**(伽罗瓦理论:一般五次方程不可根式求解),`solve` 返回空列表或 RootOf 形式。数值根用 `sp.nsolve(sp.Eq(x**5 - x - 1, 0), x, 1)`(约 1.1673),或 `sp.nroots(x**5 - x - 1)` 一次求全部 5 个复根。
-
-</details>
-
-**第 2 题(计算)**:用 SymPy 求 $f(x) = \sin x \cdot e^x$ 的一阶导,并化简。
-
-<details><summary>查看答案</summary>
+**第 1 题**
 
 ```python
 import sympy as sp
 x = sp.symbols("x")
-df = sp.diff(sp.sin(x) * sp.exp(x), x)
-print(sp.simplify(df))   # (sin(x) + cos(x))*exp(x)
+print(sp.diff(sp.sin(x) * sp.exp(x), x))
 ```
 
-乘法法则:$\dfrac{d}{dx}(\sin x\, e^x) = (\sin x + \cos x) e^x$。手算一遍再对照输出,是练习符号工具的正确姿势。
+该一阶导数等于:
 
+A. $(\sin x + \cos x)\, e^x$
+B. $\sin x \cdot e^x$
+C. $\cos x \cdot e^x$
+D. $(\cos x - \sin x)\, e^x$
+
+<details><summary>查看答案与解析</summary>
+**答案:A**。乘法法则:$\dfrac{d}{dx}(\sin x \cdot e^x) = (\sin x + \cos x) e^x$。SymPy 实际输出的是未合并形式 `exp(x)*sin(x) + exp(x)*cos(x)`,与上式相等(可用 simplify 合并)。$\sin x \cdot e^x$ 是忘了求导;$\cos x \cdot e^x$ 只对 sin 求导、漏了 $e^x$ 部分的乘积项;$(\cos x - \sin x) e^x$ 是乘法法则符号记反。手算一遍再对照输出,是练习符号工具的正确姿势。
 </details>
 
-**第 3 题(计算)**:用 `lambdify` 把 $g(x) = x^2 + 1$ 转成数值函数并对 `[0, 1, 2]` 求值。
-
-<details><summary>查看答案</summary>
+**第 2 题**
 
 ```python
-import sympy as sp
-import numpy as np
-x = sp.symbols("x")
-g = sp.lambdify(x, x**2 + 1, "numpy")
-print(g(np.array([0, 1, 2])))   # [1 2 5]
+sp.solve(sp.Eq(x**5 - x - 1, 0), x)
 ```
 
-必须传 `"numpy"` 模块参数,否则对数组输入报 TypeError;`lambdify` 生成的函数是向量化的,可直接用于 `integrate.quad` 或 Matplotlib 画图。
+返回的不是数值解(而是空列表或 RootOf 形式),原因是:
 
+A. 方程没有实根,所以 solve 返回空
+B. 一般五次方程无根式解析解,solve 返回 RootOf/空;改用 nsolve(给初值)求数值根(约 1.1673)
+C. SymPy 的 bug,重新安装即可
+D. 变量声明错误导致的
+
+<details><summary>查看答案与解析</summary>
+**答案:B**。伽罗瓦理论:五次及以上多项式一般没有根式解析解,`solve` 无法给出初等函数形式,返回 RootOf 占位或空列表——这不是 SymPy 的 bug,也不代表无根。该方程有实根 x ≈ 1.1673:用 `sp.nsolve(eq, x, 1)`(牛顿法,需给初值)或 `sp.nroots(x**5 - x - 1)` 一次求全部复根。先画图确认根的大致位置再给初值,是数值求根的标准流程。
 </details>
 
-**第 4 题(概念)**:符号计算与数值计算各适合什么场景?建模竞赛里两者如何配合?
+**第 3 题** 想对 NumPy 数组调用 lambdify 生成的函数,以下哪段代码会抛 TypeError?
 
-<details><summary>查看答案</summary>
+A. sp.lambdify(x, sp.sin(x))(默认模块),再对 np.array([0.0, 1.0]) 调用
+B. 以上都不会报错
+C. sp.lambdify(x, sp.sin(x), "math"),再对 np.array([0.0, 1.0]) 调用
+D. sp.lambdify(x, sp.sin(x), "numpy"),再对 np.array([0.0, 1.0]) 调用
 
-**符号计算**:精确、可推导,适合模型建立阶段的求导/化简/解方程/验证手工推导,但速度慢、很多问题没有解析解。**数值计算**:近似、快,适合大规模求解、模拟、拟合。竞赛配合:①推导阶段用 SymPy 验证公式并自动生成导数/雅可比;②`lambdify` 把公式转成 NumPy 函数参与计算;③同一问题「解析解(若存在)与数值解互验」,偏差小说明两者都对——这也是论文严谨性的展示。
-
+<details><summary>查看答案与解析</summary>
+**答案:C**。显式指定 `modules="math"` 会把 sin 绑定到 math.sin,数组输入报 TypeError(only 0-dimensional arrays can be converted to Python scalars)。传 `"numpy"` 生成的是向量化函数,数组输入正常;新版 SymPy 默认(不传 modules)会自动选 numpy,也能处理数组——但为明确起见,对数组计算一律显式写 `lambdify(x, expr, "numpy")`,再交给 integrate.quad / Matplotlib 画图,避免「默认模块」随版本变化的坑。
 </details>
 
 ## 🏆 竞赛实战链接

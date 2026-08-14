@@ -48,7 +48,9 @@
         <div class="flex-1 min-w-0 min-h-0">
           <LearningDoc ref="docRef" :markdown="docMarkdown" :unit-id="unit.unit_id"
             :on-add-note="openNoteEditor" :on-ask-a-i="handleAskAI"
-            @headings-change="headings = $event" @scroll-section="activeHeading = $event" />
+            @headings-change="headings = $event" @scroll-section="activeHeading = $event">
+            <UnitQuizBlock :unit-id="unit.unit_id" />
+          </LearningDoc>
         </div>
 
         <!-- 拖拽分隔条 -->
@@ -114,6 +116,7 @@ import ChatArea from "@/components/ChatArea.vue";
 import LearningDoc from "@/components/LearningDoc.vue";
 import NotePanel from "@/components/NotePanel.vue";
 import type { NoteItem } from "@/components/NotePanel.vue";
+import UnitQuizBlock from "@/components/UnitQuizBlock.vue";
 import { useStreamChat } from "@/composables/useStreamChat";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { useLearningStore } from "@/stores/learning";

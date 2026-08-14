@@ -200,52 +200,56 @@ print(f"第 11、12 天预测: {pred.round(0)}")
 5. **非线性拟合初值乱给**。初值离真值太远会发散或收敛到局部极值;先画图目测量级,再给 `p0`
 6. **输出不设精度**。默认 `print` 浮点数可能吐出一长串小数,论文表格和截图里用 f-string 的 `:.3f` 控制位数,避免「伪精度」
 
-## ✏️ 自测练习
+## ✏️ 自测练习(选择题)
 
-**第 1 题(判断)**:`np.array([1,2,3]) ** 2` 的结果是什么?它与 `np.dot` 语义有何区别?
+**第 1 题** 建模竞赛中,拿到题目附件的 `.csv` 数据后,需要完成「读取 → 清洗 → 分组聚合」,应优先使用 Python 科学计算四件套中的哪个库?
 
-<details><summary>查看答案</summary>
+A. Pandas —— 专攻表格数据的读取、清洗、聚合
+B. NumPy —— 多维数组与向量化运算的地基
+C. SciPy —— 数值算法工具箱
+D. Matplotlib —— 数据可视化
 
-结果是 `[1, 4, 9]`,即逐元素平方。`**`、`*`、`/` 都是逐元素运算;只有 `@`、`np.dot`、`np.matmul` 才是矩阵乘法语义。对向量而言 `a @ a` 是内积(标量 14),`a * a` 是逐元素积(向量 `[1,4,9]`)。
-
+<details><summary>查看答案与解析</summary>
+**答案:A**。四件套分工:Pandas 洗(表格数据)、NumPy 算(数值计算)、SciPy 解(数值算法)、Matplotlib 画(可视化)。建模题的典型链路是「Pandas 读入并清洗 → NumPy 数值计算 → SciPy 求解 → Matplotlib 出图」。选 NumPy 是最常见的混淆——它是数值计算的地基,但读取 csv、按列分组聚合这类结构化表格操作是 Pandas 的职责。
 </details>
 
-**第 2 题(补全)**:用一行代码生成从 0 到 10 的 101 个等间隔点。
-
-<details><summary>查看答案</summary>
+**第 2 题** 下面代码的输出是什么?
 
 ```python
 import numpy as np
-np.linspace(0, 10, 101)
+a = np.array([1, 2, 3])
+b = np.array([1, 2, 3])
+print(a * b)
+print(a @ b)
 ```
 
-`np.linspace(start, stop, num)` 包含两端点共 101 个点,步长 0.1。注意与 `np.arange(0, 10.1, 0.1)` 的区别:`arange` 用浮点步长累加会产生累积误差,等间隔采样一律优先 `linspace`。
+A. [2 4 6] 和 14
+B. [1 2 3 1 2 3] 和 14
+C. [1 4 9] 和 [1 4 9]
+D. [1 4 9] 和 14
 
+<details><summary>查看答案与解析</summary>
+**答案:D**。ndarray 之间的 `*` 是逐元素乘(Hadamard 积):[1,2,3]*[1,2,3] = [1,4,9];`@`(或 np.dot / np.matmul)才是矩阵乘法,对一维向量即内积:1+4+9 = 14。[2 4 6] 是把 `*` 当成了逐元素加;[1 2 3 1 2 3] 是 Python list 的拼接语义;[1 4 9] 和 [1 4 9] 是以为 `@` 也做逐元素运算。形状不匹配时 `*` 还会触发广播「悄悄错了形状」,这是高频坑。
 </details>
 
-**第 3 题(计算)**:用 `scipy.integrate.quad` 验证正态分布密度在全实轴上的积分等于 1(取 $\mu=1,\ \sigma=2$)。
-
-<details><summary>查看答案</summary>
+**第 3 题**
 
 ```python
 import numpy as np
-from scipy import integrate, stats
-
-mu, sigma = 1.0, 2.0
-val, err = integrate.quad(lambda x: stats.norm.pdf(x, mu, sigma), -np.inf, np.inf)
-print(val, err)   # 0.9999999999999999 与约 4e-9 的误差
+rng = np.random.default_rng(2024)
+scores = rng.normal(75, 12, 500)
+print(f"{(scores >= 60).mean():.2f}")
 ```
 
-`quad` 支持无穷上下限,内部会做变量替换。这个恒等式也是检验自己推导的密度函数是否写错的快捷手段。
+输出最接近:
 
-</details>
+A. 0.750
+B. 0.892
+C. 0.500
+D. 报错:布尔数组不能求均值
 
-**第 4 题(概念)**:为什么 NumPy 的向量化运算比 Python 的 for 循环快?
-
-<details><summary>查看答案</summary>
-
-两个原因:①NumPy 底层用编译型 C/Fortran 代码执行运算,而 Python 循环的每次迭代都要经过解释器开销(类型检查、边界检查、动态分派);②ndarray 内存连续,CPU 缓存命中率高,还能利用 SIMD 指令同时处理多个数据。数据量越大差距越明显(可达几十到几百倍)。注意 `np.vectorize` 只是语法糖,并不带来真正的速度提升——真正的向量化是让运算本身发生在 NumPy 内部(详见《代码性能优化》单元)。
-
+<details><summary>查看答案与解析</summary>
+**答案:B**。`scores >= 60` 得到布尔数组,True 按 1 参与求均值,结果就是及格比例——这是 NumPy 的经典技巧,相当于统计里 P(X ≥ 60)。均值 75、标准差 12 的正态分布,及格率 = Φ(1.25) ≈ 0.894,实跑(seed=2024)得到 0.892。0.750 是把均值 75 误当成了比例;0.500 是拿期望当比例;布尔数组完全支持求均值,不会报错。
 </details>
 
 ## 🏆 竞赛实战链接
