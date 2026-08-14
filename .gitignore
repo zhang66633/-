@@ -11,14 +11,7 @@ __pycache__/
 .pytest_cache/
 
 # 向量库 / 本地运行时数据（含密钥与测试会话，不入库）
-backend/data/apikeys.json
-backend/data/sessions.json
-backend/data/chroma_db/
-backend/data/uploads/
-backend/data/sessions/
-backend/data/task_files/
-backend/data/problems/
-backend/data/temp_2023C/
+backend/data/
 
 # 测试生成的论文输出
 backend/scripts/testset/output_2023C.md
