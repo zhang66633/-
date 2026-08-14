@@ -65,3 +65,7 @@ _plugins/
 # 一次性调试脚本 / 错误转储
 backend/_err.txt
 backend/_start.bat
+
+# pnpm store 残留
+.pnpm-store/
+
