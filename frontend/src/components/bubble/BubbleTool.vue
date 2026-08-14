@@ -43,7 +43,14 @@ const timestamp = computed(() => {
     </div>
     <div class="flex-1 min-w-0">
       <div class="flex flex-col items-start">
-        <component :is="rendererComponent" :input="toolInput" :output="toolOutput" :status="toolStatus" />
+        <component
+          :is="rendererComponent"
+          :input="toolInput"
+          :output="toolOutput"
+          :status="toolStatus"
+          :duration-ms="tool.duration_ms"
+          :error-text="typeof tool.error === 'string' ? tool.error : undefined"
+        />
         <span v-if="timestamp" class="font-mono text-[10px] text-muted-foreground/50 mt-0.5">{{ timestamp }}</span>
       </div>
     </div>

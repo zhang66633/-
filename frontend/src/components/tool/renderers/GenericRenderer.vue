@@ -13,6 +13,8 @@ const props = defineProps<{
   input: Record<string, unknown> | null;
   output: unknown[] | null;
   status?: ToolStatus;
+  durationMs?: number;
+  errorText?: string;
 }>();
 
 const outputOpen = ref(false);
@@ -65,7 +67,7 @@ const toolImages = computed<string[]>(() => {
           <Wrench class="h-3 w-3" />
           <span>工具调用</span>
         </div>
-        <ToolStatusBadge :status="status" />
+        <ToolStatusBadge :status="status" :duration-ms="durationMs" :error-text="errorText" />
       </div>
 
       <div

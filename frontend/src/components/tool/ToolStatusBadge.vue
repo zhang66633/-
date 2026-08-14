@@ -2,23 +2,33 @@
 import type { ToolStatus } from "@/types/response";
 import { CheckCircle2, Loader2, XCircle } from "lucide-vue-next";
 /**
- * 工具状态指示器 — 紧凑的状态徽章
+ * 工具状态指示器 — 紧凑的状态徽章（协议 v2：支持耗时与错误提示）
  *
  * 三种状态：
  *   running → 旋转 Loader2 + "执行中"（amber）
- *   success → CheckCircle2 + "完成"（emerald）
- *   error   → XCircle + "失败"（rose）
+ *   success → CheckCircle2 + "完成 · X.Xs"（emerald，durationMs 可选）
+ *   error   → XCircle + "失败"（rose，errorText 作为 tooltip）
  */
 import { computed } from "vue";
 
 const props = withDefaults(
   defineProps<{
     status?: ToolStatus;
+    durationMs?: number;
+    errorText?: string;
   }>(),
   {
     status: undefined,
+    durationMs: undefined,
+    errorText: undefined,
   },
 );
+
+const durationLabel = computed(() => {
+  if (props.durationMs === undefined || props.durationMs === null) return "";
+  if (props.durationMs < 1000) return `${props.durationMs}ms`;
+  return `${(props.durationMs / 1000).toFixed(1)}s`;
+});
 
 const config = computed(() => {
   switch (props.status) {
@@ -33,7 +43,7 @@ const config = computed(() => {
     case "success":
       return {
         icon: CheckCircle2,
-        label: "完成",
+        label: durationLabel.value ? `完成 · ${durationLabel.value}` : "完成",
         iconClass: "",
         badgeClass:
           "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800",
@@ -57,6 +67,7 @@ const config = computed(() => {
     v-if="config"
     class="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider shrink-0"
     :class="config.badgeClass"
+    :title="status === 'error' && errorText ? errorText : undefined"
   >
     <component :is="config.icon" class="h-2.5 w-2.5" :class="config.iconClass" />
     <span>{{ config.label }}</span>

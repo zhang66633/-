@@ -27,6 +27,10 @@ export interface ToolMessage extends BaseMessage {
   status?: ToolStatus;
   /** 错误信息（status === "error" 时） */
   error?: string;
+  /** 执行耗时（毫秒，事件协议 v2 tool_result.duration_ms） */
+  duration_ms?: number;
+  /** 后端 ok 标志（事件协议 v2 tool_result.ok） */
+  ok?: boolean;
 }
 
 /** 系统通知消息 */
@@ -47,6 +51,8 @@ export interface AgentMessage extends BaseMessage {
   agent_type?: AgentType;
   /** 思考过程 / 推理链内容（SSE thinking 事件累积） */
   thinking?: string;
+  /** 出错标志（onError 置位，供「重试」按钮使用） */
+  error?: boolean;
 }
 
 /** 澄清问题选项 */

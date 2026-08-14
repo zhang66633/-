@@ -14,6 +14,8 @@ const props = defineProps<{
   input: Record<string, unknown> | null;
   output: unknown[] | null;
   status?: ToolStatus;
+  durationMs?: number;
+  errorText?: string;
 }>();
 
 const code = computed(() => {
@@ -96,7 +98,7 @@ const isRunning = computed(() => props.status === "running");
           <Code2 class="h-3 w-3" />
           <span>代码执行</span>
         </div>
-        <ToolStatusBadge :status="status" />
+        <ToolStatusBadge :status="status" :duration-ms="durationMs" :error-text="errorText" />
       </div>
 
       <!-- 运行中骨架 -->

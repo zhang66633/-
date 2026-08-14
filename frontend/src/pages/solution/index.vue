@@ -230,6 +230,21 @@ const stepDefs: ProgressStep[] = [
   { id: "7", label: "论文写作", description: "生成结构化论文", status: "wait" },
 ];
 
+// 写作阶段的动态描述：并行生成章节 + 完成计数（node_progress 事件驱动）
+const writingDescription = computed(() => {
+  if (taskStore.writingStage === "outline")
+    return "先写大纲，随后并行生成各章节…";
+  if (taskStore.sectionsDone > 0)
+    return `并行生成论文章节：已完成 ${taskStore.sectionsDone} 章`;
+  if (
+    taskStore.writingStage === "abstract" ||
+    taskStore.writingStage === "red_team" ||
+    taskStore.writingStage === "revise"
+  )
+    return "正文完成，正在提炼摘要与红队审校";
+  return "并行生成论文章节…";
+});
+
 const agentSteps = computed<ProgressStep[]>(() => {
   const current = taskStore.currentStep;
   if (taskStore.completed) {
@@ -268,6 +283,8 @@ const agentSteps = computed<ProgressStep[]>(() => {
   }
   return stepDefs.map((s, i) => ({
     ...s,
+    // 写作步骤展示并行生成动态描述
+    description: s.id === "7" ? writingDescription.value : s.description,
     status:
       activeIdx === -1
         ? "wait"

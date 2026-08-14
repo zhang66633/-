@@ -17,10 +17,8 @@ const chatSession = useChatSessionStore();
 const hubChatPanel = ref<InstanceType<typeof ChatPanel>>();
 // 聊天面板开合(组件实例暴露的 open 是响应式的),收起时显示空白区水印
 const hubChatOpen = computed(() => hubChatPanel.value?.open ?? false);
-const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
-  "learning",
-  "learning",
-);
+const { handleUserSend, restoreLatestSession, cancelStream, retryLast } =
+  useStreamChat("learning", "learning");
 
 const roleLabel = computed(() => {
   const labels: Record<AgentRole, string> = {
@@ -143,6 +141,7 @@ const hubQuickActions = [
             cancellable
             @send="handleSend"
             @cancel="cancelStream"
+            @retry="retryLast"
             @clear="chatSession.clearSession('learning')"
             @new-session="chatSession.newSession('learning')"
           />

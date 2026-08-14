@@ -20,6 +20,9 @@ export const useTaskStore = defineStore("task", () => {
   const isRunning = ref(false);
   const completed = ref(false);
   const currentStep = ref<string>("");
+  // 写作阶段并行生成状态（node_progress 事件驱动：outline → section×N → abstract → red_team → revise）
+  const writingStage = ref<string | null>(null);
+  const sectionsDone = ref(0);
 
   const messages = computed<Message[]>(() => {
     if (!currentTaskId.value) return [];
@@ -47,6 +50,15 @@ export const useTaskStore = defineStore("task", () => {
 
   function handleProgressEvent(taskId: string, data: Record<string, any>) {
     const event = data?.event;
+
+    // 写作阶段细粒度进度（并行生成章节提示）
+    if (event === "node_progress") {
+      const stage: string | undefined = data.data?.stage;
+      if (stage) writingStage.value = stage;
+      if (stage === "outline") sectionsDone.value = 0;
+      if (stage === "section") sectionsDone.value += 1;
+      return;
+    }
 
     // 工具调用：求解阶段代码执行（代码/stdout/图表），渲染为 tool 消息卡片
     if (event === "tool_call") {
@@ -218,6 +230,8 @@ export const useTaskStore = defineStore("task", () => {
     isRunning,
     completed,
     currentStep,
+    writingStage,
+    sectionsDone,
     currentTaskId,
     connectWebSocket,
     closeWebSocket,

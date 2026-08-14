@@ -58,10 +58,18 @@ export function useStreamChat(
       }));
   }
 
+  // 最近一次发送的载荷（供「重试」幂等复用：不追加用户气泡，只重跑流）
+  let lastPayload: {
+    text: string;
+    files?: ChatFileRef[];
+    unitContext?: Record<string, unknown>;
+  } | null = null;
+
   async function handleUserSend(
     text: string,
     files?: ChatFileRef[],
     unitContext?: Record<string, unknown>,
+    retryAgentId?: string,
   ) {
     let sessionId = chatSession.getActiveId(sessionMode).value;
     if (!sessionId) {
@@ -72,19 +80,30 @@ export function useStreamChat(
     const controller = new AbortController();
     abortControllers.set(controllerKey(sessionId), controller);
 
-    const userMsg: Message = {
-      id: generateId(),
-      msg_type: "user",
-      content: text,
-      created_at: new Date().toISOString(),
-    };
-    chatSession.addMessage(sessionMode, sessionId, userMsg);
+    // 重试时复用同一 agent 气泡（先重置为空 + 流式态），不追加用户消息
+    if (!retryAgentId) {
+      const userMsg: Message = {
+        id: generateId(),
+        msg_type: "user",
+        content: text,
+        created_at: new Date().toISOString(),
+      };
+      chatSession.addMessage(sessionMode, sessionId, userMsg);
+    } else {
+      chatSession.updateMessage(sessionMode, sessionId, retryAgentId, {
+        content: "",
+        streaming: true,
+        error: false,
+        thinking: "",
+      });
+    }
+    lastPayload = { text, files, unitContext };
 
     chatSession.setRunning(sessionMode);
 
     // agent 消息延迟到第一个 text delta 时再创建，
     // 确保工具调用气泡排在最终回答之前
-    let agentMsgId: string | null = null;
+    let agentMsgId: string | null = retryAgentId ?? null;
     let acc = "";
     let thinkingAcc = "";
 
@@ -135,7 +154,7 @@ export function useStreamChat(
         chatSession.addMessage(sessionMode, sessionId, toolMsg);
       },
       onToolResult(event) {
-        // 找到最近一条同名 tool 消息，更新其 output 与 status
+        // 找到最近一条同名 tool 消息，更新其 output 与 status（协议 v2：ok/耗时/错误）
         const msgs = chatSession.getActiveMessages(sessionMode).value;
         for (let i = msgs.length - 1; i >= 0; i--) {
           const m = msgs[i];
@@ -146,7 +165,9 @@ export function useStreamChat(
           ) {
             chatSession.updateMessage(sessionMode, sessionId, m.id, {
               output: [{ name: event.name, preview: event.preview }],
-              status: "success",
+              status: event.ok ? "success" : "error",
+              error: event.ok ? undefined : event.error,
+              duration_ms: event.duration_ms,
             });
             break;
           }
@@ -189,7 +210,9 @@ export function useStreamChat(
                     images: event.images ?? [],
                   },
                 ],
-                status: "success",
+                status: event.ok === false ? "error" : "success",
+                error: event.ok === false ? event.error : undefined,
+                duration_ms: event.duration_ms,
               });
             }
             break;
@@ -224,16 +247,42 @@ export function useStreamChat(
           chatSession.updateMessage(sessionMode, sessionId, id, {
             content: acc || "（已取消）",
             streaming: false,
+            error: false,
           });
         } else {
           chatSession.updateMessage(sessionMode, sessionId, id, {
             content: `出错了：${message}`,
             streaming: false,
+            error: true, // 供「重试」按钮识别
           });
         }
         chatSession.setRunning(null);
       },
     });
+  }
+
+  /** 重试最近一次失败的回答：复用同一 agent 气泡，不追加用户消息（幂等）。 */
+  async function retryLast() {
+    if (!lastPayload) return;
+    const sessionId = chatSession.getActiveId(sessionMode).value;
+    if (!sessionId) return;
+    // 找最后一条带 error 标记的 agent 消息，复用其气泡
+    const msgs = chatSession.getActiveMessages(sessionMode).value;
+    let failedId: string | null = null;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.msg_type === "agent" && (m as any).error === true) {
+        failedId = m.id;
+        break;
+      }
+    }
+    if (!failedId) return;
+    await handleUserSend(
+      lastPayload.text,
+      lastPayload.files,
+      lastPayload.unitContext,
+      failedId,
+    );
   }
 
   /** 无激活会话时，切到最近一条会话（供 onMounted 调用）。 */
@@ -249,5 +298,5 @@ export function useStreamChat(
     }
   }
 
-  return { handleUserSend, restoreLatestSession, cancelStream };
+  return { handleUserSend, restoreLatestSession, cancelStream, retryLast };
 }

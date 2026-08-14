@@ -6,7 +6,7 @@ import { useTypewriter } from "@/composables/useTypewriter";
 import { AgentType } from "@/types/enum";
 import type { AgentMessage, Message } from "@/types/response";
 import { renderMarkdown } from "@/utils/markdown";
-import { BookOpen, Clipboard, Printer } from "lucide-vue-next";
+import { BookOpen, Clipboard, Printer, RotateCcw } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import BubbleAvatar from "./BubbleAvatar.vue";
 
@@ -20,6 +20,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   openPaper: [];
+  retry: [];
 }>();
 
 const content = computed(() => props.message.content ?? "");
@@ -141,6 +142,21 @@ const timestamp = computed(() => {
             <span class="h-1.5 w-1.5 rounded-full bg-current animate-bounce" style="animation-delay: 0ms" />
             <span class="h-1.5 w-1.5 rounded-full bg-current animate-bounce" style="animation-delay: 150ms" />
             <span class="h-1.5 w-1.5 rounded-full bg-current animate-bounce" style="animation-delay: 300ms" />
+          </div>
+
+          <!-- 出错重试（onError 置位；只出现在最后一条） -->
+          <div
+            v-if="(message as AgentMessage).error && isLast"
+            class="mt-2 flex items-center gap-2 border-t border-border pt-2"
+          >
+            <button
+              class="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-accent hover:text-foreground transition-colors"
+              @click="emit('retry')"
+            >
+              <RotateCcw class="h-3 w-3" />
+              <span>重试</span>
+            </button>
+            <span class="text-[10px] text-muted-foreground">重新生成（不会重复发送问题）</span>
           </div>
 
           <!-- 论文操作 -->

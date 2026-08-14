@@ -26,6 +26,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   openPaper: [];
+  retry: [];
 }>();
 
 const component = computed(() => {
@@ -47,5 +48,5 @@ const component = computed(() => {
 </script>
 
 <template>
-  <component :is="component" :message="message" :is-last="isLast" @open-paper="emit('openPaper')" />
+  <component :is="component" :message="message" :is-last="isLast" @open-paper="emit('openPaper')" @retry="emit('retry')" />
 </template>

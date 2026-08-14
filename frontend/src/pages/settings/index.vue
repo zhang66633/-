@@ -46,6 +46,26 @@
           </Button>
         </div>
 
+        <!-- 沙箱执行模式 -->
+        <div class="rounded-lg border p-5">
+          <h2 class="font-medium mb-1">代码执行沙箱</h2>
+          <p class="text-xs text-muted-foreground mb-3">当前执行 Python 代码的隔离模式</p>
+          <div v-if="sandbox" class="flex items-center gap-2">
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
+              :class="sandbox.backend === 'docker'
+                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+                : 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'"
+              :title="sandbox.note"
+            >
+              <Box class="h-3.5 w-3.5" />
+              {{ sandbox.backend === "docker" ? "Docker 硬隔离" : "subprocess 回退" }}
+            </span>
+            <span class="text-xs text-muted-foreground">{{ sandbox.note }}</span>
+          </div>
+          <p v-else class="text-xs text-muted-foreground">无法获取沙箱状态（后端未启动？）</p>
+        </div>
+
         <!-- 关于 -->
         <div class="rounded-lg border p-5">
           <h2 class="font-medium mb-1">关于</h2>
@@ -58,11 +78,23 @@
 </template>
 
 <script setup lang="ts">
+import { type SandboxStatus, getSandboxStatus } from "@/apis/sandboxApi";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/composables/useTheme";
-import { ArrowLeft, Key, Moon, Sun } from "lucide-vue-next";
+import { ArrowLeft, Box, Key, Moon, Sun } from "lucide-vue-next";
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
 const { isDark, setTheme } = useTheme();
+
+const sandbox = ref<SandboxStatus | null>(null);
+
+onMounted(async () => {
+  try {
+    sandbox.value = await getSandboxStatus();
+  } catch {
+    sandbox.value = null; // 后端不可用则隐藏，不打扰
+  }
+});
 </script>

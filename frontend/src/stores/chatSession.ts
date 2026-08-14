@@ -285,6 +285,8 @@ export const useChatSessionStore = defineStore(
         status?: ToolStatus;
         output?: unknown[];
         answered?: boolean;
+        error?: boolean | string;
+        duration_ms?: number;
       },
     ) {
       const list = getSessions(mode).value;
@@ -297,6 +299,9 @@ export const useChatSessionStore = defineStore(
       if (patch.thinking !== undefined) (msg as any).thinking = patch.thinking;
       if (patch.status !== undefined) (msg as any).status = patch.status;
       if (patch.output !== undefined) (msg as any).output = patch.output;
+      if (patch.error !== undefined) (msg as any).error = patch.error;
+      if (patch.duration_ms !== undefined)
+        (msg as any).duration_ms = patch.duration_ms;
       if (patch.answered !== undefined && "answered" in msg)
         (msg as any).answered = patch.answered;
       session.updatedAt = now();

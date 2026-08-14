@@ -11,6 +11,7 @@
         input-placeholder="输入消息..."
         @send="handleUserSend"
         @cancel="cancelStream"
+        @retry="retryLast"
         @clear="chatSession.clearSession('chat')"
         @new-session="chatSession.newSession('chat')"
       />
@@ -25,10 +26,8 @@ import { useChatSessionStore } from "@/stores/chatSession";
 import { onMounted } from "vue";
 
 const chatSession = useChatSessionStore();
-const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
-  "chat",
-  "chat",
-);
+const { handleUserSend, restoreLatestSession, cancelStream, retryLast } =
+  useStreamChat("chat", "chat");
 
 onMounted(restoreLatestSession);
 </script>

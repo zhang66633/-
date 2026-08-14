@@ -63,6 +63,7 @@
             :message="messages[item.index]"
             :is-last="item.index === messages.length - 1"
             @open-paper="$emit('openPaper')"
+            @retry="$emit('retry')"
           />
         </div>
       </div>
@@ -145,6 +146,7 @@ const emit = defineEmits<{
   clear: [];
   "new-session": [];
   openPaper: [];
+  retry: [];
 }>();
 
 // 提供给 ClarifyCard 注入的发送函数，让用户选择后可以直接发送消息

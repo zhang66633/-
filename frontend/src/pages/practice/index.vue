@@ -361,6 +361,7 @@
       cancellable
       @send="handleSend"
       @cancel="cancelStream"
+      @retry="retryLast"
       @clear="chatSession.clearSession('practice')"
       @new-session="chatSession.newSession('practice')"
     />
@@ -403,7 +404,10 @@ const store = usePracticeStore();
 const chatSession = useChatSessionStore();
 const chatPanel = ref<InstanceType<typeof ChatPanel>>();
 // 会话存 practice 模式,后端请求走 learning 模式(含出题/教学提示词,合法 mode)
-const { handleUserSend, cancelStream } = useStreamChat("practice", "learning");
+const { handleUserSend, cancelStream, retryLast } = useStreamChat(
+  "practice",
+  "learning",
+);
 
 const tabs = [
   { label: "题库", value: "bank" },

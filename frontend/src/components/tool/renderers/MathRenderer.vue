@@ -13,6 +13,8 @@ const props = defineProps<{
   input: Record<string, unknown> | null;
   output: unknown[] | null;
   status?: ToolStatus;
+  durationMs?: number;
+  errorText?: string;
 }>();
 
 const expression = computed(() => {
@@ -47,7 +49,7 @@ const isEmpty = computed(() => !resultText.value);
           <Sigma class="h-3 w-3" />
           <span>数学计算</span>
         </div>
-        <ToolStatusBadge :status="status" />
+        <ToolStatusBadge :status="status" :duration-ms="durationMs" :error-text="errorText" />
       </div>
 
       <!-- 输入表达式 -->

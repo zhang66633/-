@@ -13,6 +13,8 @@ const props = defineProps<{
   input: Record<string, unknown> | null;
   output: unknown[] | null;
   status?: ToolStatus;
+  durationMs?: number;
+  errorText?: string;
 }>();
 
 /** 从 output 中提取文本预览 */
@@ -106,7 +108,7 @@ const isRunning = computed(() => props.status === "running");
           <Search class="h-3 w-3" />
           <span>搜索结果</span>
         </div>
-        <ToolStatusBadge :status="status" />
+        <ToolStatusBadge :status="status" :duration-ms="durationMs" :error-text="errorText" />
       </div>
 
       <!-- 运行中 -->

@@ -78,7 +78,7 @@
           :input-placeholder="`向${agentName}提问...`"
           :prefill-text="prefillText"
           :session-title="chatSession.activeLearningSession?.title"
-          cancellable @send="handleSend" @cancel="cancelStream"
+          cancellable @send="handleSend" @cancel="cancelStream" @retry="retryLast"
           @clear="chatSession.clearSession('learning')"
           @new-session="chatSession.newSession('learning')" />
       </ChatPanel>
@@ -107,10 +107,8 @@ import { useRoute } from "vue-router";
 const route = useRoute();
 const store = useLearningStore();
 const chatSession = useChatSessionStore();
-const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
-  "learning",
-  "learning",
-);
+const { handleUserSend, restoreLatestSession, cancelStream, retryLast } =
+  useStreamChat("learning", "learning");
 
 const docRef = ref<InstanceType<typeof LearningDoc>>();
 const chatPanel = ref<InstanceType<typeof ChatPanel>>();
