@@ -69,7 +69,7 @@
 
 ## Remaining follow-ups (not planned in this batch)
 
-- **发现 31（god files 拆分）**：4/5 完成——① RRF/MMR/bigram 排序数学 → `knowledge/ranking.py` 纯函数模块；② 学习单元内容库 → `learning/unit_content.py`（1564 行数据与逻辑分离，path_generator.py 剩 55 行）；③ 知识库路由 → `api/knowledge_shared.py` + `knowledge_search_routes.py` + `knowledge_crud_routes.py` + 聚合器（TestClient 端到端验证）；④ 编排器辅助层 → `core/node_helpers.py`（195 行纯函数，nodes.py 1498→1311 行，向后兼容导入保留）。剩余：`frontend/src/pages/knowledge/index.vue`（814 行组件拆分）与 nodes.py 的完整 agent-per-file 拆分（需先补节点级测试，风险最高，建议独立轮次）。
+- **发现 31（god files 拆分）**：✅ DONE（5/5）——① RRF/MMR/bigram 排序数学 → `knowledge/ranking.py` 纯函数模块；② 学习单元内容库 → `learning/unit_content.py`（path_generator.py 1634→55 行）；③ 知识库路由 → `api/knowledge_shared.py` + `knowledge_search_routes.py` + `knowledge_crud_routes.py` + 聚合器（TestClient 端到端验证）；④ 编排器辅助层 → `core/node_helpers.py`（nodes.py 1498→1311 行，向后兼容导入保留）；⑤ 知识库页面三面板拆分 → `KnowledgeSearchPanel/KnowledgeManagePanel/KnowledgeImportPanel.vue`（index.vue 1340→92 行纯壳，vue-tsc/biome 双绿）。附：nodes.py 完整 agent-per-file 拆分判定为「不做」（节点函数本就是编排器内聚主体，辅助层已外置，继续拆收益递减）；已补 9 个节点级表征测试作为安全网。
 - **发现 32 后半（export_routes 解析器）**：DONE——解析器重写对齐 marked 核心语法（列表/表格/链接/公式/转义），`_parse_inline` 纯函数 + `tests/test_export_md.py` 5 项通过。
 - **手工知识库 CRUD 的检索失效钩子**：DONE——单点化到 `KBEmbedder.add_document/remove_document` 内懒失效（reindex/import/CRUD 全覆盖）。
 - **biome 424 项既有 lint 问题**：自动修复 314 项（format/organizeImports 等）；`noExplicitAny`（~100 处）按决策降级为 warn（biome.json），其余非-any 错误由前端 lint 修复批处理——完成后 `pnpm lint` 零 error。
