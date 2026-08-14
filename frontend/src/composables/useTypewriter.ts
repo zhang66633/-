@@ -1,4 +1,4 @@
-import { ref, watch, onUnmounted, type Ref } from "vue";
+import { type Ref, onUnmounted, ref, watch } from "vue";
 
 /**
  * 打字机效果 composable — 逐字显示文本
@@ -8,8 +8,8 @@ import { ref, watch, onUnmounted, type Ref } from "vue";
  */
 export function useTypewriter(
   text: Ref<string>,
-  speed: number = 15,
-  enabled: Ref<boolean> = ref(true)
+  speed = 15,
+  enabled: Ref<boolean> = ref(true),
 ) {
   const displayText = ref("");
   const isTyping = ref(false);

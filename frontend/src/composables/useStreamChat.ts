@@ -1,19 +1,26 @@
+import {
+  type ChatFileRef,
+  type ChatHistoryMessage,
+  streamChat,
+} from "@/apis/chatApi";
+import { type SessionMode, useChatSessionStore } from "@/stores/chatSession";
+import type { Message } from "@/types/response";
 /** 流式对话组合式函数 — 对话/学习/答疑/练习页共用。
  *
  * 负责：会话创建/复用、用户消息与 agent 占位消息写入、
  * 调 SSE 接口并流式就地累加、工具调用可视化、运行态管理、最新会话恢复、
  * 按会话记录 AbortController，卸载/失活时中止进行中的流。
  */
-import { onUnmounted, onDeactivated } from "vue";
-import { useChatSessionStore, type SessionMode } from "@/stores/chatSession";
-import { streamChat, type ChatHistoryMessage, type ChatFileRef } from "@/apis/chatApi";
-import type { Message } from "@/types/response";
+import { onDeactivated, onUnmounted } from "vue";
 
 function generateId() {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "learning" | "qa" | "practice") {
+export function useStreamChat(
+  sessionMode: SessionMode,
+  chatMode: "chat" | "learning" | "qa" | "practice",
+) {
   const chatSession = useChatSessionStore();
   // 每次发送独立 AbortController，按 (mode, sessionId) 键控，避免并发会话互串
   const abortControllers = new Map<string, AbortController>();
@@ -42,14 +49,20 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
   function buildHistory(): ChatHistoryMessage[] {
     return chatSession
       .getActiveMessages(sessionMode)
-      .value.filter((m) => (m.msg_type === "user" || m.msg_type === "agent") && m.content)
+      .value.filter(
+        (m) => (m.msg_type === "user" || m.msg_type === "agent") && m.content,
+      )
       .map((m) => ({
         role: m.msg_type === "user" ? "user" : "assistant",
         content: m.content as string,
       }));
   }
 
-  async function handleUserSend(text: string, files?: ChatFileRef[], unitContext?: Record<string, unknown>) {
+  async function handleUserSend(
+    text: string,
+    files?: ChatFileRef[],
+    unitContext?: Record<string, unknown>,
+  ) {
     let sessionId = chatSession.getActiveId(sessionMode).value;
     if (!sessionId) {
       sessionId = chatSession.createSession(sessionMode);
@@ -78,14 +91,16 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
     function ensureAgentMsg(): string {
       if (!agentMsgId) {
         agentMsgId = generateId();
-      // sessionId is guaranteed to be non-null after createSession above
-      chatSession.addMessage(sessionMode, sessionId!, {
-          id: agentMsgId,
-          msg_type: "agent",
-          content: "",
-          streaming: true,
-          created_at: new Date().toISOString(),
-        });
+        // sessionId is guaranteed to be non-null after createSession above
+        if (sessionId) {
+          chatSession.addMessage(sessionMode, sessionId, {
+            id: agentMsgId,
+            msg_type: "agent",
+            content: "",
+            streaming: true,
+            created_at: new Date().toISOString(),
+          });
+        }
       }
       return agentMsgId;
     }
@@ -124,7 +139,11 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
         const msgs = chatSession.getActiveMessages(sessionMode).value;
         for (let i = msgs.length - 1; i >= 0; i--) {
           const m = msgs[i];
-          if (m.msg_type === "tool" && (m as any).tool_name === event.name && !(m as any).output) {
+          if (
+            m.msg_type === "tool" &&
+            (m as any).tool_name === event.name &&
+            !(m as any).output
+          ) {
             chatSession.updateMessage(sessionMode, sessionId, m.id, {
               output: [{ name: event.name, preview: event.preview }],
               status: "success",
@@ -160,13 +179,16 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
             } else if (event.status === "done") {
               const parts = [];
               if (event.stdout) parts.push(`输出:\n${event.stdout}`);
-              if (event.images?.length) parts.push(`图表: ${event.images.length} 张`);
+              if (event.images?.length)
+                parts.push(`图表: ${event.images.length} 张`);
               chatSession.updateMessage(sessionMode, sessionId, m.id, {
-                output: [{
-                  name: "run_code",
-                  preview: parts.join("\n") || "执行完成",
-                  images: event.images ?? [],
-                }],
+                output: [
+                  {
+                    name: "run_code",
+                    preview: parts.join("\n") || "执行完成",
+                    images: event.images ?? [],
+                  },
+                ],
                 status: "success",
               });
             }
@@ -182,7 +204,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
           content: doneContent,
           streaming: false,
           // 附加 task_id 供下载按钮使用
-          ...(taskId ? { task_id: taskId } as any : {}),
+          ...(taskId ? ({ task_id: taskId } as any) : {}),
         });
         chatSession.setRunning(null);
 

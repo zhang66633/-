@@ -61,12 +61,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { Loader2 } from "lucide-vue-next";
-import StatsDashboard from "@/components/progress/StatsDashboard.vue";
-import SkillRadar from "@/components/progress/SkillRadar.vue";
 import ReviewList from "@/components/progress/ReviewList.vue";
+import SkillRadar from "@/components/progress/SkillRadar.vue";
+import StatsDashboard from "@/components/progress/StatsDashboard.vue";
 import { useProfileStore } from "@/stores/profile";
+import { Loader2 } from "lucide-vue-next";
+import { computed, onMounted, ref } from "vue";
 
 const profileStore = useProfileStore();
 const progress = computed(() => profileStore.progress);
@@ -90,14 +90,62 @@ const reviewItems = computed(() => {
 });
 
 const achievementsFallback = [
-  { id: "1", name: "初出茅庐", desc: "完成第一次建模练习", icon: "🌱", unlocked: false },
-  { id: "2", name: "坚持不懈", desc: "连续学习 7 天", icon: "🔥", unlocked: false },
-  { id: "3", name: "方法大师", desc: "掌握 10 种建模方法", icon: "🧠", unlocked: false },
-  { id: "4", name: "实战达人", desc: "完成一次完整实战", icon: "⚔️", unlocked: false },
-  { id: "5", name: "代码高手", desc: "完成 10 道编程练习", icon: "💻", unlocked: false },
-  { id: "6", name: "论文新星", desc: "完成一次论文写作练习", icon: "📄", unlocked: false },
-  { id: "7", name: "全能选手", desc: "三个角色各完成 5 个单元", icon: "🌟", unlocked: false },
-  { id: "8", name: "竞赛勇士", desc: "在实战中取得 A 级评价", icon: "🏆", unlocked: false },
+  {
+    id: "1",
+    name: "初出茅庐",
+    desc: "完成第一次建模练习",
+    icon: "🌱",
+    unlocked: false,
+  },
+  {
+    id: "2",
+    name: "坚持不懈",
+    desc: "连续学习 7 天",
+    icon: "🔥",
+    unlocked: false,
+  },
+  {
+    id: "3",
+    name: "方法大师",
+    desc: "掌握 10 种建模方法",
+    icon: "🧠",
+    unlocked: false,
+  },
+  {
+    id: "4",
+    name: "实战达人",
+    desc: "完成一次完整实战",
+    icon: "⚔️",
+    unlocked: false,
+  },
+  {
+    id: "5",
+    name: "代码高手",
+    desc: "完成 10 道编程练习",
+    icon: "💻",
+    unlocked: false,
+  },
+  {
+    id: "6",
+    name: "论文新星",
+    desc: "完成一次论文写作练习",
+    icon: "📄",
+    unlocked: false,
+  },
+  {
+    id: "7",
+    name: "全能选手",
+    desc: "三个角色各完成 5 个单元",
+    icon: "🌟",
+    unlocked: false,
+  },
+  {
+    id: "8",
+    name: "竞赛勇士",
+    desc: "在实战中取得 A 级评价",
+    icon: "🏆",
+    unlocked: false,
+  },
 ];
 
 onMounted(() => {

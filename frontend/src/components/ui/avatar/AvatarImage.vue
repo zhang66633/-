@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 interface AvatarImageProps {
-  src: string
-  alt?: string
-  class?: string
+  src: string;
+  alt?: string;
+  class?: string;
 }
 
 const props = withDefaults(defineProps<AvatarImageProps>(), {
-  alt: '',
-})
+  alt: "",
+});
 </script>
 
 <template>

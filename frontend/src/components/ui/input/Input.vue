@@ -1,23 +1,22 @@
 <script setup lang="ts">
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 export interface InputProps {
-  class?: string
-  type?: string
-  modelValue?: string | number
+  class?: string;
+  type?: string;
+  modelValue?: string | number;
 }
 
 const props = withDefaults(defineProps<InputProps>(), {
-  type: 'text',
-})
+  type: "text",
+});
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: string | number): void
-}>()
+const emit =
+  defineEmits<(e: "update:modelValue", value: string | number) => void>();
 
 function onInput(event: Event) {
-  const target = event.target as HTMLInputElement
-  emit('update:modelValue', target.value)
+  const target = event.target as HTMLInputElement;
+  emit("update:modelValue", target.value);
 }
 </script>
 

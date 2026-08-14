@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import { HoverCardTrigger } from 'reka-ui'
+import type { PrimitiveProps } from "reka-ui";
+import { HoverCardTrigger } from "reka-ui";
 
 interface Props extends PrimitiveProps {
-  class?: string
+  class?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  as: 'a',
-})
+  as: "a",
+});
 </script>
 
 <template>

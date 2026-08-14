@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { ChevronRight, List } from "lucide-vue-next";
 import type { TocEntry } from "@/utils/markdown";
 import { extractToc } from "@/utils/markdown";
+import { ChevronRight, List } from "lucide-vue-next";
+import { computed, ref, watch } from "vue";
 
 const props = defineProps<{
   html: string;
@@ -28,7 +28,11 @@ function scrollTo(id: string) {
   }
 }
 
-defineExpose({ setActiveId: (id: string) => (activeId.value = id) });
+defineExpose({
+  setActiveId: (id: string) => {
+    activeId.value = id;
+  },
+});
 </script>
 
 <template>

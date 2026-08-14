@@ -27,7 +27,12 @@ export function getMyApiKey() {
 export function quickAddApiKey(
   key: string,
   name?: string,
-  opts?: { provider?: string; model_name?: string; base_url?: string; purpose?: string },
+  opts?: {
+    provider?: string;
+    model_name?: string;
+    base_url?: string;
+    purpose?: string;
+  },
 ) {
   return request.post("/apikeys/quick", { key, name: name || "", ...opts });
 }

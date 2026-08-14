@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { renderMarkdownAsync } from "@/utils/markdown";
+import { X } from "lucide-vue-next";
 /**
  * PaperViewer — 全屏论文阅读器
  *
@@ -6,11 +8,16 @@
  * 顶部工具栏：导出/复制/下载/字体/模式
  * 滚动时自动高亮当前章节（IntersectionObserver）
  */
-import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
-import { X } from "lucide-vue-next";
-import PaperToc from "./PaperToc.vue";
-import PaperToolbar from "./PaperToolbar.vue";
-import { renderMarkdownAsync } from "@/utils/markdown";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
+import type PaperToc from "./PaperToc.vue";
+import type PaperToolbar from "./PaperToolbar.vue";
 import "@/assets/paper.css";
 
 const props = defineProps<{
@@ -60,7 +67,9 @@ function setupIntersectionObserver() {
   );
 
   const headings = contentRef.value.querySelectorAll("h1[id], h2[id], h3[id]");
-  headings.forEach((h) => observer!.observe(h));
+  for (const h of headings) {
+    observer?.observe(h);
+  }
 }
 
 onBeforeUnmount(() => {
@@ -69,7 +78,9 @@ onBeforeUnmount(() => {
 
 // 工具栏字体大小
 const toolbarRef = ref<InstanceType<typeof PaperToolbar> | null>(null);
-const fontSizeClass = computed(() => toolbarRef.value?.fontSizeClass ?? "text-base");
+const fontSizeClass = computed(
+  () => toolbarRef.value?.fontSizeClass ?? "text-base",
+);
 const fontSize = computed(() => toolbarRef.value?.fontSize ?? "md");
 
 // ESC 关闭
@@ -79,13 +90,19 @@ function onKeydown(e: KeyboardEvent) {
 
 // 代码块复制：事件委托处理 data-code-id 按钮（onclick 会被 DOMPurify 剥离，故改用委托）
 async function onContentClick(e: MouseEvent) {
-  const btn = (e.target as Element | null)?.closest<HTMLElement>("[data-code-id]");
+  const btn = (e.target as Element | null)?.closest<HTMLElement>(
+    "[data-code-id]",
+  );
   if (!btn) return;
   const codeId = btn.dataset.codeId;
   if (!codeId) return;
   try {
-    await navigator.clipboard.writeText(document.getElementById(codeId)?.textContent ?? "");
-  } catch { /* 剪贴板不可用则忽略 */ }
+    await navigator.clipboard.writeText(
+      document.getElementById(codeId)?.textContent ?? "",
+    );
+  } catch {
+    /* 剪贴板不可用则忽略 */
+  }
 }
 
 onMounted(() => {

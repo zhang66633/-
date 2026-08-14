@@ -19,14 +19,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
 import ChatArea from "@/components/ChatArea.vue";
-import { useChatSessionStore } from "@/stores/chatSession";
-import { useStreamChat } from "@/composables/useStreamChat";
 import { downloadMarkdown } from "@/composables/useExport";
+import { useStreamChat } from "@/composables/useStreamChat";
+import { useChatSessionStore } from "@/stores/chatSession";
+import { onMounted } from "vue";
 
 const chatSession = useChatSessionStore();
-const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat("chat", "chat");
+const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
+  "chat",
+  "chat",
+);
 
 function handleExport() {
   downloadMarkdown(chatSession.activeChatMessages, "对话记录.md");

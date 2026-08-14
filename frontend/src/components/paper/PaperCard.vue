@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { BookOpen, Clock, FileText } from "lucide-vue-next";
 /**
  * PaperCard — 在聊天中显示论文摘要卡片，替代全文渲染。
  * 点击"阅读全文"打开 PaperViewer。
  */
 import { computed } from "vue";
-import { BookOpen, FileText, Clock } from "lucide-vue-next";
 
 const props = defineProps<{
   markdown: string;
@@ -25,7 +25,7 @@ const abstract = computed(() => {
   const m = props.markdown.match(/##\s*摘要\s*\n([\s\S]*?)(?=\n##\s|$)/i);
   if (!m) return "";
   const text = m[1].replace(/[#*`$\\[\]()>]/g, "").trim();
-  return text.length > 200 ? text.slice(0, 200) + "…" : text;
+  return text.length > 200 ? `${text.slice(0, 200)}…` : text;
 });
 
 const wordCount = computed(() => props.markdown.length);

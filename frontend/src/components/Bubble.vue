@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import BubbleAgent from "@/components/bubble/BubbleAgent.vue";
+import BubbleClarify from "@/components/bubble/BubbleClarify.vue";
+import BubbleSystem from "@/components/bubble/BubbleSystem.vue";
+import BubbleTool from "@/components/bubble/BubbleTool.vue";
+import BubbleUser from "@/components/bubble/BubbleUser.vue";
+import type { Message } from "@/types/response";
 /**
  * 消息气泡 — 按 msg_type 分发到对应子组件
  *
@@ -9,12 +15,6 @@
  *   clarify  → BubbleClarify（含澄清卡片）
  */
 import { computed } from "vue";
-import type { Message } from "@/types/response";
-import BubbleUser from "@/components/bubble/BubbleUser.vue";
-import BubbleAgent from "@/components/bubble/BubbleAgent.vue";
-import BubbleTool from "@/components/bubble/BubbleTool.vue";
-import BubbleSystem from "@/components/bubble/BubbleSystem.vue";
-import BubbleClarify from "@/components/bubble/BubbleClarify.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -30,12 +30,18 @@ const emit = defineEmits<{
 
 const component = computed(() => {
   switch (props.message.msg_type) {
-    case "user":    return BubbleUser;
-    case "agent":   return BubbleAgent;
-    case "tool":    return BubbleTool;
-    case "system":  return BubbleSystem;
-    case "clarify": return BubbleClarify;
-    default:        return BubbleSystem;
+    case "user":
+      return BubbleUser;
+    case "agent":
+      return BubbleAgent;
+    case "tool":
+      return BubbleTool;
+    case "system":
+      return BubbleSystem;
+    case "clarify":
+      return BubbleClarify;
+    default:
+      return BubbleSystem;
   }
 });
 </script>

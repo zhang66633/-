@@ -128,16 +128,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
-import { PanelRight, FileText, FileDown, Paperclip, Download, FileSpreadsheet, Table, Archive } from "lucide-vue-next";
+import type { ChatFileRef } from "@/apis/chatApi";
+import { cancelTask, createTask, getTaskFiles } from "@/apis/commonApi";
 import ChatArea from "@/components/ChatArea.vue";
-import ProgressTimeline, { type ProgressStep } from "@/components/ProgressTimeline.vue";
+import ProgressTimeline, {
+  type ProgressStep,
+} from "@/components/ProgressTimeline.vue";
 import PaperViewer from "@/components/paper/PaperViewer.vue";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { useTaskStore } from "@/stores/task";
-import { createTask, cancelTask, getTaskFiles } from "@/apis/commonApi";
-import type { ChatFileRef } from "@/apis/chatApi";
 import type { Message } from "@/types/response";
+import {
+  Archive,
+  Download,
+  FileDown,
+  FileSpreadsheet,
+  FileText,
+  PanelRight,
+  Paperclip,
+  Table,
+} from "lucide-vue-next";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 const chatSession = useChatSessionStore();
 const taskStore = useTaskStore();
@@ -184,15 +195,36 @@ watch(
 watch(
   () => taskStore.messages.length,
   () => {
-    if (currentTaskId.value && taskStore.isRunning) fetchTaskFiles(currentTaskId.value);
+    if (currentTaskId.value && taskStore.isRunning)
+      fetchTaskFiles(currentTaskId.value);
   },
 );
 
 const stepDefs: ProgressStep[] = [
-  { id: "1", label: "问题分析", description: "识别问题类型，理解题意", status: "wait" },
-  { id: "2", label: "模型构建", description: "选择并建立数学模型", status: "wait" },
-  { id: "3", label: "数据预处理", description: "EDA 探索与数据清洗", status: "wait" },
-  { id: "4", label: "求解计算", description: "生成并执行求解代码", status: "wait" },
+  {
+    id: "1",
+    label: "问题分析",
+    description: "识别问题类型，理解题意",
+    status: "wait",
+  },
+  {
+    id: "2",
+    label: "模型构建",
+    description: "选择并建立数学模型",
+    status: "wait",
+  },
+  {
+    id: "3",
+    label: "数据预处理",
+    description: "EDA 探索与数据清洗",
+    status: "wait",
+  },
+  {
+    id: "4",
+    label: "求解计算",
+    description: "生成并执行求解代码",
+    status: "wait",
+  },
   { id: "5", label: "验证分析", description: "检验模型鲁棒性", status: "wait" },
   { id: "6", label: "结果导出", description: "打包结构化文件", status: "wait" },
   { id: "7", label: "论文写作", description: "生成结构化论文", status: "wait" },
@@ -212,13 +244,27 @@ const agentSteps = computed<ProgressStep[]>(() => {
     return stepDefs.map((s) => ({ ...s, status: "done" }));
   }
   if (activeIdx === -1) {
-    if (current.includes("分析") || current.includes("检索") || current.includes("计划")) activeIdx = 0;
-    else if (current.includes("模型") || current.includes("建模")) activeIdx = 1;
-    else if (current.includes("预处理") || current.includes("数据")) activeIdx = 2;
-    else if (current.includes("求解") || current.includes("计算")) activeIdx = 3;
+    if (
+      current.includes("分析") ||
+      current.includes("检索") ||
+      current.includes("计划")
+    )
+      activeIdx = 0;
+    else if (current.includes("模型") || current.includes("建模"))
+      activeIdx = 1;
+    else if (current.includes("预处理") || current.includes("数据"))
+      activeIdx = 2;
+    else if (current.includes("求解") || current.includes("计算"))
+      activeIdx = 3;
     else if (current.includes("验证")) activeIdx = 4;
-    else if (current.includes("导出") || current.includes("打包")) activeIdx = 5;
-    else if (current.includes("写作") || current.includes("整合") || current.includes("输出")) activeIdx = 6;
+    else if (current.includes("导出") || current.includes("打包"))
+      activeIdx = 5;
+    else if (
+      current.includes("写作") ||
+      current.includes("整合") ||
+      current.includes("输出")
+    )
+      activeIdx = 6;
   }
   return stepDefs.map((s, i) => ({
     ...s,
@@ -260,7 +306,9 @@ function syncTaskMsgToSession(msg: Message) {
     // 800字预览占位消息，若此处跳过，chatSession 将永远停留在旧预览，
     // 导致完整论文不显示、导出 PDF 只有截断的预览）
     if (existing.content !== msg.content) {
-      chatSession.updateMessage("solution", sid, msg.id, { content: msg.content });
+      chatSession.updateMessage("solution", sid, msg.id, {
+        content: msg.content,
+      });
     }
     return;
   }
@@ -390,8 +438,12 @@ async function downloadPackage() {
 }
 
 /** 是否有导出文件（xlsx/csv） */
-const hasXlsxFile = computed(() => taskFiles.value.some((f) => f.name.endsWith(".xlsx")));
-const hasCsvFile = computed(() => taskFiles.value.some((f) => f.name.endsWith(".csv")));
+const hasXlsxFile = computed(() =>
+  taskFiles.value.some((f) => f.name.endsWith(".xlsx")),
+);
+const hasCsvFile = computed(() =>
+  taskFiles.value.some((f) => f.name.endsWith(".csv")),
+);
 const hasExportFiles = computed(() => hasXlsxFile.value || hasCsvFile.value);
 
 // ---- 论文阅读器 ----
@@ -424,8 +476,14 @@ watch(
 );
 
 onMounted(() => {
-  if (!chatSession.activeSolutionId && chatSession.sortedSolutionSessions.length > 0) {
-    chatSession.switchSession("solution", chatSession.sortedSolutionSessions[0].id);
+  if (
+    !chatSession.activeSolutionId &&
+    chatSession.sortedSolutionSessions.length > 0
+  ) {
+    chatSession.switchSession(
+      "solution",
+      chatSession.sortedSolutionSessions[0].id,
+    );
   }
   // 当前页面内的 task_id 不持久化（与 taskStore.messagesByTask 一致），刷新后
   // 用户需重新触发任务；路由切页通过 chatSession 持久化保留历史消息。

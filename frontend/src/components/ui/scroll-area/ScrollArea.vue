@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport, ScrollAreaCorner } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import {
+  ScrollAreaCorner,
+  ScrollAreaRoot,
+  ScrollAreaScrollbar,
+  ScrollAreaThumb,
+  ScrollAreaViewport,
+} from "reka-ui";
 
 interface ScrollAreaProps {
-  class?: string
-  viewportClass?: string
+  class?: string;
+  viewportClass?: string;
 }
 
-const props = defineProps<ScrollAreaProps>()
+const props = defineProps<ScrollAreaProps>();
 </script>
 
 <template>

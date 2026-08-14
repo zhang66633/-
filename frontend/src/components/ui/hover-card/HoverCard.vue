@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { HoverCardRootEmits, HoverCardRootProps } from 'reka-ui'
-import { HoverCardRoot, useForwardPropsEmits } from 'reka-ui'
+import type { HoverCardRootEmits, HoverCardRootProps } from "reka-ui";
+import { HoverCardRoot, useForwardPropsEmits } from "reka-ui";
 
 interface Props extends HoverCardRootProps {
-  class?: string
+  class?: string;
 }
 
-const props = defineProps<Props>()
-const emits = defineEmits<HoverCardRootEmits>()
+const props = defineProps<Props>();
+const emits = defineEmits<HoverCardRootEmits>();
 
-const forward = useForwardPropsEmits(props, emits)
+const forward = useForwardPropsEmits(props, emits);
 </script>
 
 <template>

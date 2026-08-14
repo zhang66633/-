@@ -113,13 +113,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import { ArrowLeft, Key, Plus, Trash2, Loader2, Check } from "lucide-vue-next";
+import {
+  type ApiKeyItem,
+  addApiKey,
+  deleteApiKey,
+  getApiKeys,
+  setDefaultApiKey,
+} from "@/apis/apiKeyApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getApiKeys, addApiKey, deleteApiKey, setDefaultApiKey, type ApiKeyItem } from "@/apis/apiKeyApi";
 import { SCALE_PRESS, SCALE_PRESS_ONLY } from "@/config/styles";
+import { ArrowLeft, Check, Key, Loader2, Plus, Trash2 } from "lucide-vue-next";
+import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 const keys = ref<ApiKeyItem[]>([]);
@@ -129,12 +135,42 @@ const showAdd = ref(false);
 const addError = ref("");
 
 const PROVIDERS = [
-  { value: "deepseek", label: "DeepSeek", base_url: "https://api.deepseek.com", chat_model: "deepseek-chat" },
-  { value: "qwen", label: "通义千问 (Qwen)", base_url: "https://dashscope.aliyuncs.com/compatible-mode", chat_model: "qwen-plus" },
-  { value: "glm", label: "智谱 (GLM)", base_url: "https://open.bigmodel.cn/api/paas", chat_model: "glm-4-flash" },
-  { value: "siliconflow", label: "SiliconFlow", base_url: "https://api.siliconflow.cn", chat_model: "deepseek-ai/DeepSeek-V3" },
-  { value: "openai", label: "OpenAI", base_url: "https://api.openai.com", chat_model: "gpt-4o-mini" },
-  { value: "anthropic", label: "Anthropic (Claude)", base_url: "https://api.anthropic.com", chat_model: "claude-sonnet-4-6" },
+  {
+    value: "deepseek",
+    label: "DeepSeek",
+    base_url: "https://api.deepseek.com",
+    chat_model: "deepseek-chat",
+  },
+  {
+    value: "qwen",
+    label: "通义千问 (Qwen)",
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode",
+    chat_model: "qwen-plus",
+  },
+  {
+    value: "glm",
+    label: "智谱 (GLM)",
+    base_url: "https://open.bigmodel.cn/api/paas",
+    chat_model: "glm-4-flash",
+  },
+  {
+    value: "siliconflow",
+    label: "SiliconFlow",
+    base_url: "https://api.siliconflow.cn",
+    chat_model: "deepseek-ai/DeepSeek-V3",
+  },
+  {
+    value: "openai",
+    label: "OpenAI",
+    base_url: "https://api.openai.com",
+    chat_model: "gpt-4o-mini",
+  },
+  {
+    value: "anthropic",
+    label: "Anthropic (Claude)",
+    base_url: "https://api.anthropic.com",
+    chat_model: "claude-sonnet-4-6",
+  },
   { value: "custom", label: "自定义...", base_url: "", chat_model: "" },
 ];
 const PURPOSES = [
@@ -143,16 +179,26 @@ const PURPOSES = [
 ];
 const DEFAULT_EMBEDDING_MODEL = "BAAI/bge-large-zh-v1.5";
 
-const form = ref({ name: "", provider: "deepseek", model_name: "deepseek-chat", key: "", base_url: "", purpose: "chat" as "chat" | "embedding" });
+const form = ref({
+  name: "",
+  provider: "deepseek",
+  model_name: "deepseek-chat",
+  key: "",
+  base_url: "",
+  purpose: "chat" as "chat" | "embedding",
+});
 
-const presetBaseUrl = computed(() => PROVIDERS.find((p) => p.value === form.value.provider)?.base_url ?? "");
+const presetBaseUrl = computed(
+  () => PROVIDERS.find((p) => p.value === form.value.provider)?.base_url ?? "",
+);
 
 function onProviderChange() {
   const preset = PROVIDERS.find((p) => p.value === form.value.provider);
   if (!preset) return;
   if (preset.value !== "custom") {
     form.value.base_url = preset.base_url;
-    if (form.value.purpose === "chat") form.value.model_name = preset.chat_model;
+    if (form.value.purpose === "chat")
+      form.value.model_name = preset.chat_model;
   } else {
     form.value.base_url = "";
     form.value.model_name = "";
@@ -162,11 +208,21 @@ function onProviderChange() {
 function onPurposeChange(purpose: "chat" | "embedding") {
   form.value.purpose = purpose;
   const preset = PROVIDERS.find((p) => p.value === form.value.provider);
-  form.value.model_name = purpose === "embedding" ? DEFAULT_EMBEDDING_MODEL : (preset?.chat_model ?? "");
+  form.value.model_name =
+    purpose === "embedding"
+      ? DEFAULT_EMBEDDING_MODEL
+      : (preset?.chat_model ?? "");
 }
 
 function resetForm() {
-  form.value = { name: "", provider: "deepseek", model_name: "deepseek-chat", key: "", base_url: "", purpose: "chat" };
+  form.value = {
+    name: "",
+    provider: "deepseek",
+    model_name: "deepseek-chat",
+    key: "",
+    base_url: "",
+    purpose: "chat",
+  };
 }
 
 async function load() {
@@ -186,7 +242,10 @@ async function handleAdd() {
   saving.value = true;
   addError.value = "";
   try {
-    await addApiKey({ ...form.value, base_url: form.value.base_url || presetBaseUrl.value });
+    await addApiKey({
+      ...form.value,
+      base_url: form.value.base_url || presetBaseUrl.value,
+    });
     showAdd.value = false;
     addError.value = "";
     resetForm();

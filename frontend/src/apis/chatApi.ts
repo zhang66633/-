@@ -79,7 +79,7 @@ export async function uploadChatFile(file: File): Promise<ChatFileRef> {
 
   const headers: Record<string, string> = {};
   const token = getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   const resp = await fetch(`${BASE_URL}/files/upload`, {
     method: "POST",
@@ -100,14 +100,28 @@ export async function streamChat(
   messages: ChatHistoryMessage[],
   opts: StreamChatOptions,
 ): Promise<void> {
-  const { onDelta, onToolCall, onToolResult, onClarify, onCodeExec, onThinking, onDone, onError, signal, useRag = false, mode = "chat", files, unitContext } = opts;
+  const {
+    onDelta,
+    onToolCall,
+    onToolResult,
+    onClarify,
+    onCodeExec,
+    onThinking,
+    onDone,
+    onError,
+    signal,
+    useRag = false,
+    mode = "chat",
+    files,
+    unitContext,
+  } = opts;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "text/event-stream",
   };
   const token = getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   // 收集所有非 delta 事件，在 [DONE] 时传给 onDone
   let finalTaskId: string | undefined;
@@ -117,7 +131,13 @@ export async function streamChat(
     response = await fetch(`${BASE_URL}/chat`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ messages, use_rag: useRag, mode, files: files ?? [], ...(unitContext ? { unit_context: unitContext } : {}) }),
+      body: JSON.stringify({
+        messages,
+        use_rag: useRag,
+        mode,
+        files: files ?? [],
+        ...(unitContext ? { unit_context: unitContext } : {}),
+      }),
       signal,
     });
   } catch (e: any) {
@@ -155,7 +175,8 @@ export async function streamChat(
         // 聚合同一事件内的多行 data: 字段（以 \n 拼接）
         const dataLines: string[] = [];
         for (const line of frame.split("\n")) {
-          if (line.startsWith("data:")) dataLines.push(line.slice(5).replace(/^ /, ""));
+          if (line.startsWith("data:"))
+            dataLines.push(line.slice(5).replace(/^ /, ""));
         }
         if (dataLines.length === 0) continue;
         const payload = dataLines.join("\n");

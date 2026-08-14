@@ -81,7 +81,13 @@ export interface TemplateDetail {
   id: string;
   name: string;
   applicable_to: string[];
-  steps: { step: number; name: string; guiding_questions: string[]; decision_tree: string[]; checklist: string[] }[];
+  steps: {
+    step: number;
+    name: string;
+    guiding_questions: string[];
+    decision_tree: string[];
+    checklist: string[];
+  }[];
 }
 
 export interface ProblemSummary {
@@ -129,7 +135,11 @@ export function getKBStats() {
 
 /** Trigger a full reindex. */
 export function reindexKB() {
-  return request.post<{ success: boolean; indexed_count: number; message: string }>("/knowledge/reindex");
+  return request.post<{
+    success: boolean;
+    indexed_count: number;
+    message: string;
+  }>("/knowledge/reindex");
 }
 
 /** List method cards. */
@@ -266,13 +276,19 @@ export function deleteTemplate(tplId: string) {
 // ── raw text (original material) ────────────────────────────────
 
 export function getMethodRaw(cardId: string) {
-  return request.get<{ entry_id: string; raw_text: string }>(`/knowledge/methods/${cardId}/raw`);
+  return request.get<{ entry_id: string; raw_text: string }>(
+    `/knowledge/methods/${cardId}/raw`,
+  );
 }
 export function getPaperRaw(paperId: string) {
-  return request.get<{ entry_id: string; raw_text: string }>(`/knowledge/papers/${paperId}/raw`);
+  return request.get<{ entry_id: string; raw_text: string }>(
+    `/knowledge/papers/${paperId}/raw`,
+  );
 }
 export function getTemplateRaw(tplId: string) {
-  return request.get<{ entry_id: string; raw_text: string }>(`/knowledge/templates/${tplId}/raw`);
+  return request.get<{ entry_id: string; raw_text: string }>(
+    `/knowledge/templates/${tplId}/raw`,
+  );
 }
 
 // ── problems ──────────────────────────────────────────────────────
@@ -298,7 +314,9 @@ export function getProblemPapers(problemId: string) {
 
 /** Get problem raw text. */
 export function getProblemRaw(problemId: string) {
-  return request.get<{ entry_id: string; raw_text: string }>(`/knowledge/problems/${problemId}/raw`);
+  return request.get<{ entry_id: string; raw_text: string }>(
+    `/knowledge/problems/${problemId}/raw`,
+  );
 }
 
 /** Create problem. */
@@ -307,7 +325,10 @@ export function createProblem(data: Record<string, unknown>) {
 }
 
 /** Update problem. */
-export function updateProblem(problemId: string, data: Record<string, unknown>) {
+export function updateProblem(
+  problemId: string,
+  data: Record<string, unknown>,
+) {
   return request.put<CrudResponse>(`/knowledge/problems/${problemId}`, data);
 }
 

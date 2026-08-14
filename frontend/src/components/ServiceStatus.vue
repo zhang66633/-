@@ -17,13 +17,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
 import axios from "axios";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
-const backendStatus = ref<"connected" | "disconnected" | "connecting">("connecting");
+const backendStatus = ref<"connected" | "disconnected" | "connecting">(
+  "connecting",
+);
 
 const statusText = computed(() => {
-  const map = { connected: "已连接", connecting: "连接中", disconnected: "未连接" };
+  const map = {
+    connected: "已连接",
+    connecting: "连接中",
+    disconnected: "未连接",
+  };
   return map[backendStatus.value];
 });
 
@@ -32,7 +38,8 @@ let timer: ReturnType<typeof setInterval> | null = null;
 async function checkHealth() {
   try {
     const res = await axios.get("/api/health", { timeout: 3000 });
-    backendStatus.value = res.data?.status === "ok" ? "connected" : "disconnected";
+    backendStatus.value =
+      res.data?.status === "ok" ? "connected" : "disconnected";
   } catch {
     backendStatus.value = "disconnected";
   }

@@ -12,21 +12,46 @@ function formatTime(iso?: string): string {
 }
 
 /** 将消息数组转为 Markdown 文本。 */
-export function messagesToMarkdown(messages: Message[], title = "对话记录"): string {
-  const lines: string[] = [`# ${title}`, "", `> 导出时间: ${new Date().toLocaleString("zh-CN")}`, ""];
+export function messagesToMarkdown(
+  messages: Message[],
+  title = "对话记录",
+): string {
+  const lines: string[] = [
+    `# ${title}`,
+    "",
+    `> 导出时间: ${new Date().toLocaleString("zh-CN")}`,
+    "",
+  ];
 
   for (const msg of messages) {
     const time = formatTime(msg.created_at);
 
     if (msg.msg_type === "user") {
-      lines.push(`## 🧑 用户 ${time ? `(${time})` : ""}`, "", msg.content as string, "");
+      lines.push(
+        `## 🧑 用户 ${time ? `(${time})` : ""}`,
+        "",
+        msg.content as string,
+        "",
+      );
     } else if (msg.msg_type === "agent") {
-      lines.push(`## 🤖 助手 ${time ? `(${time})` : ""}`, "", msg.content as string, "");
+      lines.push(
+        `## 🤖 助手 ${time ? `(${time})` : ""}`,
+        "",
+        msg.content as string,
+        "",
+      );
     } else if (msg.msg_type === "tool") {
       const m = msg as any;
       const toolName = m.tool_name || "tool";
       const preview = m.output?.[0]?.preview || JSON.stringify(m.input || {});
-      lines.push(`### 🔧 工具调用: ${toolName}`, "", "```", String(preview).slice(0, 500), "```", "");
+      lines.push(
+        `### 🔧 工具调用: ${toolName}`,
+        "",
+        "```",
+        String(preview).slice(0, 500),
+        "```",
+        "",
+      );
       // 内联图片
       const images = m.output?.[0]?.images;
       if (images?.length) {
@@ -35,7 +60,7 @@ export function messagesToMarkdown(messages: Message[], title = "对话记录"):
         }
       }
     } else if (msg.msg_type === "clarify") {
-      lines.push(`### ❓ 澄清提问`, "", msg.content as string, "");
+      lines.push("### ❓ 澄清提问", "", msg.content as string, "");
     }
   }
 
@@ -44,7 +69,10 @@ export function messagesToMarkdown(messages: Message[], title = "对话记录"):
 }
 
 /** 触发浏览器下载 Markdown 文件。 */
-export function downloadMarkdown(messages: Message[], filename = "对话记录.md") {
+export function downloadMarkdown(
+  messages: Message[],
+  filename = "对话记录.md",
+) {
   const md = messagesToMarkdown(messages);
   const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);

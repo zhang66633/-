@@ -47,10 +47,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import { ChevronDown, Check, Loader2 } from "lucide-vue-next";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Check, ChevronDown, Loader2 } from "lucide-vue-next";
+import { computed, ref, watch } from "vue";
 
 export interface ProgressStep {
   id: string;
@@ -74,9 +78,12 @@ const emit = defineEmits<{ toggle: [] }>();
 
 const isOpen = ref(props.open);
 
-watch(() => props.open, (v) => {
-  isOpen.value = v;
-});
+watch(
+  () => props.open,
+  (v) => {
+    isOpen.value = v;
+  },
+);
 
 watch(isOpen, (v) => {
   if (v !== props.open) emit("toggle");
@@ -104,8 +111,10 @@ const statusDotClass = computed(() => {
 });
 
 function nodeClass(status: ProgressStep["status"]) {
-  if (status === "active") return "border-primary bg-primary text-primary-foreground";
-  if (status === "done") return "border-primary bg-primary text-primary-foreground";
+  if (status === "active")
+    return "border-primary bg-primary text-primary-foreground";
+  if (status === "done")
+    return "border-primary bg-primary text-primary-foreground";
   return "border-border bg-background text-muted-foreground";
 }
 </script>

@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { CollapsibleRootEmits, CollapsibleRootProps } from 'reka-ui'
-import { CollapsibleRoot, useForwardPropsEmits } from 'reka-ui'
+import type { CollapsibleRootEmits, CollapsibleRootProps } from "reka-ui";
+import { CollapsibleRoot, useForwardPropsEmits } from "reka-ui";
 
 interface Props extends CollapsibleRootProps {
-  class?: string
+  class?: string;
 }
 
-const props = defineProps<Props>()
-const emits = defineEmits<CollapsibleRootEmits>()
+const props = defineProps<Props>();
+const emits = defineEmits<CollapsibleRootEmits>();
 
-const forward = useForwardPropsEmits(props, emits)
+const forward = useForwardPropsEmits(props, emits);
 </script>
 
 <template>

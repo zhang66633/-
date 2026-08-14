@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from "vue";
-import { Printer, Clipboard, BookOpen } from "lucide-vue-next";
-import type { Message, AgentMessage } from "@/types/response";
-import { AgentType } from "@/types/enum";
 import { getAgentIdentity } from "@/components/agent/AgentIdentity";
 import ThinkingBlock from "@/components/agent/ThinkingBlock.vue";
 import PaperCard from "@/components/paper/PaperCard.vue";
 import { useTypewriter } from "@/composables/useTypewriter";
+import { AgentType } from "@/types/enum";
+import type { AgentMessage, Message } from "@/types/response";
 import { renderMarkdown } from "@/utils/markdown";
+import { BookOpen, Clipboard, Printer } from "lucide-vue-next";
+import { computed, onMounted, ref, watch } from "vue";
 import BubbleAvatar from "./BubbleAvatar.vue";
 
 const props = withDefaults(
@@ -29,9 +29,19 @@ const enableTypewriter = computed(
   () => props.isLast && !("streaming" in props.message),
 );
 const rawText = ref(content.value);
-const { displayText, isTyping, skip } = useTypewriter(rawText, 12, enableTypewriter);
+const { displayText, isTyping, skip } = useTypewriter(
+  rawText,
+  12,
+  enableTypewriter,
+);
 
-watch(content, (val) => { rawText.value = val; }, { immediate: true });
+watch(
+  content,
+  (val) => {
+    rawText.value = val;
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   if (!content.value) return;
@@ -39,7 +49,9 @@ onMounted(() => {
   isTyping.value = false;
 });
 
-const identity = computed(() => getAgentIdentity((props.message as AgentMessage).agent_type));
+const identity = computed(() =>
+  getAgentIdentity((props.message as AgentMessage).agent_type),
+);
 
 const agentLabel = computed(() => {
   const agentType = (props.message as AgentMessage).agent_type;
@@ -48,7 +60,9 @@ const agentLabel = computed(() => {
 });
 
 const isFinalPaper = computed(
-  () => typeof props.message.id === "string" && props.message.id.startsWith("final-"),
+  () =>
+    typeof props.message.id === "string" &&
+    props.message.id.startsWith("final-"),
 );
 const copied = ref(false);
 
@@ -56,8 +70,12 @@ async function copyMarkdown() {
   try {
     await navigator.clipboard.writeText(content.value);
     copied.value = true;
-    setTimeout(() => (copied.value = false), 1500);
-  } catch { /* ignore */ }
+    setTimeout(() => {
+      copied.value = false;
+    }, 1500);
+  } catch {
+    /* ignore */
+  }
 }
 
 function exportPdf() {

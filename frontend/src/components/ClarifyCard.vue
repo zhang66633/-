@@ -33,8 +33,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject } from "vue";
 import type { ClarifyQuestion } from "@/types/response";
+import { computed, inject, ref } from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -45,7 +45,10 @@ const props = withDefaults(
 );
 
 // 注入 ChatArea 提供的发送函数
-const sendHandler = inject<((text: string) => void) | null>("chatSendHandler", null);
+const sendHandler = inject<((text: string) => void) | null>(
+  "chatSendHandler",
+  null,
+);
 
 // 每个问题的选中状态: Map<questionIndex, Set<optionIndex>>
 const selections = ref<Map<number, Set<number>>>(new Map());
@@ -58,7 +61,7 @@ function toggleSelect(qi: number, oi: number, multiSelect?: boolean) {
   if (props.answered) return;
   const s = new Map(selections.value);
   if (!s.has(qi)) s.set(qi, new Set());
-  const opts = new Set(s.get(qi)!);
+  const opts = new Set(s.get(qi) ?? []);
   if (multiSelect) {
     if (opts.has(oi)) opts.delete(oi);
     else opts.add(oi);
@@ -71,7 +74,9 @@ function toggleSelect(qi: number, oi: number, multiSelect?: boolean) {
 }
 
 const allAnswered = computed(() => {
-  return props.questions.every((_, qi) => (selections.value.get(qi)?.size ?? 0) > 0);
+  return props.questions.every(
+    (_, qi) => (selections.value.get(qi)?.size ?? 0) > 0,
+  );
 });
 
 function confirm() {

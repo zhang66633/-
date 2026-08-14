@@ -88,10 +88,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { useRouter } from "vue-router";
-import { ChevronDown, Settings, Key, Github, LogOut, Menu } from "lucide-vue-next";
-import { useAuthStore } from "@/stores/auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -100,18 +98,37 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { useAuthStore } from "@/stores/auth";
+import {
+  ChevronDown,
+  Github,
+  Key,
+  LogOut,
+  Menu,
+  Settings,
+} from "lucide-vue-next";
+import { ref } from "vue";
+import { useRouter } from "vue-router";
 
 const STORAGE_KEY = "mma:nickname";
 const router = useRouter();
 const auth = useAuthStore();
 
-const stored = (() => { try { return localStorage.getItem(STORAGE_KEY) || ""; } catch { return ""; } })();
+const stored = (() => {
+  try {
+    return localStorage.getItem(STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+})();
 const nickname = ref(stored);
 
 function saveNickname() {
-  try { localStorage.setItem(STORAGE_KEY, nickname.value.trim()); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(STORAGE_KEY, nickname.value.trim());
+  } catch {
+    /* ignore */
+  }
 }
 
 function handleAction(action: string) {

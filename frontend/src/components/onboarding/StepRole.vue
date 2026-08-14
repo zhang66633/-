@@ -27,8 +27,23 @@ defineProps<{ modelValue: AgentRole }>();
 defineEmits<{ "update:modelValue": [value: AgentRole] }>();
 
 const roles = [
-  { value: "modeler" as AgentRole, label: "建模手", emoji: "🧮", desc: "将实际问题转化为数学模型，选择合适的方法" },
-  { value: "programmer" as AgentRole, label: "编程手", emoji: "💻", desc: "用代码实现模型，处理数据，计算结果" },
-  { value: "writer" as AgentRole, label: "论文手", emoji: "✍️", desc: "撰写摘要、组织论文、设计图表" },
+  {
+    value: "modeler" as AgentRole,
+    label: "建模手",
+    emoji: "🧮",
+    desc: "将实际问题转化为数学模型，选择合适的方法",
+  },
+  {
+    value: "programmer" as AgentRole,
+    label: "编程手",
+    emoji: "💻",
+    desc: "用代码实现模型，处理数据，计算结果",
+  },
+  {
+    value: "writer" as AgentRole,
+    label: "论文手",
+    emoji: "✍️",
+    desc: "撰写摘要、组织论文、设计图表",
+  },
 ];
 </script>

@@ -467,28 +467,76 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
 import {
-  Search, Library, Loader2, ChevronRight, RefreshCw, Database,
-  Upload, Sparkles, Check, RotateCcw, Pencil, Trash2, FileText, FileUp, X, Layers,
-  ShieldAlert, ArrowLeft,
-} from "lucide-vue-next";
-import { useAuthStore } from "@/stores/auth";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import ArrayEditor from "@/components/ArrayEditor.vue";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import {
-  searchKB, getKBStats, reindexKB, getMethod, getPaper, getTemplate, getProblem,
-  listMethods, listPapers, listTemplates, listProblems,
-  uploadKnowledge, getExtractionJob,
-  updateMethod, deleteMethod, updatePaper, deletePaper, updateTemplate, deleteTemplate,
-  updateProblem, deleteProblem,
-  type SearchResult, type KBStats, type MethodCardSummary, type PaperSummary, type TemplateSummary, type ProblemSummary,
-  getMethodRaw, getPaperRaw, getTemplateRaw, getProblemRaw, getProblemPapers,
+  type KBStats,
+  type MethodCardSummary,
+  type PaperSummary,
+  type ProblemSummary,
+  type SearchResult,
+  type TemplateSummary,
+  deleteMethod,
+  deletePaper,
+  deleteProblem,
+  deleteTemplate,
+  getExtractionJob,
+  getKBStats,
+  getMethod,
+  getMethodRaw,
+  getPaper,
+  getPaperRaw,
+  getProblem,
+  getProblemPapers,
+  getProblemRaw,
+  getTemplate,
+  getTemplateRaw,
+  listMethods,
+  listPapers,
+  listProblems,
+  listTemplates,
+  reindexKB,
+  searchKB,
+  updateMethod,
+  updatePaper,
+  updateProblem,
+  updateTemplate,
+  uploadKnowledge,
 } from "@/apis/knowledgeApi";
+import ArrayEditor from "@/components/ArrayEditor.vue";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuthStore } from "@/stores/auth";
+import {
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  Database,
+  FileText,
+  FileUp,
+  Layers,
+  Library,
+  Loader2,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-vue-next";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 
 // ── auth ─────────────────────────────────────────────────────────
 const router = useRouter();
@@ -505,101 +553,287 @@ const tabs = [
 const activeTab = ref("search");
 
 // ── Tab 1: Search ───────────────────────────────────────────────
-const searchQuery = ref(""); const searchFilter = ref(""); const searchProblem = ref("");
-const searchLoading = ref(false); const searchDone = ref(false);
+const searchQuery = ref("");
+const searchFilter = ref("");
+const searchProblem = ref("");
+const searchLoading = ref(false);
+const searchDone = ref(false);
 const searchResults = ref<SearchResult[]>([]);
-const detailItem = ref<SearchResult | null>(null); const detailLoading = ref(false);
-const detailData = ref<{ type: string; data: Record<string, unknown> } | null>(null);
-const detailRawText = ref(""); const detailViewMode = ref<"structured" | "raw">("structured");
-const typeOpts = [{ label: "全部", value: "" }, { label: "方法卡片", value: "method_card" }, { label: "真题论文", value: "paper" }, { label: "框架模板", value: "template" }, { label: "竞赛真题", value: "problem" }];
-const probOpts = [{ label: "全部", value: "" }, { label: "优化", value: "optimization" }, { label: "预测", value: "prediction" }, { label: "评价", value: "evaluation" }, { label: "统计", value: "statistics" }];
-function typeLabel(t: string) { return { method_card: "方法卡片", paper: "真题论文", template: "框架模板", problem: "竞赛真题" }[t] || t; }
-function badgeClass(t: string) { return { method_card: "bg-blue-100 text-blue-700", paper: "bg-purple-100 text-purple-700", template: "bg-green-100 text-green-700" }[t] || "bg-muted"; }
+const detailItem = ref<SearchResult | null>(null);
+const detailLoading = ref(false);
+const detailData = ref<{ type: string; data: Record<string, unknown> } | null>(
+  null,
+);
+const detailRawText = ref("");
+const detailViewMode = ref<"structured" | "raw">("structured");
+const typeOpts = [
+  { label: "全部", value: "" },
+  { label: "方法卡片", value: "method_card" },
+  { label: "真题论文", value: "paper" },
+  { label: "框架模板", value: "template" },
+  { label: "竞赛真题", value: "problem" },
+];
+const probOpts = [
+  { label: "全部", value: "" },
+  { label: "优化", value: "optimization" },
+  { label: "预测", value: "prediction" },
+  { label: "评价", value: "evaluation" },
+  { label: "统计", value: "statistics" },
+];
+function typeLabel(t: string) {
+  return (
+    {
+      method_card: "方法卡片",
+      paper: "真题论文",
+      template: "框架模板",
+      problem: "竞赛真题",
+    }[t] || t
+  );
+}
+function badgeClass(t: string) {
+  return (
+    {
+      method_card: "bg-blue-100 text-blue-700",
+      paper: "bg-purple-100 text-purple-700",
+      template: "bg-green-100 text-green-700",
+    }[t] || "bg-muted"
+  );
+}
 async function doSearch() {
   if (!searchQuery.value.trim()) return;
-  searchLoading.value = true; searchDone.value = true;
-  try { const r = await searchKB({ q: searchQuery.value.trim(), type: searchFilter.value || undefined, problem_type: searchProblem.value || undefined, k: 10 }); searchResults.value = r.data.results; }
-  catch { searchResults.value = []; }
-  finally { searchLoading.value = false; }
+  searchLoading.value = true;
+  searchDone.value = true;
+  try {
+    const r = await searchKB({
+      q: searchQuery.value.trim(),
+      type: searchFilter.value || undefined,
+      problem_type: searchProblem.value || undefined,
+      k: 10,
+    });
+    searchResults.value = r.data.results;
+  } catch {
+    searchResults.value = [];
+  } finally {
+    searchLoading.value = false;
+  }
 }
 
 // ── 默认浏览全部（不搜索也能看到知识库存量）──────────────────
 const browseAll = ref<SearchResult[]>([]);
-const isBrowsing = computed(() => !searchDone.value || !searchQuery.value.trim());
+const isBrowsing = computed(
+  () => !searchDone.value || !searchQuery.value.trim(),
+);
 const visibleResults = computed<SearchResult[]>(() => {
   const list = isBrowsing.value ? browseAll.value : searchResults.value;
-  return searchFilter.value ? list.filter((r) => r.type === searchFilter.value) : list;
+  return searchFilter.value
+    ? list.filter((r) => r.type === searchFilter.value)
+    : list;
 });
 async function loadBrowseAll() {
   const items: any[] = [];
   // 分开请求：单个失败不影响其他类型
-  try { const m = await listMethods(); items.push(...(m.data as any[]).map((c: any) => ({ id: c.id, type: "method_card" as const, name: c.name, title: c.name, snippet: (c.principle || "").slice(0, 120), score: null }))); }
-  catch (e) { console.warn("listMethods failed:", e); }
-  try { const p = await listPapers(); items.push(...(p.data as any[]).map((x: any) => ({ id: x.id, type: "paper" as const, name: x.title, title: x.title, snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`, score: null }))); }
-  catch (e) { console.warn("listPapers failed:", e); }
-  try { const t = await listTemplates(); items.push(...(t.data as any[]).map((x: any) => ({ id: x.id, type: "template" as const, name: x.name, title: x.name, snippet: (x.applicable_to || []).join(", "), score: null }))); }
-  catch (e) { console.warn("listTemplates failed:", e); }
-  try { const pr = await listProblems(); items.push(...(pr.data as any[]).map((x: any) => ({ id: x.id, type: "problem" as const, name: x.title, title: x.title, snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`, score: null }))); }
-  catch (e) { console.warn("listProblems failed:", e); }
+  try {
+    const m = await listMethods();
+    items.push(
+      ...(m.data as any[]).map((c: any) => ({
+        id: c.id,
+        type: "method_card" as const,
+        name: c.name,
+        title: c.name,
+        snippet: (c.principle || "").slice(0, 120),
+        score: null,
+      })),
+    );
+  } catch (e) {
+    console.warn("listMethods failed:", e);
+  }
+  try {
+    const p = await listPapers();
+    items.push(
+      ...(p.data as any[]).map((x: any) => ({
+        id: x.id,
+        type: "paper" as const,
+        name: x.title,
+        title: x.title,
+        snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`,
+        score: null,
+      })),
+    );
+  } catch (e) {
+    console.warn("listPapers failed:", e);
+  }
+  try {
+    const t = await listTemplates();
+    items.push(
+      ...(t.data as any[]).map((x: any) => ({
+        id: x.id,
+        type: "template" as const,
+        name: x.name,
+        title: x.name,
+        snippet: (x.applicable_to || []).join(", "),
+        score: null,
+      })),
+    );
+  } catch (e) {
+    console.warn("listTemplates failed:", e);
+  }
+  try {
+    const pr = await listProblems();
+    items.push(
+      ...(pr.data as any[]).map((x: any) => ({
+        id: x.id,
+        type: "problem" as const,
+        name: x.title,
+        title: x.title,
+        snippet: `${x.year} / ${x.competition} / ${x.problem_id || ""}`,
+        score: null,
+      })),
+    );
+  } catch (e) {
+    console.warn("listProblems failed:", e);
+  }
   browseAll.value = items;
 }
 // 清空搜索词时回到浏览模式
-watch(searchQuery, (v) => { if (!v.trim()) searchDone.value = false; });
+watch(searchQuery, (v) => {
+  if (!v.trim()) searchDone.value = false;
+});
 async function openDetail(r: SearchResult) {
-  detailItem.value = r; detailLoading.value = true; detailData.value = null;
-  detailRawText.value = ""; detailViewMode.value = "structured";
+  detailItem.value = r;
+  detailLoading.value = true;
+  detailData.value = null;
+  detailRawText.value = "";
+  detailViewMode.value = "structured";
   try {
-    if (r.type === "method_card") { const res = await getMethod(r.id); detailData.value = { type: "method_card", data: res.data as any }; }
-    else if (r.type === "paper") { const res = await getPaper(r.id); detailData.value = { type: "paper", data: res.data as any }; }
-    else if (r.type === "problem") { const res = await getProblem(r.id); detailData.value = { type: "problem", data: res.data as any }; }
-    else { const res = await getTemplate(r.id); detailData.value = { type: "template", data: res.data as any }; }
-  } catch { /* ignore */ }
-  finally { detailLoading.value = false; }
+    if (r.type === "method_card") {
+      const res = await getMethod(r.id);
+      detailData.value = { type: "method_card", data: res.data as any };
+    } else if (r.type === "paper") {
+      const res = await getPaper(r.id);
+      detailData.value = { type: "paper", data: res.data as any };
+    } else if (r.type === "problem") {
+      const res = await getProblem(r.id);
+      detailData.value = { type: "problem", data: res.data as any };
+    } else {
+      const res = await getTemplate(r.id);
+      detailData.value = { type: "template", data: res.data as any };
+    }
+  } catch {
+    /* ignore */
+  } finally {
+    detailLoading.value = false;
+  }
   // Fetch raw text in background
   try {
-    if (r.type === "method_card") { const rr = await getMethodRaw(r.id); detailRawText.value = rr.data.raw_text; }
-    else if (r.type === "paper") { const rr = await getPaperRaw(r.id); detailRawText.value = rr.data.raw_text; }
-    else if (r.type === "problem") { const rr = await getProblemRaw(r.id); detailRawText.value = rr.data.raw_text; }
-    else { const rr = await getTemplateRaw(r.id); detailRawText.value = rr.data.raw_text; }
-  } catch { /* no raw text available */ }
+    if (r.type === "method_card") {
+      const rr = await getMethodRaw(r.id);
+      detailRawText.value = rr.data.raw_text;
+    } else if (r.type === "paper") {
+      const rr = await getPaperRaw(r.id);
+      detailRawText.value = rr.data.raw_text;
+    } else if (r.type === "problem") {
+      const rr = await getProblemRaw(r.id);
+      detailRawText.value = rr.data.raw_text;
+    } else {
+      const rr = await getTemplateRaw(r.id);
+      detailRawText.value = rr.data.raw_text;
+    }
+  } catch {
+    /* no raw text available */
+  }
 }
 async function openProblemFromPaper(problemRef: string) {
   // 打开关联的题目详情
-  detailItem.value = { id: problemRef, type: "problem", name: "", title: "", snippet: "", score: null } as any;
-  detailLoading.value = true; detailData.value = null; detailRawText.value = ""; detailViewMode.value = "structured";
+  detailItem.value = {
+    id: problemRef,
+    type: "problem",
+    name: "",
+    title: "",
+    snippet: "",
+    score: null,
+  } as any;
+  detailLoading.value = true;
+  detailData.value = null;
+  detailRawText.value = "";
+  detailViewMode.value = "structured";
   try {
     const res = await getProblem(problemRef);
     detailData.value = { type: "problem", data: res.data as any };
-  } catch { /* ignore */ }
-  finally { detailLoading.value = false; }
-  try { const rr = await getProblemRaw(problemRef); detailRawText.value = rr.data.raw_text; } catch { /* */ }
+  } catch {
+    /* ignore */
+  } finally {
+    detailLoading.value = false;
+  }
+  try {
+    const rr = await getProblemRaw(problemRef);
+    detailRawText.value = rr.data.raw_text;
+  } catch {
+    /* */
+  }
 }
 
 // ── Tab 2: Manage ───────────────────────────────────────────────
-const mgrType = ref("method"); const mgrEntries = ref<any[]>([]); const mgrLoading = ref(false);
-const mgrTypes = [{ label: "方法卡片", value: "method" }, { label: "真题论文", value: "paper" }, { label: "框架模板", value: "template" }, { label: "竞赛真题", value: "problem" }];
-const mgrTypeLabel = computed(() => ({ method: "方法", paper: "论文", template: "模板", problem: "题目" }[mgrType.value]));
-const mgrBadgeClass = computed(() => ({ method: "bg-blue-100 text-blue-700", paper: "bg-purple-100 text-purple-700", template: "bg-green-100 text-green-700", problem: "bg-amber-100 text-amber-700" }[mgrType.value]));
+const mgrType = ref("method");
+const mgrEntries = ref<any[]>([]);
+const mgrLoading = ref(false);
+const mgrTypes = [
+  { label: "方法卡片", value: "method" },
+  { label: "真题论文", value: "paper" },
+  { label: "框架模板", value: "template" },
+  { label: "竞赛真题", value: "problem" },
+];
+const mgrTypeLabel = computed(
+  () =>
+    ({ method: "方法", paper: "论文", template: "模板", problem: "题目" })[
+      mgrType.value
+    ],
+);
+const mgrBadgeClass = computed(
+  () =>
+    ({
+      method: "bg-blue-100 text-blue-700",
+      paper: "bg-purple-100 text-purple-700",
+      template: "bg-green-100 text-green-700",
+      problem: "bg-amber-100 text-amber-700",
+    })[mgrType.value],
+);
 function mgrSub(e: any) {
   if (mgrType.value === "method") return (e.category || []).join(", ");
-  if (mgrType.value === "paper") return `${e.year||""} ${e.competition||""} ${e.problem_id||""} ★${e.quality_rating||3}` + (e.problem_ref ? ` · 🔗已关联` : ` · ⚠未关联`);
-  if (mgrType.value === "problem") return `${e.year||""} ${e.competition||""} ${e.problem_id||""} · ${e.linked_papers_count||0}篇论文`;
-  return `${e.steps_count||0} 个步骤`;
+  if (mgrType.value === "paper")
+    return `${e.year || ""} ${e.competition || ""} ${e.problem_id || ""} ★${e.quality_rating || 3}${e.problem_ref ? " · 🔗已关联" : " · ⚠未关联"}`;
+  if (mgrType.value === "problem")
+    return `${e.year || ""} ${e.competition || ""} ${e.problem_id || ""} · ${e.linked_papers_count || 0}篇论文`;
+  return `${e.steps_count || 0} 个步骤`;
 }
 async function loadMgrList() {
   mgrLoading.value = true;
   try {
-    if (mgrType.value === "method") { const r = await listMethods(); mgrEntries.value = r.data as any; }
-    else if (mgrType.value === "paper") { const r = await listPapers(); mgrEntries.value = r.data as any; }
-    else if (mgrType.value === "problem") { const r = await listProblems(); mgrEntries.value = r.data as any; }
-    else { const r = await listTemplates(); mgrEntries.value = r.data as any; }
-  } catch { mgrEntries.value = []; }
-  finally { mgrLoading.value = false; }
+    if (mgrType.value === "method") {
+      const r = await listMethods();
+      mgrEntries.value = r.data as any;
+    } else if (mgrType.value === "paper") {
+      const r = await listPapers();
+      mgrEntries.value = r.data as any;
+    } else if (mgrType.value === "problem") {
+      const r = await listProblems();
+      mgrEntries.value = r.data as any;
+    } else {
+      const r = await listTemplates();
+      mgrEntries.value = r.data as any;
+    }
+  } catch {
+    mgrEntries.value = [];
+  } finally {
+    mgrLoading.value = false;
+  }
 }
 watch(mgrType, () => loadMgrList());
 
 // Edit
-const editOpen = ref(false); const editSaving = ref(false); const editLoading = ref(false); const editForm = ref<Record<string, any>>({});
+const editOpen = ref(false);
+const editSaving = ref(false);
+const editLoading = ref(false);
+const editForm = ref<Record<string, any>>({});
 async function openEdit(e: any) {
   editLoading.value = true;
   editOpen.value = true;
@@ -608,8 +842,10 @@ async function openEdit(e: any) {
     let detail: any = null;
     if (mgrType.value === "method") detail = (await getMethod(e.id)).data;
     else if (mgrType.value === "paper") detail = (await getPaper(e.id)).data;
-    else if (mgrType.value === "template") detail = (await getTemplate(e.id)).data;
-    else if (mgrType.value === "problem") detail = (await getProblem(e.id)).data;
+    else if (mgrType.value === "template")
+      detail = (await getTemplate(e.id)).data;
+    else if (mgrType.value === "problem")
+      detail = (await getProblem(e.id)).data;
     if (detail) editForm.value = { ...e, ...detail };
   } catch (err: any) {
     console.error("Failed to load detail:", err);
@@ -619,19 +855,37 @@ async function openEdit(e: any) {
   const t: any = { ...editForm.value };
   if (mgrType.value === "method") {
     t.category = Array.isArray(t.category) ? [...t.category] : [];
-    t.applicable_when = Array.isArray(t.applicable_when) ? [...t.applicable_when] : [];
-    t.typical_scenarios = Array.isArray(t.typical_scenarios) ? [...t.typical_scenarios] : [];
-    t.not_applicable_when = Array.isArray(t.not_applicable_when) ? [...t.not_applicable_when] : [];
-    t.common_mistakes = Array.isArray(t.common_mistakes) ? t.common_mistakes.map((m:any) => ({...m})) : [];
-    t.code_snippets = Array.isArray(t.code_snippets) ? t.code_snippets.map((c:any) => ({...c})) : [];
-    t.formulas = Array.isArray(t.formulas) ? t.formulas.map((f:any) => ({...f})) : [];
-    t.related_cards = Array.isArray(t.related_cards) ? [...t.related_cards] : [];
-    t.related_papers = Array.isArray(t.related_papers) ? [...t.related_papers] : [];
+    t.applicable_when = Array.isArray(t.applicable_when)
+      ? [...t.applicable_when]
+      : [];
+    t.typical_scenarios = Array.isArray(t.typical_scenarios)
+      ? [...t.typical_scenarios]
+      : [];
+    t.not_applicable_when = Array.isArray(t.not_applicable_when)
+      ? [...t.not_applicable_when]
+      : [];
+    t.common_mistakes = Array.isArray(t.common_mistakes)
+      ? t.common_mistakes.map((m: any) => ({ ...m }))
+      : [];
+    t.code_snippets = Array.isArray(t.code_snippets)
+      ? t.code_snippets.map((c: any) => ({ ...c }))
+      : [];
+    t.formulas = Array.isArray(t.formulas)
+      ? t.formulas.map((f: any) => ({ ...f }))
+      : [];
+    t.related_cards = Array.isArray(t.related_cards)
+      ? [...t.related_cards]
+      : [];
+    t.related_papers = Array.isArray(t.related_papers)
+      ? [...t.related_papers]
+      : [];
   }
   if (mgrType.value === "paper") {
     const ana: any = t.analysis || {};
     t.analysis_problem_summary = ana.problem_summary || "";
-    t.analysis_key_assumptions = Array.isArray(ana.key_assumptions) ? [...ana.key_assumptions] : [];
+    t.analysis_key_assumptions = Array.isArray(ana.key_assumptions)
+      ? [...ana.key_assumptions]
+      : [];
     t.analysis_decision_variables = ana.decision_variables || "";
     t.analysis_objective = ana.objective || "";
     t.analysis_constraints = ana.constraints || "";
@@ -640,27 +894,51 @@ async function openEdit(e: any) {
     t.model_innovation = mdl.innovation || "";
     t.model_solution_method = mdl.solution_method || "";
     const eva: any = t.evaluation || {};
-    t.evaluation_strengths = Array.isArray(eva.strengths) ? [...eva.strengths] : [];
-    t.evaluation_weaknesses = Array.isArray(eva.weaknesses) ? [...eva.weaknesses] : [];
+    t.evaluation_strengths = Array.isArray(eva.strengths)
+      ? [...eva.strengths]
+      : [];
+    t.evaluation_weaknesses = Array.isArray(eva.weaknesses)
+      ? [...eva.weaknesses]
+      : [];
     t.evaluation_lessons = eva.lessons || "";
     const tags: any = t.tags || {};
-    t.tags_problem_type = Array.isArray(tags.problem_type) ? [...tags.problem_type] : [];
-    t.tags_core_models = Array.isArray(tags.core_models) ? [...tags.core_models] : [];
-    t.methodology_chain = Array.isArray(t.methodology_chain) ? [...t.methodology_chain] : [];
+    t.tags_problem_type = Array.isArray(tags.problem_type)
+      ? [...tags.problem_type]
+      : [];
+    t.tags_core_models = Array.isArray(tags.core_models)
+      ? [...tags.core_models]
+      : [];
+    t.methodology_chain = Array.isArray(t.methodology_chain)
+      ? [...t.methodology_chain]
+      : [];
     t.problem_context = t.problem_context || "";
-    t.key_formulas = Array.isArray(t.key_formulas) ? t.key_formulas.map((f:any) => ({...f})) : [];
-    t.algorithm_outline = Array.isArray(t.algorithm_outline) ? t.algorithm_outline.map((a:any) => ({...a})) : [];
-    t.assumption_analysis = Array.isArray(t.assumption_analysis) ? [...t.assumption_analysis] : [];
-    t.reusable_patterns = Array.isArray(t.reusable_patterns) ? [...t.reusable_patterns] : [];
-    t.common_pitfalls = Array.isArray(t.common_pitfalls) ? t.common_pitfalls.map((p:any) => ({...p})) : [];
+    t.key_formulas = Array.isArray(t.key_formulas)
+      ? t.key_formulas.map((f: any) => ({ ...f }))
+      : [];
+    t.algorithm_outline = Array.isArray(t.algorithm_outline)
+      ? t.algorithm_outline.map((a: any) => ({ ...a }))
+      : [];
+    t.assumption_analysis = Array.isArray(t.assumption_analysis)
+      ? [...t.assumption_analysis]
+      : [];
+    t.reusable_patterns = Array.isArray(t.reusable_patterns)
+      ? [...t.reusable_patterns]
+      : [];
+    t.common_pitfalls = Array.isArray(t.common_pitfalls)
+      ? t.common_pitfalls.map((p: any) => ({ ...p }))
+      : [];
   }
   if (mgrType.value === "template") {
-    t.steps = Array.isArray(t.steps) ? t.steps.map((s:any) => ({...s})) : [];
-    t.applicable_to = Array.isArray(t.applicable_to) ? [...t.applicable_to] : [];
+    t.steps = Array.isArray(t.steps) ? t.steps.map((s: any) => ({ ...s })) : [];
+    t.applicable_to = Array.isArray(t.applicable_to)
+      ? [...t.applicable_to]
+      : [];
   }
   if (mgrType.value === "problem") {
     const tags: any = t.tags || {};
-    t.tags_problem_type = Array.isArray(tags.problem_type) ? [...tags.problem_type] : [];
+    t.tags_problem_type = Array.isArray(tags.problem_type)
+      ? [...tags.problem_type]
+      : [];
     t.objectives = Array.isArray(t.objectives) ? [...t.objectives] : [];
     t.deliverables = Array.isArray(t.deliverables) ? [...t.deliverables] : [];
   }
@@ -670,112 +948,243 @@ async function doEditSave() {
   editSaving.value = true;
   try {
     const id = editForm.value.id;
-    let data: any = { ...editForm.value };
-    if (mgrType.value === "method") { delete data.id; await updateMethod(id, data); }
-    else if (mgrType.value === "paper") {
-      data.analysis = { problem_summary: data.analysis_problem_summary, key_assumptions: data.analysis_key_assumptions, decision_variables: data.analysis_decision_variables, objective: data.analysis_objective, constraints: data.analysis_constraints };
-      data.model = { approach: data.model_approach, innovation: data.model_innovation, solution_method: data.model_solution_method };
-      data.evaluation = { strengths: data.evaluation_strengths, weaknesses: data.evaluation_weaknesses, lessons: data.evaluation_lessons };
-      data.tags = { problem_type: data.tags_problem_type, core_models: data.tags_core_models };
-      ["analysis_problem_summary","analysis_key_assumptions","analysis_decision_variables","analysis_objective","analysis_constraints",
-       "model_approach","model_innovation","model_solution_method","evaluation_strengths","evaluation_weaknesses","evaluation_lessons",
-       "tags_problem_type","tags_core_models"].forEach(k => delete (data as any)[k]);
+    const data: any = { ...editForm.value };
+    if (mgrType.value === "method") {
+      data.id = undefined;
+      await updateMethod(id, data);
+    } else if (mgrType.value === "paper") {
+      data.analysis = {
+        problem_summary: data.analysis_problem_summary,
+        key_assumptions: data.analysis_key_assumptions,
+        decision_variables: data.analysis_decision_variables,
+        objective: data.analysis_objective,
+        constraints: data.analysis_constraints,
+      };
+      data.model = {
+        approach: data.model_approach,
+        innovation: data.model_innovation,
+        solution_method: data.model_solution_method,
+      };
+      data.evaluation = {
+        strengths: data.evaluation_strengths,
+        weaknesses: data.evaluation_weaknesses,
+        lessons: data.evaluation_lessons,
+      };
+      data.tags = {
+        problem_type: data.tags_problem_type,
+        core_models: data.tags_core_models,
+      };
+      for (const k of [
+        "analysis_problem_summary",
+        "analysis_key_assumptions",
+        "analysis_decision_variables",
+        "analysis_objective",
+        "analysis_constraints",
+        "model_approach",
+        "model_innovation",
+        "model_solution_method",
+        "evaluation_strengths",
+        "evaluation_weaknesses",
+        "evaluation_lessons",
+        "tags_problem_type",
+        "tags_core_models",
+      ]) {
+        data[k] = undefined;
+      }
       await updatePaper(id, data);
-    } else if (mgrType.value === "template") { delete data.id; await updateTemplate(id, data); }
-    else if (mgrType.value === "problem") {
+    } else if (mgrType.value === "template") {
+      data.id = undefined;
+      await updateTemplate(id, data);
+    } else if (mgrType.value === "problem") {
       data.tags = { ...data.tags, problem_type: data.tags_problem_type };
-      delete data.tags_problem_type; delete data.id; await updateProblem(id, data);
+      data.tags_problem_type = undefined;
+      data.id = undefined;
+      await updateProblem(id, data);
     }
-    editOpen.value = false; await loadMgrList(); await loadStats();
-  } catch (e: any) { alert("保存失败: " + (e?.response?.data?.detail || e)); }
-  finally { editSaving.value = false; }
+    editOpen.value = false;
+    await loadMgrList();
+    await loadStats();
+  } catch (e: any) {
+    alert(`保存失败: ${e?.response?.data?.detail || e}`);
+  } finally {
+    editSaving.value = false;
+  }
 }
 
 // Delete
-const delOpen = ref(false); const delTarget = ref<any>(null); const deleting = ref(false);
-function confirmDel(e: any) { delTarget.value = e; delOpen.value = true; }
+const delOpen = ref(false);
+const delTarget = ref<any>(null);
+const deleting = ref(false);
+function confirmDel(e: any) {
+  delTarget.value = e;
+  delOpen.value = true;
+}
 async function doDelete() {
   deleting.value = true;
   try {
     const id = delTarget.value.id;
-    if (mgrType.value === "method") await deleteMethod(id); else if (mgrType.value === "paper") await deletePaper(id); else if (mgrType.value === "problem") await deleteProblem(id); else await deleteTemplate(id);
-    delOpen.value = false; delTarget.value = null; await loadMgrList(); await loadStats();
-  } catch (e: any) { alert(`删除失败: ${e?.response?.data?.detail||e}`); }
-  finally { deleting.value = false; }
+    if (mgrType.value === "method") await deleteMethod(id);
+    else if (mgrType.value === "paper") await deletePaper(id);
+    else if (mgrType.value === "problem") await deleteProblem(id);
+    else await deleteTemplate(id);
+    delOpen.value = false;
+    delTarget.value = null;
+    await loadMgrList();
+    await loadStats();
+  } catch (e: any) {
+    alert(`删除失败: ${e?.response?.data?.detail || e}`);
+  } finally {
+    deleting.value = false;
+  }
 }
 
 // Reindex
 const reindexing = ref(false);
 async function doReindex() {
   reindexing.value = true;
-  try { const r = await reindexKB(); alert(r.data.message); await loadStats(); }
-  catch { alert("重建索引失败"); }
-  finally { reindexing.value = false; }
+  try {
+    const r = await reindexKB();
+    alert(r.data.message);
+    await loadStats();
+  } catch {
+    alert("重建索引失败");
+  } finally {
+    reindexing.value = false;
+  }
 }
 
 // ── Tab 3: Import ───────────────────────────────────────────────
 // 题目/方法/模板上传
-const impType = ref("problem"); const impText = ref(""); const impName = ref(""); const impFiles = ref<File[]>([]);
-const dragOver = ref(false); const fileRef = ref<HTMLInputElement | null>(null);
-const extracting = ref(false); const saving = ref(false); const extractPreview = ref(""); const extractError = ref("");
+const impType = ref("problem");
+const impText = ref("");
+const impName = ref("");
+const impFiles = ref<File[]>([]);
+const dragOver = ref(false);
+const fileRef = ref<HTMLInputElement | null>(null);
+const extracting = ref(false);
+const saving = ref(false);
+const extractPreview = ref("");
+const extractError = ref("");
 const extractedEntryId = ref("");
-const impTypes = [{ label: "竞赛真题", value: "problem" }, { label: "方法卡片", value: "method" }, { label: "框架模板", value: "template" }];
+const impTypes = [
+  { label: "竞赛真题", value: "problem" },
+  { label: "方法卡片", value: "method" },
+  { label: "框架模板", value: "template" },
+];
 
 // 论文上传（独立状态，关联到已导入的题目）
-const paperText = ref(""); const paperName = ref(""); const paperFiles = ref<File[]>([]);
-const paperDragOver = ref(false); const paperFileRef = ref<HTMLInputElement | null>(null);
-const paperExtracting = ref(false); const paperSaving = ref(false); const paperPreview = ref(""); const paperError = ref("");
+const paperText = ref("");
+const paperName = ref("");
+const paperFiles = ref<File[]>([]);
+const paperDragOver = ref(false);
+const paperFileRef = ref<HTMLInputElement | null>(null);
+const paperExtracting = ref(false);
+const paperSaving = ref(false);
+const paperPreview = ref("");
+const paperError = ref("");
 const paperExtractedEntryId = ref("");
-const impTypeLabel = computed(() => impTypes.find((o) => o.value === impType.value)?.label ?? "");
-const impPlaceholder = computed(() => ({
-  method: "粘贴方法描述...\n例如: 粒子群优化算法(PSO)是一种基于群体智能的启发式优化算法...",
-  paper: "粘贴论文内容...\n例如: 2024年国赛A题优秀论文...",
-  template: "粘贴分析框架描述...\n例如: 第一步: 问题识别...",
-  problem: "粘贴竞赛真题...\n例如: 2024年国赛B题...",
-}[impType.value]));
+const impTypeLabel = computed(
+  () => impTypes.find((o) => o.value === impType.value)?.label ?? "",
+);
+const impPlaceholder = computed(
+  () =>
+    ({
+      method:
+        "粘贴方法描述...\n例如: 粒子群优化算法(PSO)是一种基于群体智能的启发式优化算法...",
+      paper: "粘贴论文内容...\n例如: 2024年国赛A题优秀论文...",
+      template: "粘贴分析框架描述...\n例如: 第一步: 问题识别...",
+      problem: "粘贴竞赛真题...\n例如: 2024年国赛B题...",
+    })[impType.value],
+);
 
-function triggerFileInput() { fileRef.value?.click(); }
-function onFileSel(e: Event) { const fl = (e.target as HTMLInputElement).files; if (fl) addFiles(Array.from(fl)); }
-function onDrop(e: DragEvent) { dragOver.value = false; if (e.dataTransfer?.files) addFiles(Array.from(e.dataTransfer.files)); }
+function triggerFileInput() {
+  fileRef.value?.click();
+}
+function onFileSel(e: Event) {
+  const fl = (e.target as HTMLInputElement).files;
+  if (fl) addFiles(Array.from(fl));
+}
+function onDrop(e: DragEvent) {
+  dragOver.value = false;
+  if (e.dataTransfer?.files) addFiles(Array.from(e.dataTransfer.files));
+}
 function addFiles(newFiles: File[]) {
-  const valid = newFiles.filter(f => f.size <= 10 * 1024 * 1024);
-  if (valid.length < newFiles.length) extractError.value = "部分文件超过 10MB 已跳过";
+  const valid = newFiles.filter((f) => f.size <= 10 * 1024 * 1024);
+  if (valid.length < newFiles.length)
+    extractError.value = "部分文件超过 10MB 已跳过";
   impFiles.value = [...impFiles.value, ...valid];
-  if (!impName.value && valid.length > 0) impName.value = valid[0].name.replace(/\.[^.]+$/, "");
+  if (!impName.value && valid.length > 0)
+    impName.value = valid[0].name.replace(/\.[^.]+$/, "");
   // Pre-load small text files for preview; binary files handled by backend
   for (const f of valid) {
-    const ext = f.name.split('.').pop()?.toLowerCase();
-    if (ext && ["txt", "md", "tex", "csv"].includes(ext) && f.size < 500 * 1024) {
-      const r = new FileReader(); r.onload = () => { if (!impText.value) impText.value = r.result as string; }; r.readAsText(f);
+    const ext = f.name.split(".").pop()?.toLowerCase();
+    if (
+      ext &&
+      ["txt", "md", "tex", "csv"].includes(ext) &&
+      f.size < 500 * 1024
+    ) {
+      const r = new FileReader();
+      r.onload = () => {
+        if (!impText.value) impText.value = r.result as string;
+      };
+      r.readAsText(f);
     }
   }
 }
-function removeFile(i: number) { impFiles.value.splice(i, 1); }
-function clearAll() { impFiles.value = []; impText.value = ""; if (fileRef.value) fileRef.value.value = ""; }
+function removeFile(i: number) {
+  impFiles.value.splice(i, 1);
+}
+function clearAll() {
+  impFiles.value = [];
+  impText.value = "";
+  if (fileRef.value) fileRef.value.value = "";
+}
 // 追加论文: 记录最后导入的题目 ID
 const lastProblemRef = ref("");
-function fmtSize(b: number) { if (b<1024) return `${b}B`; if (b<1048576) return `${(b/1024).toFixed(1)}KB`; return `${(b/1048576).toFixed(1)}MB`; }
+function fmtSize(b: number) {
+  if (b < 1024) return `${b}B`;
+  if (b < 1048576) return `${(b / 1024).toFixed(1)}KB`;
+  return `${(b / 1048576).toFixed(1)}MB`;
+}
 
 async function doExtract() {
   if (!impText.value.trim() && impFiles.value.length === 0) return;
-  extracting.value = true; extractError.value = ""; extractPreview.value = ""; extractedEntryId.value = "";
+  extracting.value = true;
+  extractError.value = "";
+  extractPreview.value = "";
+  extractedEntryId.value = "";
   try {
-    const uploadParams: any = { text: impText.value.trim() || undefined, files: impFiles.value.length > 0 ? impFiles.value : undefined, kb_type: impType.value, name: impName.value };
-    if (impType.value === 'paper' && lastProblemRef.value) {
+    const uploadParams: any = {
+      text: impText.value.trim() || undefined,
+      files: impFiles.value.length > 0 ? impFiles.value : undefined,
+      kb_type: impType.value,
+      name: impName.value,
+    };
+    if (impType.value === "paper" && lastProblemRef.value) {
       uploadParams.problem_ref = lastProblemRef.value;
     }
     const res = await uploadKnowledge(uploadParams);
     let tries = 0;
     while (tries < 60) {
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1000));
       const job = await getExtractionJob(res.data.job_id);
-      if (job.data.status === "completed") { extractPreview.value = job.data.result?.yaml_content || ""; extractedEntryId.value = job.data.result?.entry_id || ""; break; }
-      if (job.data.status === "error") { extractError.value = job.data.error || "提取失败"; break; }
+      if (job.data.status === "completed") {
+        extractPreview.value = job.data.result?.yaml_content || "";
+        extractedEntryId.value = job.data.result?.entry_id || "";
+        break;
+      }
+      if (job.data.status === "error") {
+        extractError.value = job.data.error || "提取失败";
+        break;
+      }
       tries++;
     }
     if (tries >= 60) extractError.value = "提取超时";
-  } catch (e: any) { extractError.value = `请求失败: ${e?.response?.data?.detail || e}`; }
-  finally { extracting.value = false; }
+  } catch (e: any) {
+    extractError.value = `请求失败: ${e?.response?.data?.detail || e}`;
+  } finally {
+    extracting.value = false;
+  }
 }
 async function doSaveExtract() {
   saving.value = true;
@@ -791,15 +1200,19 @@ async function doSaveExtract() {
   await loadStats();
 
   // 如果是题目导入，记录下来，方便后续追加论文
-  if (impType.value === 'problem') {
+  if (impType.value === "problem") {
     lastProblemRef.value = entryId;
   }
 
-  extractPreview.value = ""; extractError.value = ""; impText.value = ""; impName.value = ""; clearAll();
+  extractPreview.value = "";
+  extractError.value = "";
+  impText.value = "";
+  impName.value = "";
+  clearAll();
   extractedEntryId.value = "";
   saving.value = false;
 
-  if (impType.value === 'problem') {
+  if (impType.value === "problem") {
     // 不弹 alert，让用户在追加区域操作
   } else {
     alert("已提取入库，切换到「检索知识」可搜索验证。");
@@ -807,44 +1220,78 @@ async function doSaveExtract() {
 }
 
 // ── paper upload (independent from problem upload) ───────────────
-function paperTriggerFile() { paperFileRef.value?.click(); }
-function paperOnFileSel(e: Event) { const fl = (e.target as HTMLInputElement).files; if (fl) paperAddFiles(Array.from(fl)); }
-function paperOnDrop(e: DragEvent) { paperDragOver.value = false; if (e.dataTransfer?.files) paperAddFiles(Array.from(e.dataTransfer.files)); }
+function paperTriggerFile() {
+  paperFileRef.value?.click();
+}
+function paperOnFileSel(e: Event) {
+  const fl = (e.target as HTMLInputElement).files;
+  if (fl) paperAddFiles(Array.from(fl));
+}
+function paperOnDrop(e: DragEvent) {
+  paperDragOver.value = false;
+  if (e.dataTransfer?.files) paperAddFiles(Array.from(e.dataTransfer.files));
+}
 function paperAddFiles(newFiles: File[]) {
-  const valid = newFiles.filter(f => f.size <= 10 * 1024 * 1024);
+  const valid = newFiles.filter((f) => f.size <= 10 * 1024 * 1024);
   paperFiles.value = [...paperFiles.value, ...valid];
-  if (!paperName.value && valid.length > 0) paperName.value = valid[0].name.replace(/\.[^.]+$/, "");
+  if (!paperName.value && valid.length > 0)
+    paperName.value = valid[0].name.replace(/\.[^.]+$/, "");
   for (const f of valid) {
-    const ext = f.name.split('.').pop()?.toLowerCase();
+    const ext = f.name.split(".").pop()?.toLowerCase();
     if (ext && ["txt", "md", "tex"].includes(ext) && f.size < 500 * 1024) {
-      const r = new FileReader(); r.onload = () => { if (!paperText.value) paperText.value = r.result as string; }; r.readAsText(f);
+      const r = new FileReader();
+      r.onload = () => {
+        if (!paperText.value) paperText.value = r.result as string;
+      };
+      r.readAsText(f);
     }
   }
 }
-function paperRemoveFile(i: number) { paperFiles.value.splice(i, 1); }
-function paperClearAll() { paperFiles.value = []; paperText.value = ""; paperName.value = ""; if (paperFileRef.value) paperFileRef.value.value = ""; }
+function paperRemoveFile(i: number) {
+  paperFiles.value.splice(i, 1);
+}
+function paperClearAll() {
+  paperFiles.value = [];
+  paperText.value = "";
+  paperName.value = "";
+  if (paperFileRef.value) paperFileRef.value.value = "";
+}
 
 async function paperDoExtract() {
   if (!paperText.value.trim() && paperFiles.value.length === 0) return;
-  paperExtracting.value = true; paperError.value = ""; paperPreview.value = ""; paperExtractedEntryId.value = "";
+  paperExtracting.value = true;
+  paperError.value = "";
+  paperPreview.value = "";
+  paperExtractedEntryId.value = "";
   try {
     const res = await uploadKnowledge({
       text: paperText.value.trim() || undefined,
       files: paperFiles.value.length > 0 ? paperFiles.value : undefined,
-      kb_type: "paper", name: paperName.value,
+      kb_type: "paper",
+      name: paperName.value,
       problem_ref: lastProblemRef.value || undefined,
     });
     let tries = 0;
     while (tries < 60) {
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1000));
       const job = await getExtractionJob(res.data.job_id);
-      if (job.data.status === "completed") { paperPreview.value = job.data.result?.yaml_content || ""; paperExtractedEntryId.value = job.data.result?.entry_id || ""; break; }
-      if (job.data.status === "error") { paperError.value = job.data.error || "提取失败"; break; }
+      if (job.data.status === "completed") {
+        paperPreview.value = job.data.result?.yaml_content || "";
+        paperExtractedEntryId.value = job.data.result?.entry_id || "";
+        break;
+      }
+      if (job.data.status === "error") {
+        paperError.value = job.data.error || "提取失败";
+        break;
+      }
       tries++;
     }
     if (tries >= 60) paperError.value = "提取超时";
-  } catch (e: any) { paperError.value = `请求失败: ${e?.response?.data?.detail || e}`; }
-  finally { paperExtracting.value = false; }
+  } catch (e: any) {
+    paperError.value = `请求失败: ${e?.response?.data?.detail || e}`;
+  } finally {
+    paperExtracting.value = false;
+  }
 }
 
 async function paperDoSave() {
@@ -859,17 +1306,35 @@ async function paperDoSave() {
   }
 
   await loadStats();
-  paperPreview.value = ""; paperError.value = ""; paperText.value = ""; paperName.value = ""; paperClearAll();
+  paperPreview.value = "";
+  paperError.value = "";
+  paperText.value = "";
+  paperName.value = "";
+  paperClearAll();
   paperExtractedEntryId.value = "";
   paperSaving.value = false;
   alert("论文已提取入库并关联到题目！");
 }
 
 // ── shared ──────────────────────────────────────────────────────
-const stats = ref<KBStats>({ methods_count:0,papers_count:0,templates_count:0,problems_count:0,total:0 });
-async function loadStats() { try { const r = await getKBStats(); stats.value = r.data; } catch {/*ignore*/} }
+const stats = ref<KBStats>({
+  methods_count: 0,
+  papers_count: 0,
+  templates_count: 0,
+  problems_count: 0,
+  total: 0,
+});
+async function loadStats() {
+  try {
+    const r = await getKBStats();
+    stats.value = r.data;
+  } catch {
+    /*ignore*/
+  }
+}
 onMounted(async () => {
   if (auth.token && !auth.user) await auth.checkSession();
-  loadStats(); loadBrowseAll();
+  loadStats();
+  loadBrowseAll();
 });
 </script>

@@ -5,19 +5,19 @@
 @layer base {
   :root {
     /* 画布:暖白底(非纯白),符合 minimalist warm monochrome */
-    --background: 40 20% 97%;          /* #F7F6F3 暖骨色 */
-    --foreground: 20 14% 12%;          /* #1F1B16 暖近黑,非纯黑 */
+    --background: 40 20% 97%; /* #F7F6F3 暖骨色 */
+    --foreground: 20 14% 12%; /* #1F1B16 暖近黑,非纯黑 */
 
     /* 卡片表面:略亮于画布 */
-    --card: 40 20% 99%;                /* #FBFBFA */
+    --card: 40 20% 99%; /* #FBFBFA */
     --card-foreground: 20 14% 12%;
 
     --popover: 40 20% 99%;
     --popover-foreground: 20 14% 12%;
 
     /* 主色:暖橙(去饱和,饱和度<80%) */
-    --primary: 24 80% 50%;             /* orange-600 系,去饱和后偏沉稳 */
-    --primary-foreground: 40 20% 99%;  /* 暖白字 */
+    --primary: 24 80% 50%; /* orange-600 系,去饱和后偏沉稳 */
+    --primary-foreground: 40 20% 99%; /* 暖白字 */
 
     /* 次要:暖灰 */
     --secondary: 30 12% 92%;
@@ -25,37 +25,37 @@
 
     /* 静音:浅暖灰 */
     --muted: 30 12% 93%;
-    --muted-foreground: 25 8% 42%;     /* #6B6259 暖灰文字 */
+    --muted-foreground: 25 8% 42%; /* #6B6259 暖灰文字 */
 
     /* 强调:与 primary 同色系,用于选中态背景 */
-    --accent: 28 60% 94%;              /* 淡橙底 */
-    --accent-foreground: 24 70% 35%;   /* 深橙字 */
+    --accent: 28 60% 94%; /* 淡橙底 */
+    --accent-foreground: 24 70% 35%; /* 深橙字 */
 
-    --destructive: 0 70% 45%;          /* 去饱和红 */
+    --destructive: 0 70% 45%; /* 去饱和红 */
     --destructive-foreground: 40 20% 99%;
 
     /* 边框:超浅暖灰(非默认冷灰) */
-    --border: 30 12% 89%;              /* #EAE6E1 */
+    --border: 30 12% 89%; /* #EAE6E1 */
     --input: 30 12% 89%;
-    --ring: 24 80% 50%;                /* 聚焦环用主色 */
+    --ring: 24 80% 50%; /* 聚焦环用主色 */
 
     /* 圆角刻度:卡片12px/按钮6px/输入8px/badge药丸 */
-    --radius: 0.75rem;                 /* lg=12px 基准 */
+    --radius: 0.75rem; /* lg=12px 基准 */
   }
 
   .dark {
     /* 暗色:zinc 系暖黑底,非纯黑 */
-    --background: 20 14% 7%;           /* #11100E 暖黑 */
-    --foreground: 40 20% 92%;          /* 暖白字 */
+    --background: 20 14% 7%; /* #11100E 暖黑 */
+    --foreground: 40 20% 92%; /* 暖白字 */
 
-    --card: 20 14% 9%;                 /* #16140F */
+    --card: 20 14% 9%; /* #16140F */
     --card-foreground: 40 20% 92%;
 
     --popover: 20 14% 9%;
     --popover-foreground: 40 20% 92%;
 
     /* 暗色主色略提亮,保证对比度 */
-    --primary: 28 85% 58%;             /* 暗底下橙色提亮 */
+    --primary: 28 85% 58%; /* 暗底下橙色提亮 */
     --primary-foreground: 20 14% 9%;
 
     --secondary: 20 10% 16%;
@@ -64,13 +64,13 @@
     --muted: 20 10% 16%;
     --muted-foreground: 30 8% 62%;
 
-    --accent: 28 40% 18%;              /* 暗色淡橙底 */
+    --accent: 28 40% 18%; /* 暗色淡橙底 */
     --accent-foreground: 28 80% 75%;
 
     --destructive: 0 60% 50%;
     --destructive-foreground: 40 20% 92%;
 
-    --border: 20 10% 18%;              /* #2A2622 */
+    --border: 20 10% 18%; /* #2A2622 */
     --input: 20 10% 18%;
     --ring: 28 85% 58%;
   }
@@ -119,14 +119,19 @@
 @layer utilities {
   /* 方格纸肌理:学术手稿方向,极淡网格(明亮模式用黑低透明,暗色用白低透明) */
   .bg-grid-paper {
-    background-image:
-      linear-gradient(to right, rgba(0, 0, 0, 0.022) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 0, 0, 0.022) 1px, transparent 1px);
+    background-image: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0.022) 1px,
+        transparent 1px
+      ), linear-gradient(to bottom, rgba(0, 0, 0, 0.022) 1px, transparent 1px);
     background-size: 28px 28px;
   }
   .dark .bg-grid-paper {
-    background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    background-image: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.03) 1px,
+        transparent 1px
+      ),
       linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   }
 
@@ -149,8 +154,8 @@
   .reveal {
     opacity: 0;
     transform: translateY(12px);
-    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s
+      cubic-bezier(0.16, 1, 0.3, 1);
     transition-delay: calc(var(--reveal-index, 0) * 80ms);
   }
   .reveal.is-visible {

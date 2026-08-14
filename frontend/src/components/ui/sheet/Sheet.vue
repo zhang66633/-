@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, provide } from "vue";
 import { DialogRoot, type DialogRootProps } from "reka-ui";
+import { computed, provide } from "vue";
 import type { SheetSide } from "./types";
 
 export interface SheetProps {

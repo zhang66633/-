@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import { AccordionHeader, AccordionTrigger } from 'reka-ui'
-import { ChevronDown } from 'lucide-vue-next'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-vue-next";
+import type { PrimitiveProps } from "reka-ui";
+import { AccordionHeader, AccordionTrigger } from "reka-ui";
 
 interface Props extends PrimitiveProps {
-  class?: string
+  class?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  as: 'button',
-})
+  as: "button",
+});
 </script>
 
 <template>

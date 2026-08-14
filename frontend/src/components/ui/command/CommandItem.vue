@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { ComboboxItemEmits, ComboboxItemProps } from 'reka-ui'
-import { ComboboxItem, useForwardPropsEmits } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import type { ComboboxItemEmits, ComboboxItemProps } from "reka-ui";
+import { ComboboxItem, useForwardPropsEmits } from "reka-ui";
 
 interface Props extends ComboboxItemProps {
-  class?: string
+  class?: string;
 }
 
-const props = defineProps<Props>()
-const emits = defineEmits<ComboboxItemEmits>()
+const props = defineProps<Props>();
+const emits = defineEmits<ComboboxItemEmits>();
 
-const forward = useForwardPropsEmits(props, emits)
+const forward = useForwardPropsEmits(props, emits);
 </script>
 
 <template>

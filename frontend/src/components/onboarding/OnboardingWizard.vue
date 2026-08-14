@@ -56,11 +56,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import { useOnboardingStore } from "@/stores/onboarding";
-import StepRole from "./StepRole.vue";
+import { computed } from "vue";
 import StepAssessment from "./StepAssessment.vue";
 import StepGoal from "./StepGoal.vue";
+import StepRole from "./StepRole.vue";
 
 const store = useOnboardingStore();
 
@@ -68,27 +68,41 @@ const visible = computed(() => store.visible);
 const step = computed(() => store.step);
 const role = computed({
   get: () => store.role,
-  set: (v) => (store.role = v),
+  set: (v) => {
+    store.role = v;
+  },
 });
 const assessment = computed({
   get: () => store.assessment,
-  set: (v) => (store.assessment = v),
+  set: (v) => {
+    store.assessment = v;
+  },
 });
 const goal = computed({
   get: () => store.goal,
-  set: (v) => (store.goal = v),
+  set: (v) => {
+    store.goal = v;
+  },
 });
 const weeklyHours = computed({
   get: () => store.weeklyHours,
-  set: (v) => (store.weeklyHours = v),
+  set: (v) => {
+    store.weeklyHours = v;
+  },
 });
 const targetDate = computed({
   get: () => store.targetDate,
-  set: (v) => (store.targetDate = v),
+  set: (v) => {
+    store.targetDate = v;
+  },
 });
 
-function next() { store.next(); }
-function prev() { store.prev(); }
+function next() {
+  store.next();
+}
+function prev() {
+  store.prev();
+}
 const emit = defineEmits<{ finish: [payload: any] }>();
 function finish() {
   const payload = store.finish();

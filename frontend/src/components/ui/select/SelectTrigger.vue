@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import { Primitive, SelectIcon, SelectTrigger, useForwardProps } from 'reka-ui'
-import { ChevronDown } from 'lucide-vue-next'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-vue-next";
+import type { PrimitiveProps } from "reka-ui";
+import { Primitive, SelectIcon, SelectTrigger, useForwardProps } from "reka-ui";
 
 interface Props extends PrimitiveProps {
-  class?: string
+  class?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  as: 'button',
-})
+  as: "button",
+});
 
-const forwarded = useForwardProps(props)
+const forwarded = useForwardProps(props);
 </script>
 
 <template>

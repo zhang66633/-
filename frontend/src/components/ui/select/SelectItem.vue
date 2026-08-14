@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import type { SelectItemEmits, SelectItemProps } from 'reka-ui'
-import { SelectItem, SelectItemIndicator, SelectItemText, useForwardPropsEmits } from 'reka-ui'
-import { Check } from 'lucide-vue-next'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-vue-next";
+import type { SelectItemEmits, SelectItemProps } from "reka-ui";
+import {
+  SelectItem,
+  SelectItemIndicator,
+  SelectItemText,
+  useForwardPropsEmits,
+} from "reka-ui";
 
 interface Props extends SelectItemProps {
-  class?: string
+  class?: string;
 }
 
-const props = defineProps<Props>()
-const emits = defineEmits<SelectItemEmits>()
+const props = defineProps<Props>();
+const emits = defineEmits<SelectItemEmits>();
 
-const forward = useForwardPropsEmits(props, emits)
+const forward = useForwardPropsEmits(props, emits);
 </script>
 
 <template>

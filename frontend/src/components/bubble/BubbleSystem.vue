@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { Info, AlertTriangle, CheckCircle2, XCircle } from "lucide-vue-next";
 import type { Message, SystemMessage as SysMsg } from "@/types/response";
 import { renderMarkdown } from "@/utils/markdown";
+import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-vue-next";
+import { computed } from "vue";
 import BubbleAvatar from "./BubbleAvatar.vue";
 
 const props = defineProps<{
@@ -14,20 +14,28 @@ const content = computed(() => props.message.content ?? "");
 const sysIcon = computed(() => {
   const sys = props.message as SysMsg;
   switch (sys.type) {
-    case "success": return CheckCircle2;
-    case "warning": return AlertTriangle;
-    case "error": return XCircle;
-    default: return Info;
+    case "success":
+      return CheckCircle2;
+    case "warning":
+      return AlertTriangle;
+    case "error":
+      return XCircle;
+    default:
+      return Info;
   }
 });
 
 const sysColor = computed(() => {
   const sys = props.message as SysMsg;
   switch (sys.type) {
-    case "success": return "text-primary";
-    case "warning": return "text-amber-600";
-    case "error": return "text-destructive";
-    default: return "text-muted-foreground";
+    case "success":
+      return "text-primary";
+    case "warning":
+      return "text-amber-600";
+    case "error":
+      return "text-destructive";
+    default:
+      return "text-muted-foreground";
   }
 });
 
@@ -45,7 +53,10 @@ const body = computed(() => {
 
 const timestamp = computed(() => {
   if (!props.message.created_at) return "";
-  return new Date(props.message.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+  return new Date(props.message.created_at).toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 });
 </script>
 

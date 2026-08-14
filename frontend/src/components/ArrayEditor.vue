@@ -27,10 +27,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-vue-next";
+import { computed } from "vue";
 
 interface FieldDef {
   key: string;
@@ -42,7 +42,7 @@ interface FieldDef {
 const props = withDefaults(
   defineProps<{
     modelValue: any[];
-    fields?: FieldDef[];   // 提供则结构化模式，不提供则简单模式
+    fields?: FieldDef[]; // 提供则结构化模式，不提供则简单模式
     label?: string;
     placeholder?: string;
     emptyValue?: any;

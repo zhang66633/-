@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { cn } from "@/lib/utils";
+import { X } from "lucide-vue-next";
 import {
   DialogClose,
   DialogContent,
@@ -7,12 +8,11 @@ import {
   DialogOverlay,
   DialogPortal,
   DialogRoot,
+  type DialogRootProps,
   DialogTitle,
   DialogTrigger,
-  type DialogRootProps,
 } from "reka-ui";
-import { cn } from "@/lib/utils";
-import { X } from "lucide-vue-next";
+import { computed } from "vue";
 
 export interface DialogProps {
   /** Whether the dialog is open. Use with v-model:open */

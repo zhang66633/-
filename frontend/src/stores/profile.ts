@@ -1,7 +1,7 @@
-import { ref } from "vue";
-import { defineStore } from "pinia";
 import type { LearningPath } from "@/apis/learningApi";
-import { fetchProfile, diagnose as diagnoseApi } from "@/apis/learningApi";
+import { diagnose as diagnoseApi, fetchProfile } from "@/apis/learningApi";
+import { defineStore } from "pinia";
+import { ref } from "vue";
 
 export const useProfileStore = defineStore("profile", () => {
   const hasProfile = ref(false);
@@ -17,7 +17,7 @@ export const useProfileStore = defineStore("profile", () => {
       const res = await fetchProfile();
       const p = res.data.profile;
       // 如果没有任何角色配置，认为需要诊断
-      hasProfile.value = (p.roles && p.roles.length > 0);
+      hasProfile.value = p.roles && p.roles.length > 0;
     } catch {
       hasProfile.value = false;
     } finally {
@@ -61,5 +61,13 @@ export const useProfileStore = defineStore("profile", () => {
     }
   }
 
-  return { hasProfile, loading, progress, error, checkProfile, runDiagnose, loadProgress };
+  return {
+    hasProfile,
+    loading,
+    progress,
+    error,
+    checkProfile,
+    runDiagnose,
+    loadProgress,
+  };
 });

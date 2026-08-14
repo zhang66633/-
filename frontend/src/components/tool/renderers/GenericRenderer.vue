@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
+import type { ToolStatus } from "@/types/response";
+import { ChevronRight, Wrench } from "lucide-vue-next";
 /**
  * 通用工具渲染器 — 回退方案，展示 JSON 输入/输出
  *
  * 当工具名不在 toolRenderers 注册表中时使用此组件。
  */
 import { computed, ref } from "vue";
-import { Wrench, ChevronRight } from "lucide-vue-next";
-import type { ToolStatus } from "@/types/response";
-import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
 
 const props = defineProps<{
   input: Record<string, unknown> | null;
@@ -38,7 +38,9 @@ const outputText = computed(() => {
 const hasImages = computed(() => {
   const out = props.output;
   if (!out || !Array.isArray(out)) return false;
-  return out.some((item) => item && typeof item === "object" && "images" in item);
+  return out.some(
+    (item) => item && typeof item === "object" && "images" in item,
+  );
 });
 
 const toolImages = computed<string[]>(() => {

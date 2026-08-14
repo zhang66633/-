@@ -26,11 +26,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
 import { AlertTriangle } from "lucide-vue-next";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
 const STORAGE_KEY = "mma-chat-sessions";
-const WARN_THRESHOLD = 0.8;  // 4MB / 5MB
+const WARN_THRESHOLD = 0.8; // 4MB / 5MB
 const DANGER_THRESHOLD = 0.9; // 4.5MB / 5MB
 
 const storageSize = ref(0);
@@ -39,8 +39,12 @@ let timer: ReturnType<typeof setInterval> | null = null;
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB localStorage limit
 
-const usagePercent = computed(() => Math.round((storageSize.value / MAX_SIZE) * 100));
-const isDanger = computed(() => storageSize.value > MAX_SIZE * DANGER_THRESHOLD);
+const usagePercent = computed(() =>
+  Math.round((storageSize.value / MAX_SIZE) * 100),
+);
+const isDanger = computed(
+  () => storageSize.value > MAX_SIZE * DANGER_THRESHOLD,
+);
 const visible = computed(() => {
   if (dismissed.value) return false;
   return storageSize.value > MAX_SIZE * WARN_THRESHOLD;
@@ -62,12 +66,21 @@ function handleCleanup() {
     if (!raw) return;
     const data = JSON.parse(raw);
     // 遍历所有模式，保留最新的 70%
-    const modes = ["chatSessions", "solutionSessions", "learningSessions", "qaSessions", "practiceSessions"];
+    const modes = [
+      "chatSessions",
+      "solutionSessions",
+      "learningSessions",
+      "qaSessions",
+      "practiceSessions",
+    ];
     for (const mode of modes) {
       if (Array.isArray(data[mode]) && data[mode].length > 3) {
         const keep = Math.max(3, Math.ceil(data[mode].length * 0.7));
         data[mode] = data[mode]
-          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .sort(
+            (a: any, b: any) =>
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+          )
           .slice(0, keep);
       }
     }

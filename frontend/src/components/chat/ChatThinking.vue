@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { Brain, Square } from "lucide-vue-next";
 
-withDefaults(defineProps<{
-  cancellable?: boolean;
-  cancelling?: boolean;
-}>(), {
-  cancellable: false,
-  cancelling: false,
-});
+withDefaults(
+  defineProps<{
+    cancellable?: boolean;
+    cancelling?: boolean;
+  }>(),
+  {
+    cancellable: false,
+    cancelling: false,
+  },
+);
 
 defineEmits<{
   cancel: [];

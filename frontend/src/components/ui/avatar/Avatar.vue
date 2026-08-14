@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import { Primitive, useForwardProps } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import type { PrimitiveProps } from "reka-ui";
+import { Primitive, useForwardProps } from "reka-ui";
 
 interface AvatarProps extends PrimitiveProps {
-  class?: string
+  class?: string;
 }
 
 const props = withDefaults(defineProps<AvatarProps>(), {
-  as: 'span',
-})
+  as: "span",
+});
 
-const forwarded = useForwardProps(props)
+const forwarded = useForwardProps(props);
 </script>
 
 <template>

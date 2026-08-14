@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 interface CardProps {
-  class?: string
+  class?: string;
 }
 
-const props = defineProps<CardProps>()
+const props = defineProps<CardProps>();
 </script>
 
 <template>

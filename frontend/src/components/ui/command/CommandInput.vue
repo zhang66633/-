@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { cn } from '@/lib/utils'
-import { Search } from 'lucide-vue-next'
+import { cn } from "@/lib/utils";
+import { Search } from "lucide-vue-next";
 
 interface Props {
-  class?: string
-  placeholder?: string
+  class?: string;
+  placeholder?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: '搜索...',
-})
+  placeholder: "搜索...",
+});
 
-const model = defineModel<string>()
+const model = defineModel<string>();
 </script>
 
 <template>

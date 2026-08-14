@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type { Message, AgentMessage } from "@/types/response";
 import { getAgentIdentity } from "@/components/agent/AgentIdentity";
+import type { AgentMessage, Message } from "@/types/response";
+import { computed } from "vue";
 
 const props = defineProps<{
   message: Message;
@@ -14,7 +14,8 @@ const isTool = computed(() => props.message.msg_type === "tool");
 const isClarify = computed(() => props.message.msg_type === "clarify");
 
 const identity = computed(() => {
-  if (isAgent.value) return getAgentIdentity((props.message as AgentMessage).agent_type);
+  if (isAgent.value)
+    return getAgentIdentity((props.message as AgentMessage).agent_type);
   return null;
 });
 

@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
+import type { ToolStatus } from "@/types/response";
+import { BookOpen, ExternalLink, FileText, Search } from "lucide-vue-next";
 /**
  * 搜索结果渲染器 — 方法卡片 / 论文卡片 / 网页搜索
  *
  * 对应 tool_name: web_search, search_method_cards, search_similar_papers, get_analysis_template
  */
 import { computed } from "vue";
-import { Search, ExternalLink, BookOpen, FileText } from "lucide-vue-next";
-import type { ToolStatus } from "@/types/response";
-import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
 
 const props = defineProps<{
   input: Record<string, unknown> | null;
@@ -45,14 +45,26 @@ const items = computed<ParsedItem[]>(() => {
 
   for (const line of lines) {
     // 标题行：**Title** 或 ## Title 或 1. Title
-    const titleMatch = line.match(/^(?:\*{1,2}(.+?)\*{1,2}|#{1,3}\s+(.+)|(?:\d+[\.\、])\s*(.+))/);
+    const titleMatch = line.match(
+      /^(?:\*{1,2}(.+?)\*{1,2}|#{1,3}\s+(.+)|(?:\d+[\.\、])\s*(.+))/,
+    );
     if (titleMatch) {
       if (current) result.push(current);
-      const title = (titleMatch[1] ?? titleMatch[2] ?? titleMatch[3] ?? line).trim();
+      const title = (
+        titleMatch[1] ??
+        titleMatch[2] ??
+        titleMatch[3] ??
+        line
+      ).trim();
       // 跳过长行（可能是正文而非标题）
       if (title.length > 80) {
-        if (current) current.snippet += "\n" + line;
-        else result.push({ title: title.slice(0, 60) + "…", snippet: line, kind: "generic" });
+        if (current) current.snippet += `\n${line}`;
+        else
+          result.push({
+            title: `${title.slice(0, 60)}…`,
+            snippet: line,
+            kind: "generic",
+          });
         continue;
       }
       current = { title, snippet: "", kind: "generic" };

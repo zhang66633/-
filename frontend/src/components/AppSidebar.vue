@@ -131,14 +131,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import { X, Pencil, Check, ChevronRight, Home, PanelLeftOpen, PanelLeftClose } from "lucide-vue-next";
-import { APP_NAME } from "@/types/const";
-import { paperGroup, learnGroup, bottomItems, paperPaths, learnPaths } from "@/config/navItems";
-import { NAV_ITEM } from "@/config/styles";
 import VersionSwitcher from "@/components/VersionSwitcher.vue";
-import { useChatSessionStore, type SessionMode } from "@/stores/chatSession";
+import {
+  bottomItems,
+  learnGroup,
+  learnPaths,
+  paperGroup,
+  paperPaths,
+} from "@/config/navItems";
+import { NAV_ITEM } from "@/config/styles";
+import { type SessionMode, useChatSessionStore } from "@/stores/chatSession";
+import { APP_NAME } from "@/types/const";
+import {
+  Check,
+  ChevronRight,
+  Home,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pencil,
+  X,
+} from "lucide-vue-next";
+import { computed, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 const router = useRouter();
 const route = useRoute();
@@ -175,17 +189,23 @@ const activeGroup = computed(() => {
   return null;
 });
 
-const expandedGroups = ref<Set<string>>(new Set([paperGroup.label, learnGroup.label]));
+const expandedGroups = ref<Set<string>>(
+  new Set([paperGroup.label, learnGroup.label]),
+);
 
 // 路由变化时自动展开当前组、折叠另一个组（首页两个都展开）
-watch(activeGroup, (group) => {
-  if (!group) {
-    // 首页: 两个都展开
-    expandedGroups.value = new Set([paperGroup.label, learnGroup.label]);
-  } else {
-    expandedGroups.value = new Set([group]);
-  }
-}, { immediate: true });
+watch(
+  activeGroup,
+  (group) => {
+    if (!group) {
+      // 首页: 两个都展开
+      expandedGroups.value = new Set([paperGroup.label, learnGroup.label]);
+    } else {
+      expandedGroups.value = new Set([group]);
+    }
+  },
+  { immediate: true },
+);
 
 function toggleGroup(label: string) {
   const next = new Set(expandedGroups.value);
@@ -248,7 +268,11 @@ function startRename(id: string, title: string) {
 
 function confirmRename() {
   if (editingId.value) {
-    chatSession.renameSession(currentMode.value, editingId.value, editingTitle.value);
+    chatSession.renameSession(
+      currentMode.value,
+      editingId.value,
+      editingTitle.value,
+    );
     editingId.value = null;
     editingTitle.value = "";
   }

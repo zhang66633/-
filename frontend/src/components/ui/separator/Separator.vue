@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 interface SeparatorProps {
-  orientation?: 'horizontal' | 'vertical'
-  decorative?: boolean
-  label?: string
-  class?: string
+  orientation?: "horizontal" | "vertical";
+  decorative?: boolean;
+  label?: string;
+  class?: string;
 }
 
 const props = withDefaults(defineProps<SeparatorProps>(), {
-  orientation: 'horizontal',
+  orientation: "horizontal",
   decorative: true,
-})
+});
 </script>
 
 <template>

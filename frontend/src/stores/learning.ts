@@ -1,7 +1,16 @@
-import { ref, computed } from "vue";
+import type {
+  LearningPath,
+  LearningPhase,
+  LearningUnit,
+} from "@/apis/learningApi";
+import {
+  fetchLearningPath,
+  fetchUnitDetail,
+  generatePath,
+  markUnitComplete,
+} from "@/apis/learningApi";
 import { defineStore } from "pinia";
-import type { LearningPath, LearningUnit, LearningPhase } from "@/apis/learningApi";
-import { fetchLearningPath, fetchUnitDetail, generatePath, markUnitComplete } from "@/apis/learningApi";
+import { computed, ref } from "vue";
 
 export type { LearningPath, LearningUnit, LearningPhase };
 
@@ -25,9 +34,12 @@ export const useLearningStore = defineStore("learning", () => {
       units: phase.units.map((u: LearningUnit) => ({
         id: u.unit_id,
         name: u.title,
-        status: u.status === "completed" ? "completed" as const
-               : u.status === "in_progress" ? "active" as const
-               : "locked" as const,
+        status:
+          u.status === "completed"
+            ? ("completed" as const)
+            : u.status === "in_progress"
+              ? ("active" as const)
+              : ("locked" as const),
         difficulty: u.difficulty,
       })),
     }));
@@ -36,7 +48,9 @@ export const useLearningStore = defineStore("learning", () => {
   const totalUnits = computed(() => path.value?.total_units ?? 0);
   const completedUnits = computed(() => path.value?.completed_units ?? 0);
   const progressPercent = computed(() =>
-    totalUnits.value > 0 ? Math.round((completedUnits.value / totalUnits.value) * 100) : 0,
+    totalUnits.value > 0
+      ? Math.round((completedUnits.value / totalUnits.value) * 100)
+      : 0,
   );
 
   // ── 操作 ──────────────────────────────────────────

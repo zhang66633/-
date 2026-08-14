@@ -24,9 +24,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ChevronDown } from "lucide-vue-next";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ref } from "vue";
 
 const versions = ["MathModelAgent v0.2", "默认工作区"];
 

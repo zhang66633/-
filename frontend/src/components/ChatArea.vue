@@ -81,16 +81,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick, computed, provide } from "vue";
-import { useVirtualizer } from "@tanstack/vue-virtual";
-import { useTaskStore } from "@/stores/task";
-import Bubble from "@/components/Bubble.vue";
-import ChatThinking from "@/components/chat/ChatThinking.vue";
-import ChatScrollButton from "@/components/chat/ChatScrollButton.vue";
-import ChatInput from "@/components/chat/ChatInput.vue";
-import ChatToolbar from "@/components/chat/ChatToolbar.vue";
-import type { Message } from "@/types/response";
 import type { ChatFileRef } from "@/apis/chatApi";
+import Bubble from "@/components/Bubble.vue";
+import ChatInput from "@/components/chat/ChatInput.vue";
+import ChatScrollButton from "@/components/chat/ChatScrollButton.vue";
+import ChatThinking from "@/components/chat/ChatThinking.vue";
+import ChatToolbar from "@/components/chat/ChatToolbar.vue";
+import { useTaskStore } from "@/stores/task";
+import type { Message } from "@/types/response";
+import { useVirtualizer } from "@tanstack/vue-virtual";
+import {
+  computed,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  provide,
+  ref,
+  watch,
+} from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -132,7 +140,9 @@ provide("chatSendHandler", (text: string) => emit("send", text));
 const taskStore = useTaskStore();
 
 const isConnecting = computed(
-  () => taskStore.wsStatus === "connecting" || taskStore.wsStatus === "reconnecting",
+  () =>
+    taskStore.wsStatus === "connecting" ||
+    taskStore.wsStatus === "reconnecting",
 );
 
 const scrollRef = ref<HTMLElement | null>(null);
@@ -156,7 +166,10 @@ function measureElement(el: HTMLElement | null) {
 
 /** 滚动到底部（虚拟滚动） */
 function scrollToBottom() {
-  virtualizer.value.scrollToIndex(props.messages.length - 1, { align: "end", behavior: "smooth" });
+  virtualizer.value.scrollToIndex(props.messages.length - 1, {
+    align: "end",
+    behavior: "smooth",
+  });
 }
 
 /** 检测是否在底部 */
@@ -173,7 +186,9 @@ watch(
   () => {
     if (isAtBottom.value && props.messages.length > 0) {
       nextTick(() => {
-        virtualizer.value.scrollToIndex(props.messages.length - 1, { align: "end" });
+        virtualizer.value.scrollToIndex(props.messages.length - 1, {
+          align: "end",
+        });
       });
     }
   },

@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { renderMarkdownStreaming } from "@/utils/markdown";
+import { Brain, ChevronDown } from "lucide-vue-next";
 /**
  * 思考过程展示 — 可折叠的推理链区域
  *
  * 用于 BubbleAgent 内部，在 agent 回复正文上方展示模型的思考/推理过程。
  * 流式期间实时更新，默认折叠，用户点击展开。
  */
-import { ref, computed } from "vue";
-import { Brain, ChevronDown } from "lucide-vue-next";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { renderMarkdownStreaming } from "@/utils/markdown";
+import { computed, ref } from "vue";
 
 const props = withDefaults(
   defineProps<{

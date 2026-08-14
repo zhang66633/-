@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import { Primitive, SelectValue } from 'reka-ui'
+import type { PrimitiveProps } from "reka-ui";
+import { Primitive, SelectValue } from "reka-ui";
 
 interface Props extends PrimitiveProps {
-  placeholder?: string
+  placeholder?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  as: 'span',
-})
+  as: "span",
+});
 </script>
 
 <template>

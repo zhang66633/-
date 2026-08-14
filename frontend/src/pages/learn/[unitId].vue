@@ -109,21 +109,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, onBeforeUnmount } from "vue";
-import { useRoute } from "vue-router";
-import { ArrowLeft, Loader2, CheckCircle, StickyNote, PanelLeftOpen, PanelLeft } from "lucide-vue-next";
 import ChatArea from "@/components/ChatArea.vue";
-import LearningDoc from "@/components/LearningDoc.vue";
+import type LearningDoc from "@/components/LearningDoc.vue";
 import NotePanel from "@/components/NotePanel.vue";
 import type { NoteItem } from "@/components/NotePanel.vue";
-import { useLearningStore } from "@/stores/learning";
-import { useChatSessionStore } from "@/stores/chatSession";
 import { useStreamChat } from "@/composables/useStreamChat";
+import { useChatSessionStore } from "@/stores/chatSession";
+import { useLearningStore } from "@/stores/learning";
+import {
+  ArrowLeft,
+  CheckCircle,
+  Loader2,
+  PanelLeft,
+  PanelLeftOpen,
+  StickyNote,
+} from "lucide-vue-next";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 
 const route = useRoute();
 const store = useLearningStore();
 const chatSession = useChatSessionStore();
-const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat("learning", "learning");
+const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
+  "learning",
+  "learning",
+);
 
 const docRef = ref<InstanceType<typeof LearningDoc>>();
 const chatOpen = ref(true);
@@ -169,49 +179,162 @@ onBeforeUnmount(() => {
 
 function handleAskAI(text: string, section: string) {
   chatOpen.value = true;
-  prefillText.value = `关于「${section || unit.value?.title || ''}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
+  prefillText.value = `关于「${section || unit.value?.title || ""}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
 }
 
 // ── 笔记 ───────────────────────────────────────────
 
-const noteEditor = ref({ visible: false, isNew: true, title: "", quote: "", comment: "", section: "", headingId: "" });
-function openNoteEditor(quote: string, section: string) { noteEditor.value = { visible: true, isNew: true, title: quote.slice(0, 30), quote, comment: "", section, headingId: activeHeading.value }; }
-function closeNoteEditor() { noteEditor.value.visible = false; }
+const noteEditor = ref({
+  visible: false,
+  isNew: true,
+  title: "",
+  quote: "",
+  comment: "",
+  section: "",
+  headingId: "",
+});
+function openNoteEditor(quote: string, section: string) {
+  noteEditor.value = {
+    visible: true,
+    isNew: true,
+    title: quote.slice(0, 30),
+    quote,
+    comment: "",
+    section,
+    headingId: activeHeading.value,
+  };
+}
+function closeNoteEditor() {
+  noteEditor.value.visible = false;
+}
 function saveNote() {
   const e = noteEditor.value;
-  if (e.isNew) notes.value.push({ title: e.title || "未命名笔记", quote: e.quote, section: e.section, comment: e.comment, headingId: e.headingId });
-  saveNotes(); noteEditor.value.visible = false;
+  if (e.isNew)
+    notes.value.push({
+      title: e.title || "未命名笔记",
+      quote: e.quote,
+      section: e.section,
+      comment: e.comment,
+      headingId: e.headingId,
+    });
+  saveNotes();
+  noteEditor.value.visible = false;
 }
-function updateNote(i: number, note: NoteItem) { notes.value[i] = note; saveNotes(); }
-function removeNote(i: number) { notes.value.splice(i, 1); saveNotes(); }
-function saveNotes() { try { localStorage.setItem(`notes_${unitId.value}`, JSON.stringify(notes.value)); } catch {} }
-function loadNotes() { try { const r = localStorage.getItem(`notes_${unitId.value}`); if (r) notes.value = JSON.parse(r); } catch {} }
+function updateNote(i: number, note: NoteItem) {
+  notes.value[i] = note;
+  saveNotes();
+}
+function removeNote(i: number) {
+  notes.value.splice(i, 1);
+  saveNotes();
+}
+function saveNotes() {
+  try {
+    localStorage.setItem(`notes_${unitId.value}`, JSON.stringify(notes.value));
+  } catch {}
+}
+function loadNotes() {
+  try {
+    const r = localStorage.getItem(`notes_${unitId.value}`);
+    if (r) notes.value = JSON.parse(r);
+  } catch {}
+}
 
 // ── 其他 ───────────────────────────────────────────
 
 const unit = computed(() => store.currentUnit);
 const unitId = computed(() => route.params.unitId as string);
-const agentMap: Record<string, { emoji: string; name: string }> = { analyst: { emoji: "🔍", name: "分析师" }, modeler: { emoji: "🧩", name: "建模师" }, solver: { emoji: "💻", name: "求解器" }, verifier: { emoji: "🔬", name: "检验员" }, editor: { emoji: "✍️", name: "编辑" } };
-const agentInfo = computed(() => agentMap[unit.value?.primary_agent ?? ""] ?? { emoji: "🧭", name: "导航员" });
+const agentMap: Record<string, { emoji: string; name: string }> = {
+  analyst: { emoji: "🔍", name: "分析师" },
+  modeler: { emoji: "🧩", name: "建模师" },
+  solver: { emoji: "💻", name: "求解器" },
+  verifier: { emoji: "🔬", name: "检验员" },
+  editor: { emoji: "✍️", name: "编辑" },
+};
+const agentInfo = computed(
+  () =>
+    agentMap[unit.value?.primary_agent ?? ""] ?? {
+      emoji: "🧭",
+      name: "导航员",
+    },
+);
 const agentEmoji = computed(() => agentInfo.value.emoji);
 const agentName = computed(() => agentInfo.value.name);
-const difficultyLabel = computed(() => ({ beginner: "入门", intermediate: "进阶", advanced: "高阶", competition: "竞赛" } as any)[unit.value?.difficulty ?? "beginner"]);
-const difficultyBadge = computed(() => ({ beginner: "border-emerald-200 text-emerald-700 bg-emerald-50", intermediate: "border-amber-200 text-amber-700 bg-amber-50", advanced: "border-red-200 text-red-700 bg-red-50", competition: "border-purple-200 text-purple-700 bg-purple-50" } as any)[unit.value?.difficulty ?? "beginner"]);
-const unitContext = computed(() => { const u = unit.value; if (!u) return undefined; return { title: u.title, unit_type: u.type === "knowledge" ? "知识讲解" : "练习", difficulty: u.difficulty, method_category: u.method_category || "通用", tags: u.tags?.join(", ") ?? "", primary_agent: u.primary_agent ?? "modeler", estimated_minutes: String(u.estimated_minutes ?? 30) }; });
+const difficultyLabel = computed(
+  () =>
+    (
+      ({
+        beginner: "入门",
+        intermediate: "进阶",
+        advanced: "高阶",
+        competition: "竞赛",
+      }) as any
+    )[unit.value?.difficulty ?? "beginner"],
+);
+const difficultyBadge = computed(
+  () =>
+    (
+      ({
+        beginner: "border-emerald-200 text-emerald-700 bg-emerald-50",
+        intermediate: "border-amber-200 text-amber-700 bg-amber-50",
+        advanced: "border-red-200 text-red-700 bg-red-50",
+        competition: "border-purple-200 text-purple-700 bg-purple-50",
+      }) as any
+    )[unit.value?.difficulty ?? "beginner"],
+);
+const unitContext = computed(() => {
+  const u = unit.value;
+  if (!u) return undefined;
+  return {
+    title: u.title,
+    unit_type: u.type === "knowledge" ? "知识讲解" : "练习",
+    difficulty: u.difficulty,
+    method_category: u.method_category || "通用",
+    tags: u.tags?.join(", ") ?? "",
+    primary_agent: u.primary_agent ?? "modeler",
+    estimated_minutes: String(u.estimated_minutes ?? 30),
+  };
+});
 
-function handleSend(text: string) { handleUserSend(text, undefined, unitContext.value); }
+function handleSend(text: string) {
+  handleUserSend(text, undefined, unitContext.value);
+}
 function markComplete() {
   if (!unit.value) return;
-  store.markComplete(unit.value.unit_id).then(() => {
-    alert("已标记完成！掌握度已更新。");
-  }).catch(() => {
-    alert("标记失败，请重试");
-  });
+  store
+    .markComplete(unit.value.unit_id)
+    .then(() => {
+      alert("已标记完成！掌握度已更新。");
+    })
+    .catch(() => {
+      alert("标记失败，请重试");
+    });
 }
-function scrollToHeading(id: string) { docRef.value?.scrollToHeading(id); activeHeading.value = id; }
+function scrollToHeading(id: string) {
+  docRef.value?.scrollToHeading(id);
+  activeHeading.value = id;
+}
 
-onMounted(() => { if (unitId.value) store.loadUnit(unitId.value); restoreLatestSession(); loadNotes(); });
-watch(() => route.params.unitId, (id) => { if (id) { store.loadUnit(id as string); loadNotes(); headings.value = []; activeHeading.value = ""; } });
+onMounted(() => {
+  if (unitId.value) store.loadUnit(unitId.value);
+  restoreLatestSession();
+  loadNotes();
+});
+watch(
+  () => route.params.unitId,
+  (id) => {
+    if (id) {
+      store.loadUnit(id as string);
+      loadNotes();
+      headings.value = [];
+      activeHeading.value = "";
+    }
+  },
+);
 
-const docMarkdown = computed(() => unit.value?.content_md || `# ${unit.value?.title || '学习内容'}\n\n学习资料正在准备中。`);
+const docMarkdown = computed(
+  () =>
+    unit.value?.content_md ||
+    `# ${unit.value?.title || "学习内容"}\n\n学习资料正在准备中。`,
+);
 </script>

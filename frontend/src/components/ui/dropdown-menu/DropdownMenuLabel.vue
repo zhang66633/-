@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { DropdownMenuLabel } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import { DropdownMenuLabel } from "reka-ui";
 
 interface Props {
-  class?: string
-  inset?: boolean
+  class?: string;
+  inset?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   inset: false,
-})
+});
 </script>
 
 <template>

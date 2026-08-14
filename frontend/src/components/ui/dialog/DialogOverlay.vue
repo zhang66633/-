@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { DialogOverlay, type DialogOverlayProps } from "reka-ui";
 import { cn } from "@/lib/utils";
+import { DialogOverlay, type DialogOverlayProps } from "reka-ui";
 
 const props = defineProps<DialogOverlayProps & { class?: string }>();
 </script>

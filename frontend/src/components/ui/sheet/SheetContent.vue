@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
-import {
-  DialogContent,
-  DialogOverlay,
-  DialogPortal,
-  DialogClose,
-  type DialogContentProps,
-} from "reka-ui";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-vue-next";
+import {
+  DialogClose,
+  DialogContent,
+  type DialogContentProps,
+  DialogOverlay,
+  DialogPortal,
+} from "reka-ui";
+import { computed, inject } from "vue";
 import type { SheetSide } from "./types";
 
 const props = defineProps<DialogContentProps & { class?: string }>();

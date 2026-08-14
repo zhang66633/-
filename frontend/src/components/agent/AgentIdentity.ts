@@ -56,7 +56,9 @@ export const AGENT_IDENTITY: Record<AgentType, AgentIdentityConfig> = {
 };
 
 /** 根据 agent_type 获取身份配置，无匹配返回 null */
-export function getAgentIdentity(agentType?: AgentType): AgentIdentityConfig | null {
+export function getAgentIdentity(
+  agentType?: AgentType,
+): AgentIdentityConfig | null {
   if (!agentType) return null;
   return AGENT_IDENTITY[agentType] ?? null;
 }

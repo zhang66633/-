@@ -30,8 +30,13 @@ export function getAuthLogin(): Promise<LoginUrlResponse> {
 }
 
 /** 用 OAuth code 换取 JWT。非贡献者会被后端 403 拒绝。state 用于防 login CSRF。 */
-export function getAuthCallback(code: string, state: string): Promise<TokenResponse> {
-  return request.get("/auth/callback", { params: { code, state } }).then((r) => r.data);
+export function getAuthCallback(
+  code: string,
+  state: string,
+): Promise<TokenResponse> {
+  return request
+    .get("/auth/callback", { params: { code, state } })
+    .then((r) => r.data);
 }
 
 /** 获取当前登录用户信息。 */

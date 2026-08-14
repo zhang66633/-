@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { AccordionRootEmits, AccordionRootProps } from 'reka-ui'
-import { AccordionRoot, useForwardPropsEmits } from 'reka-ui'
+import type { AccordionRootEmits, AccordionRootProps } from "reka-ui";
+import { AccordionRoot, useForwardPropsEmits } from "reka-ui";
 
 interface Props extends AccordionRootProps {
-  class?: string
+  class?: string;
 }
 
-const props = defineProps<Props>()
-const emits = defineEmits<AccordionRootEmits>()
+const props = defineProps<Props>();
+const emits = defineEmits<AccordionRootEmits>();
 
-const forward = useForwardPropsEmits(props, emits)
+const forward = useForwardPropsEmits(props, emits);
 </script>
 
 <template>

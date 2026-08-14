@@ -53,10 +53,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
 import ChatArea from "@/components/ChatArea.vue";
-import { useChatSessionStore } from "@/stores/chatSession";
 import { useStreamChat } from "@/composables/useStreamChat";
+import { useChatSessionStore } from "@/stores/chatSession";
+import { ref } from "vue";
 
 const chatSession = useChatSessionStore();
 const { handleUserSend, cancelStream } = useStreamChat("practice", "practice");

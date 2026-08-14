@@ -108,11 +108,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import { ChevronRight, Copy, Play } from "lucide-vue-next";
 import { BTN_PRIMARY } from "@/config/styles";
 import { renderMarkdown } from "@/utils/markdown";
+import { ChevronRight, Copy, Play } from "lucide-vue-next";
+import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 const props = defineProps<{
   id: string;
@@ -142,21 +142,21 @@ const example = ref<ExampleData>({
   description: "",
 });
 
-const relatedExamples = ref<Array<{ id: number; title: string; category: string }>>([]);
+const relatedExamples = ref<
+  Array<{ id: number; title: string; category: string }>
+>([]);
 
 const difficultyClass = computed(() => "");
 
 const renderedAnalysis = computed(() =>
-  renderMarkdown(example.value.analysis || "")
+  renderMarkdown(example.value.analysis || ""),
 );
-const renderedModel = computed(() =>
-  renderMarkdown(example.value.model || "")
-);
+const renderedModel = computed(() => renderMarkdown(example.value.model || ""));
 const renderedSolution = computed(() =>
-  renderMarkdown(example.value.solution || "")
+  renderMarkdown(example.value.solution || ""),
 );
 const renderedResults = computed(() =>
-  renderMarkdown(example.value.results || "")
+  renderMarkdown(example.value.results || ""),
 );
 
 function copyCode() {

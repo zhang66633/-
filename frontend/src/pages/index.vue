@@ -226,25 +226,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import {
-  ArrowRight, ShieldAlert, X, Key, Zap, Loader2, CheckCircle2,
-  MessageSquare, FileText, Library, BookOpen, Dumbbell, MessageCircleQuestion, TrendingUp,
-} from "lucide-vue-next";
 import { getKBStats } from "@/apis/knowledgeApi";
 import request from "@/utils/request";
+import {
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  Dumbbell,
+  FileText,
+  Key,
+  Library,
+  Loader2,
+  MessageCircleQuestion,
+  MessageSquare,
+  ShieldAlert,
+  TrendingUp,
+  X,
+  Zap,
+} from "lucide-vue-next";
+import { onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 const router = useRouter();
 const route = useRoute();
 
 const deniedMessage = ref("");
-watch(() => route.query.denied, (val) => {
-  if (val === "knowledge") deniedMessage.value = "知识库仅对项目贡献者开放。请联系 zhang66633 或 shu639 获取权限。";
-}, { immediate: true });
-function dismissDenied() { deniedMessage.value = ""; router.replace({ query: {} }); }
+watch(
+  () => route.query.denied,
+  (val) => {
+    if (val === "knowledge")
+      deniedMessage.value =
+        "知识库仅对项目贡献者开放。请联系 zhang66633 或 shu639 获取权限。";
+  },
+  { immediate: true },
+);
+function dismissDenied() {
+  deniedMessage.value = "";
+  router.replace({ query: {} });
+}
 
-const myKey = ref<{ has_key: boolean; key: { masked_key: string; provider: string; model_name: string } | null }>({ has_key: false, key: null });
+const myKey = ref<{
+  has_key: boolean;
+  key: { masked_key: string; provider: string; model_name: string } | null;
+}>({ has_key: false, key: null });
 const keyInput = ref("");
 const activating = ref(false);
 const activateError = ref("");
@@ -270,7 +294,10 @@ async function activateKey() {
     keyInput.value = "";
     await checkMyKey();
   } catch (e: any) {
-    activateError.value = e?.response?.data?.detail || e?.message || "激活失败，请检查 Key 是否正确";
+    activateError.value =
+      e?.response?.data?.detail ||
+      e?.message ||
+      "激活失败，请检查 Key 是否正确";
   } finally {
     activating.value = false;
   }
@@ -279,10 +306,30 @@ async function activateKey() {
 const statsReady = ref(false);
 
 const learnModules = [
-  { label: "学习工位", desc: "技能树导航，智能体对话式教学", path: "/learn", icon: BookOpen },
-  { label: "训练场", desc: "每日推荐练习，智能体出题批改", path: "/practice", icon: Dumbbell },
-  { label: "答疑室", desc: "随时 @智能体 提问，联网推荐资源", path: "/qa", icon: MessageCircleQuestion },
-  { label: "成长档案", desc: "学习日历、成就系统与进度追踪", path: "/progress", icon: TrendingUp },
+  {
+    label: "学习工位",
+    desc: "技能树导航，智能体对话式教学",
+    path: "/learn",
+    icon: BookOpen,
+  },
+  {
+    label: "训练场",
+    desc: "每日推荐练习，智能体出题批改",
+    path: "/practice",
+    icon: Dumbbell,
+  },
+  {
+    label: "答疑室",
+    desc: "随时 @智能体 提问，联网推荐资源",
+    path: "/qa",
+    icon: MessageCircleQuestion,
+  },
+  {
+    label: "成长档案",
+    desc: "学习日历、成就系统与进度追踪",
+    path: "/progress",
+    icon: TrendingUp,
+  },
 ];
 
 const statItems = ref([

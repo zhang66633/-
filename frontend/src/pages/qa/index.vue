@@ -72,11 +72,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { ImageIcon } from "lucide-vue-next";
 import ChatArea from "@/components/ChatArea.vue";
-import { useChatSessionStore } from "@/stores/chatSession";
 import { useStreamChat } from "@/composables/useStreamChat";
+import { useChatSessionStore } from "@/stores/chatSession";
+import { ImageIcon } from "lucide-vue-next";
+import { ref } from "vue";
 
 const chatSession = useChatSessionStore();
 const { handleUserSend, cancelStream } = useStreamChat("qa", "qa");

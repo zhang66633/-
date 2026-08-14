@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import { useTheme } from "@/composables/useTheme";
-import { Sun, Moon } from "lucide-vue-next";
+import { Moon, Sun } from "lucide-vue-next";
 
 const { theme, toggle } = useTheme();
 </script>

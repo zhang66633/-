@@ -7,11 +7,14 @@
  * 把 $...$/$$...$$ 公式渲染成 KaTeX 静态 HTML（不可点击的渲染结果，确保打印效果）。
  */
 
-const KATEX_CSS = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css";
+const KATEX_CSS =
+  "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css";
 const KATEX_JS = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js";
-const KATEX_AUTO = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js";
+const KATEX_AUTO =
+  "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js";
 const MARKED_JS = "https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js";
-const DOMPURIFY_JS = "https://cdn.jsdelivr.net/npm/dompurify@3.4.12/dist/purify.min.js";
+const DOMPURIFY_JS =
+  "https://cdn.jsdelivr.net/npm/dompurify@3.4.12/dist/purify.min.js";
 
 function escapeHtml(s: string): string {
   return s
@@ -27,7 +30,10 @@ function jsonForScript(value: string): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
-const PRINT_HTML_TEMPLATE = (title: string, markdown: string) => `<!DOCTYPE html>
+const PRINT_HTML_TEMPLATE = (
+  title: string,
+  markdown: string,
+) => `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -194,7 +200,10 @@ const PRINT_HTML_TEMPLATE = (title: string, markdown: string) => `<!DOCTYPE html
 </html>`;
 
 /** 打开新窗口渲染论文 markdown 并触发打印对话框。 */
-export function exportPaperAsPDF(opts: { title: string; markdown: string }): void {
+export function exportPaperAsPDF(opts: {
+  title: string;
+  markdown: string;
+}): void {
   const w = window.open("", "_blank", "width=900,height=1100");
   if (!w) {
     alert("浏览器拦截了新窗口，请在地址栏允许弹窗后重试。");
@@ -203,7 +212,9 @@ export function exportPaperAsPDF(opts: { title: string; markdown: string }): voi
   // 阻断子窗口对父窗口的引用（防跨窗口窃取 localStorage），部分浏览器可能抛错，忽略
   try {
     w.opener = null;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   w.document.open();
   w.document.write(PRINT_HTML_TEMPLATE(opts.title, opts.markdown));
   w.document.close();

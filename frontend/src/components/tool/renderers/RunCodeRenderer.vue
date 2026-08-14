@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
+import type { ToolStatus } from "@/types/response";
+import { ChevronRight, Code2 } from "lucide-vue-next";
 /**
  * 代码执行渲染器 — Python 语法高亮 + stdout + 图片 + 错误
  *
@@ -6,9 +9,6 @@
  * highlight.js 动态导入，不增加初始包体积。
  */
 import { computed, ref, watch } from "vue";
-import { Code2, ChevronRight } from "lucide-vue-next";
-import type { ToolStatus } from "@/types/response";
-import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
 
 const props = defineProps<{
   input: Record<string, unknown> | null;
@@ -37,7 +37,8 @@ watch(
     }
     try {
       const hljs = (await import("highlight.js/lib/core")).default;
-      const python = (await import("highlight.js/lib/languages/python")).default;
+      const python = (await import("highlight.js/lib/languages/python"))
+        .default;
       hljs.registerLanguage("python", python);
       highlightedCode.value = hljs.highlight(src, { language: "python" }).value;
     } catch {
@@ -52,7 +53,9 @@ watch(
 const stdout = computed(() => {
   const out = props.output;
   if (!out || !Array.isArray(out)) return "";
-  const codeOut = out.find((o) => o && typeof o === "object" && (o as any).name === "run_code");
+  const codeOut = out.find(
+    (o) => o && typeof o === "object" && (o as any).name === "run_code",
+  );
   if (!codeOut) return "";
   const preview = (codeOut as any).preview as string;
   // 提取 stdout 部分
@@ -63,14 +66,21 @@ const stdout = computed(() => {
 const hasImages = computed(() => {
   const out = props.output;
   if (!out || !Array.isArray(out)) return false;
-  const codeOut = out.find((o) => o && typeof o === "object" && (o as any).name === "run_code");
-  return Array.isArray((codeOut as any)?.images) && (codeOut as any).images.length > 0;
+  const codeOut = out.find(
+    (o) => o && typeof o === "object" && (o as any).name === "run_code",
+  );
+  return (
+    Array.isArray((codeOut as any)?.images) &&
+    (codeOut as any).images.length > 0
+  );
 });
 
 const toolImages = computed<string[]>(() => {
   const out = props.output;
   if (!out || !Array.isArray(out)) return [];
-  const codeOut = out.find((o) => o && typeof o === "object" && (o as any).name === "run_code");
+  const codeOut = out.find(
+    (o) => o && typeof o === "object" && (o as any).name === "run_code",
+  );
   return (codeOut as any)?.images ?? [];
 });
 

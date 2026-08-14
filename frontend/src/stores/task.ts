@@ -14,7 +14,9 @@ export const useTaskStore = defineStore("task", () => {
   // solution 任务的进度消息由 solution/index.vue 通过 watch 同步到 chatSession，
   // 保证切页/刷新后不丢失；taskStore 仅作 WS 连接管理 + 即时进度缓存。
   let ws: TaskWebSocket | null = null;
-  const wsStatus = ref<"connecting" | "connected" | "disconnected" | "reconnecting">("disconnected");
+  const wsStatus = ref<
+    "connecting" | "connected" | "disconnected" | "reconnecting"
+  >("disconnected");
   const isRunning = ref(false);
   const completed = ref(false);
   const currentStep = ref<string>("");
@@ -103,9 +105,13 @@ export const useTaskStore = defineStore("task", () => {
         // 先展示轻量预览，再异步 GET 完整内容并替换
         if (finalPreview) {
           appendMessage(taskId, {
-            id: "final-" + taskId,
+            id: `final-${taskId}`,
             msg_type: "agent",
-            content: finalPreview + (data.data.final_response_length > finalPreview.length ? "\n\n_（正在加载完整论文…）_" : ""),
+            content:
+              finalPreview +
+              (data.data.final_response_length > finalPreview.length
+                ? "\n\n_（正在加载完整论文…）_"
+                : ""),
             streaming: false,
             created_at: now(),
           });
@@ -116,14 +122,17 @@ export const useTaskStore = defineStore("task", () => {
           // 清除占位消息中的"正在加载"提示，避免残留
           const bucket = messagesByTask.value[taskId];
           if (bucket) {
-            const idx = bucket.findIndex((m) => m.id === "final-" + taskId);
+            const idx = bucket.findIndex((m) => m.id === `final-${taskId}`);
             if (idx !== -1) {
               const cleaned = (bucket[idx].content as string).replace(
                 /\n\n_（正在加载完整论文…）_$/,
                 "\n\n_（完整论文加载失败，以上为预览片段）_",
               );
               bucket[idx] = { ...bucket[idx], content: cleaned };
-              messagesByTask.value = { ...messagesByTask.value, [taskId]: [...bucket] };
+              messagesByTask.value = {
+                ...messagesByTask.value,
+                [taskId]: [...bucket],
+              };
             }
           }
         });
@@ -132,7 +141,7 @@ export const useTaskStore = defineStore("task", () => {
           id: genId(),
           msg_type: "system",
           type: "error",
-          content: "任务失败：" + data.data.message,
+          content: `任务失败：${data.data.message}`,
           created_at: now(),
         } as Message);
       }
@@ -149,10 +158,10 @@ export const useTaskStore = defineStore("task", () => {
     // 替换占位消息
     const bucket = messagesByTask.value[taskId];
     if (!bucket) return;
-    const idx = bucket.findIndex((m) => m.id === "final-" + taskId);
+    const idx = bucket.findIndex((m) => m.id === `final-${taskId}`);
     if (idx === -1) {
       appendMessage(taskId, {
-        id: "final-" + taskId,
+        id: `final-${taskId}`,
         msg_type: "agent",
         content: full,
         streaming: false,
@@ -173,21 +182,27 @@ export const useTaskStore = defineStore("task", () => {
     ) {
       return;
     }
-    if (ws) { ws.close(); ws = null; }
+    if (ws) {
+      ws.close();
+      ws = null;
+    }
     setCurrentTask(taskId);
     ensureTaskBucket(taskId);
     isRunning.value = true;
     completed.value = false;
     currentStep.value = "";
 
-    const baseUrl = import.meta.env.VITE_WS_URL || `ws://${window.location.host}/api/ws`;
+    const baseUrl =
+      import.meta.env.VITE_WS_URL || `ws://${window.location.host}/api/ws`;
     const token = localStorage.getItem("mma:token") || "";
     const wsUrl = `${baseUrl}/task/${taskId}?token=${encodeURIComponent(token)}`;
 
     ws = new TaskWebSocket(
       wsUrl,
       (data) => handleProgressEvent(taskId, data as Record<string, any>),
-      (status) => { wsStatus.value = status; },
+      (status) => {
+        wsStatus.value = status;
+      },
     );
     ws.connect();
   }
@@ -198,8 +213,16 @@ export const useTaskStore = defineStore("task", () => {
   }
 
   return {
-    messages, wsStatus, isRunning, completed, currentStep, currentTaskId,
-    connectWebSocket, closeWebSocket, setCurrentTask, appendMessage,
+    messages,
+    wsStatus,
+    isRunning,
+    completed,
+    currentStep,
+    currentTaskId,
+    connectWebSocket,
+    closeWebSocket,
+    setCurrentTask,
+    appendMessage,
   };
 });
 // ⚠️ 故意不持久化 taskStore：messagesByTask 含 LLM 全文太大、且不能与 isRunning/

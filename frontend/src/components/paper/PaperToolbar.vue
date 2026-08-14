@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { Clipboard, FileDown, Moon, Printer, Sun, Type } from "lucide-vue-next";
 import { ref } from "vue";
-import { Printer, Clipboard, FileDown, Sun, Moon, Type } from "lucide-vue-next";
 
 const props = defineProps<{
   markdown: string;
@@ -38,8 +38,12 @@ async function copyMarkdown() {
   try {
     await navigator.clipboard.writeText(props.markdown);
     copied.value = true;
-    setTimeout(() => (copied.value = false), 1500);
-  } catch { /* ignore */ }
+    setTimeout(() => {
+      copied.value = false;
+    }, 1500);
+  } catch {
+    /* ignore */
+  }
 }
 
 function exportPdf() {
@@ -49,7 +53,9 @@ function exportPdf() {
 }
 
 function downloadMd() {
-  const blob = new Blob([props.markdown], { type: "text/markdown;charset=utf-8" });
+  const blob = new Blob([props.markdown], {
+    type: "text/markdown;charset=utf-8",
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
+import type { ToolStatus } from "@/types/response";
+import { Sigma } from "lucide-vue-next";
 /**
  * 数学计算渲染器 — SymPy 符号计算 / 优化求解
  *
  * 对应 tool_name: sympy_compute, solve_optimization
  */
 import { computed } from "vue";
-import { Sigma } from "lucide-vue-next";
-import type { ToolStatus } from "@/types/response";
-import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
 
 const props = defineProps<{
   input: Record<string, unknown> | null;
@@ -17,7 +17,11 @@ const props = defineProps<{
 
 const expression = computed(() => {
   if (!props.input) return "";
-  return (props.input.expression as string) ?? (props.input.problem as string) ?? JSON.stringify(props.input).slice(0, 200);
+  return (
+    (props.input.expression as string) ??
+    (props.input.problem as string) ??
+    JSON.stringify(props.input).slice(0, 200)
+  );
 });
 
 const resultText = computed(() => {

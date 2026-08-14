@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { TabsList } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import { TabsList } from "reka-ui";
 
 interface Props {
-  class?: string
+  class?: string;
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 </script>
 
 <template>

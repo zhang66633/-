@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import { DropdownMenuContent, DropdownMenuPortal } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import { DropdownMenuContent, DropdownMenuPortal } from "reka-ui";
 
 interface Props {
-  class?: string
-  side?: 'top' | 'right' | 'bottom' | 'left'
-  align?: 'start' | 'center' | 'end'
-  sideOffset?: number
-  alignOffset?: number
+  class?: string;
+  side?: "top" | "right" | "bottom" | "left";
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+  alignOffset?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  side: 'bottom',
-  align: 'end',
+  side: "bottom",
+  align: "end",
   sideOffset: 4,
   alignOffset: 0,
-})
+});
 </script>
 
 <template>

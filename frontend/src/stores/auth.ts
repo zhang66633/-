@@ -1,11 +1,11 @@
-import { ref, computed } from "vue";
-import { defineStore } from "pinia";
 import {
-  getAuthLogin,
-  getAuthCallback,
-  getAuthUser,
   type UserInfo,
+  getAuthCallback,
+  getAuthLogin,
+  getAuthUser,
 } from "@/apis/authApi";
+import { defineStore } from "pinia";
+import { computed, ref } from "vue";
 
 const TOKEN_KEY = "mma:token";
 
@@ -17,7 +17,9 @@ export const useAuthStore = defineStore("auth", () => {
   const authReady = ref(false);
 
   const isLoggedIn = computed(() => !!token.value && !!user.value);
-  const displayName = computed(() => user.value?.login || user.value?.name || "游客");
+  const displayName = computed(
+    () => user.value?.login || user.value?.name || "游客",
+  );
   const avatar = computed(() => user.value?.avatar_url || null);
   const initials = computed(() => {
     const name = displayName.value;
@@ -49,7 +51,10 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function checkSession(): Promise<boolean> {
-    if (!token.value) { authReady.value = true; return false; }
+    if (!token.value) {
+      authReady.value = true;
+      return false;
+    }
     try {
       const data = await getAuthUser();
       if (data.authenticated && data.user) {
@@ -90,7 +95,9 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       localStorage.removeItem("mma-chat-sessions");
       localStorage.removeItem("mma:nickname");
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   function _loadToken(): string | null {
@@ -105,12 +112,24 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       if (tok) localStorage.setItem(TOKEN_KEY, tok);
       else localStorage.removeItem(TOKEN_KEY);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   return {
-    user, token, isContributor, loading, authReady,
-    isLoggedIn, displayName, avatar, initials,
-    fetchLoginUrl, handleCallback, checkSession, logout,
+    user,
+    token,
+    isContributor,
+    loading,
+    authReady,
+    isLoggedIn,
+    displayName,
+    avatar,
+    initials,
+    fetchLoginUrl,
+    handleCallback,
+    checkSession,
+    logout,
   };
 });

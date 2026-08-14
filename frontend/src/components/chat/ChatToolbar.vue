@@ -40,8 +40,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from "vue";
-import { Plus, Download } from "lucide-vue-next";
+import { Download, Plus } from "lucide-vue-next";
+import { nextTick, ref } from "vue";
 
 defineProps<{
   title?: string;

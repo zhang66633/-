@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { TabsTriggerProps } from 'reka-ui'
-import { TabsTrigger, useForwardProps } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import type { TabsTriggerProps } from "reka-ui";
+import { TabsTrigger, useForwardProps } from "reka-ui";
 
 interface Props extends TabsTriggerProps {
-  class?: string
+  class?: string;
 }
 
-const props = defineProps<Props>()
-const forwarded = useForwardProps(props)
+const props = defineProps<Props>();
+const forwarded = useForwardProps(props);
 </script>
 
 <template>

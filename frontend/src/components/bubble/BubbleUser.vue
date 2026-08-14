@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import type { Message } from "@/types/response";
+import { computed } from "vue";
 import BubbleAvatar from "./BubbleAvatar.vue";
 
 const props = defineProps<{

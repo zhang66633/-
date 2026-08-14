@@ -68,8 +68,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
 import { Pencil, X } from "lucide-vue-next";
+import { ref } from "vue";
 
 export interface NoteItem {
   title: string;

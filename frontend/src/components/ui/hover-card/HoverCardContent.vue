@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { HoverCardContent, HoverCardPortal } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import { HoverCardContent, HoverCardPortal } from "reka-ui";
 
 interface Props {
-  class?: string
-  side?: 'top' | 'right' | 'bottom' | 'left'
-  align?: 'start' | 'center' | 'end'
+  class?: string;
+  side?: "top" | "right" | "bottom" | "left";
+  align?: "start" | "center" | "end";
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  side: 'bottom',
-  align: 'center',
-})
+  side: "bottom",
+  align: "center",
+});
 </script>
 
 <template>

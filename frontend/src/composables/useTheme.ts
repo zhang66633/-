@@ -1,4 +1,4 @@
-import { ref, watch, computed } from "vue";
+import { computed, ref, watch } from "vue";
 
 export type Theme = "light" | "dark";
 
@@ -21,7 +21,9 @@ const saved = localStorage.getItem(STORAGE_KEY);
 if (saved === "dark" || saved === "light") {
   theme.value = saved;
 } else {
-  theme.value = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  theme.value = window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 applyTheme(theme.value);
 

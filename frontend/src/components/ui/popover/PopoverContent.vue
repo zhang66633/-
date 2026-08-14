@@ -1,21 +1,27 @@
 <script setup lang="ts">
-import { PopoverAnchor, PopoverArrow, PopoverClose, PopoverContent, PopoverPortal } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import {
+  PopoverAnchor,
+  PopoverArrow,
+  PopoverClose,
+  PopoverContent,
+  PopoverPortal,
+} from "reka-ui";
 
 interface Props {
-  class?: string
-  side?: 'top' | 'right' | 'bottom' | 'left'
-  align?: 'start' | 'center' | 'end'
-  sideOffset?: number
-  showArrow?: boolean
+  class?: string;
+  side?: "top" | "right" | "bottom" | "left";
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+  showArrow?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  side: 'bottom',
-  align: 'center',
+  side: "bottom",
+  align: "center",
   sideOffset: 4,
   showArrow: false,
-})
+});
 </script>
 
 <template>

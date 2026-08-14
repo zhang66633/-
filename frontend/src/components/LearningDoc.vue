@@ -32,13 +32,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
-import { StickyNote, MessageCircleQuestion } from "lucide-vue-next";
-import { marked } from "marked";
 import DOMPurify from "dompurify";
+import { MessageCircleQuestion, StickyNote } from "lucide-vue-next";
+import { marked } from "marked";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 const props = defineProps<{
-  markdown: string; unitId: string;
+  markdown: string;
+  unitId: string;
   onAddNote?: (text: string, section: string) => void;
   onAskAI?: (text: string, section: string) => void;
 }>();
@@ -53,7 +54,8 @@ const contentRef = ref<HTMLElement>();
 const progressPercent = ref(0);
 
 const renderedHtml = computed(() => {
-  if (!props.markdown) return "<p class='text-muted-foreground'>暂无学习资料</p>";
+  if (!props.markdown)
+    return "<p class='text-muted-foreground'>暂无学习资料</p>";
   return DOMPurify.sanitize(marked.parse(props.markdown) as string);
 });
 
@@ -62,7 +64,10 @@ function extractHeadings() {
   const hs = contentRef.value.querySelectorAll("h1, h2, h3");
   const r: { id: string; text: string; level: number }[] = [];
   let n = 0;
-  hs.forEach((h) => { h.id = `h-${n++}`; r.push({ id: h.id, text: h.textContent || "", level: +h.tagName[1] }); });
+  for (const h of hs) {
+    h.id = `h-${n++}`;
+    r.push({ id: h.id, text: h.textContent || "", level: +h.tagName[1] });
+  }
   emit("headingsChange", r);
 }
 watch(renderedHtml, () => setTimeout(extractHeadings, 0));
@@ -70,15 +75,23 @@ watch(renderedHtml, () => setTimeout(extractHeadings, 0));
 // ── 选区 ────────────────────────────────────────────
 
 const toolbar = ref({ visible: false, x: 0, y: 0 });
-const fakeSel = ref<{ visible: boolean; rects: DOMRect[] }>({ visible: false, rects: [] });
+const fakeSel = ref<{ visible: boolean; rects: DOMRect[] }>({
+  visible: false,
+  rects: [],
+});
 let selectedText = "";
 let selectedSection = "";
 const window = { scrollY: 0 };
 
-function updateScrollY() { window.scrollY = globalThis.scrollY || 0; }
+function updateScrollY() {
+  window.scrollY = globalThis.scrollY || 0;
+}
 
 function onDocMouseDown() {
-  setTimeout(() => { toolbar.value.visible = false; fakeSel.value.visible = false; }, 200);
+  setTimeout(() => {
+    toolbar.value.visible = false;
+    fakeSel.value.visible = false;
+  }, 200);
 }
 
 function onGlobalMouseUp() {
@@ -88,14 +101,23 @@ function onGlobalMouseUp() {
   if (!contentRef.value) return;
   const an = sel.anchorNode;
   const fn = sel.focusNode;
-  if (!an || !fn || !contentRef.value.contains(an) || !contentRef.value.contains(fn)) return;
+  if (
+    !an ||
+    !fn ||
+    !contentRef.value.contains(an) ||
+    !contentRef.value.contains(fn)
+  )
+    return;
   const t = sel.toString().trim();
   if (t.length < 1) return;
 
   selectedText = t;
   let n = an;
   while (n && n !== contentRef.value) {
-    if (n.nodeName?.match(/^H[1-4]$/)) { selectedSection = n.textContent || ""; break; }
+    if (n.nodeName?.match(/^H[1-4]$/)) {
+      selectedSection = n.textContent || "";
+      break;
+    }
     n = n.parentElement as any;
   }
 
@@ -111,14 +133,28 @@ function onGlobalMouseUp() {
 
   // 用第一个矩形定位 toolbar
   const rc = sel.getRangeAt(0).getBoundingClientRect();
-  toolbar.value = { visible: true, x: Math.max(10, rc.left + rc.width / 2 - 70), y: Math.max(10, rc.top - 44) };
+  toolbar.value = {
+    visible: true,
+    x: Math.max(10, rc.left + rc.width / 2 - 70),
+    y: Math.max(10, rc.top - 44),
+  };
 
   // 清浏览器选区 → 蓝高亮由 fakeSel 维持
   sel.removeAllRanges();
 }
 
-function doAddNote() { if (selectedText && props.onAddNote) props.onAddNote(selectedText, selectedSection); toolbar.value.visible = false; fakeSel.value.visible = false; }
-function doAskAI() { if (selectedText && props.onAskAI) props.onAskAI(selectedText, selectedSection); toolbar.value.visible = false; fakeSel.value.visible = false; }
+function doAddNote() {
+  if (selectedText && props.onAddNote)
+    props.onAddNote(selectedText, selectedSection);
+  toolbar.value.visible = false;
+  fakeSel.value.visible = false;
+}
+function doAskAI() {
+  if (selectedText && props.onAskAI)
+    props.onAskAI(selectedText, selectedSection);
+  toolbar.value.visible = false;
+  fakeSel.value.visible = false;
+}
 
 // ── 滚动 ────────────────────────────────────────────
 
@@ -126,16 +162,22 @@ function onScroll() {
   if (!docRoot.value) return;
   const { scrollTop, scrollHeight, clientHeight } = docRoot.value;
   const p = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100);
-  progressPercent.value = isNaN(p) ? 0 : Math.min(100, Math.max(0, p));
+  progressPercent.value = Number.isNaN(p) ? 0 : Math.min(100, Math.max(0, p));
   if (!contentRef.value) return;
   let id = "";
-  contentRef.value.querySelectorAll("h1,h2,h3").forEach((h) => { if (h.getBoundingClientRect().top <= 120) id = h.id; });
+  for (const h of contentRef.value.querySelectorAll("h1,h2,h3")) {
+    if (h.getBoundingClientRect().top <= 120) id = h.id;
+  }
   if (id) emit("scrollSection", id);
 
   // 滚动时隐藏仿高亮
   fakeSel.value.visible = false;
 }
-function scrollToHeading(id: string) { contentRef.value?.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+function scrollToHeading(id: string) {
+  contentRef.value
+    ?.querySelector(`#${id}`)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 defineExpose({ scrollToHeading });
 
 onMounted(() => {

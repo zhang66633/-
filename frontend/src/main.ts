@@ -4,8 +4,8 @@ import "katex/dist/katex.min.css";
 import "@/assets/style.css";
 import App from "@/App.vue";
 import router from "@/router";
-import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { useAuthStore } from "@/stores/auth";
+import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 
 const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);

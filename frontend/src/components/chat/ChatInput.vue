@@ -1,19 +1,22 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from "vue";
-import { Send, Loader2, Paperclip, X, Download } from "lucide-vue-next";
-import { uploadChatFile, type ChatFileRef } from "@/apis/chatApi";
+import { type ChatFileRef, uploadChatFile } from "@/apis/chatApi";
+import { Download, Loader2, Paperclip, Send, X } from "lucide-vue-next";
+import { nextTick, ref, watch } from "vue";
 
-const props = withDefaults(defineProps<{
-  isRunning?: boolean;
-  inputPlaceholder?: string;
-  messagesCount?: number;
-  prefill?: string;
-}>(), {
-  isRunning: false,
-  inputPlaceholder: "输入消息...",
-  messagesCount: 0,
-  prefill: "",
-});
+const props = withDefaults(
+  defineProps<{
+    isRunning?: boolean;
+    inputPlaceholder?: string;
+    messagesCount?: number;
+    prefill?: string;
+  }>(),
+  {
+    isRunning: false,
+    inputPlaceholder: "输入消息...",
+    messagesCount: 0,
+    prefill: "",
+  },
+);
 
 const emit = defineEmits<{
   send: [text: string, files?: ChatFileRef[]];
@@ -24,7 +27,18 @@ const inputText = ref("");
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 // 接收外部预填文本
-watch(() => props.prefill, (v) => { if (v) { inputText.value = v; nextTick(() => { textareaRef.value?.focus(); autoResize(); }); } });
+watch(
+  () => props.prefill,
+  (v) => {
+    if (v) {
+      inputText.value = v;
+      nextTick(() => {
+        textareaRef.value?.focus();
+        autoResize();
+      });
+    }
+  },
+);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const attachedFiles = ref<ChatFileRef[]>([]);
 const uploading = ref(false);
@@ -64,13 +78,14 @@ function autoResize() {
   const el = textareaRef.value;
   if (!el) return;
   el.style.height = "auto";
-  el.style.height = Math.min(el.scrollHeight, 160) + "px";
+  el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
 }
 
 function sendMessage() {
   const text = inputText.value.trim();
   if ((!text && attachedFiles.value.length === 0) || props.isRunning) return;
-  const files = attachedFiles.value.length > 0 ? [...attachedFiles.value] : undefined;
+  const files =
+    attachedFiles.value.length > 0 ? [...attachedFiles.value] : undefined;
   emit("send", text, files);
   inputText.value = "";
   attachedFiles.value = [];

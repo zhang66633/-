@@ -58,10 +58,10 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from "vue-router";
-import { ArrowLeft, Sun, Moon, Key } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/composables/useTheme";
+import { ArrowLeft, Key, Moon, Sun } from "lucide-vue-next";
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 const { isDark, setTheme } = useTheme();

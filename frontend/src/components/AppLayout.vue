@@ -55,17 +55,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { useRoute } from "vue-router";
-import { Menu } from "lucide-vue-next";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import AppSidebar from "@/components/AppSidebar.vue";
-import SessionStorageAlert from "@/components/chat/SessionStorageAlert.vue";
 import NavUser from "@/components/NavUser.vue";
-import SkipToContent from "@/components/SkipToContent.vue";
 import ServiceStatus from "@/components/ServiceStatus.vue";
+import SkipToContent from "@/components/SkipToContent.vue";
 import ThemeToggle from "@/components/ThemeToggle.vue";
+import SessionStorageAlert from "@/components/chat/SessionStorageAlert.vue";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { APP_NAME } from "@/types/const";
+import { Menu } from "lucide-vue-next";
+import { computed, ref } from "vue";
+import { useRoute } from "vue-router";
 
 const mobileNavOpen = ref(false);
 const route = useRoute();

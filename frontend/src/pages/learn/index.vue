@@ -1,24 +1,31 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
 import ChatArea from "@/components/ChatArea.vue";
 import SkillGraph from "@/components/SkillGraph.vue";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard.vue";
-import { useLearningStore, type AgentRole } from "@/stores/learning";
-import { useChatSessionStore } from "@/stores/chatSession";
 import { useStreamChat } from "@/composables/useStreamChat";
+import { useChatSessionStore } from "@/stores/chatSession";
+import { type AgentRole, useLearningStore } from "@/stores/learning";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { useProfileStore } from "@/stores/profile";
+import { computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 const store = useLearningStore();
 const chatSession = useChatSessionStore();
 const onboardingStore = useOnboardingStore();
 const profileStore = useProfileStore();
-const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat("learning", "learning");
+const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
+  "learning",
+  "learning",
+);
 
 const roleLabel = computed(() => {
-  const labels: Record<AgentRole, string> = { modeler: "建模手", programmer: "编程手", writer: "论文手" };
+  const labels: Record<AgentRole, string> = {
+    modeler: "建模手",
+    programmer: "编程手",
+    writer: "论文手",
+  };
   return labels[store.currentRole] ?? "建模手";
 });
 

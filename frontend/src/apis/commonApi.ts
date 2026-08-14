@@ -1,7 +1,11 @@
-import request from "@/utils/request";
 import type { ChatFileRef } from "@/apis/chatApi";
+import request from "@/utils/request";
 
-export function createTask(data: { problem: string; mode: string; files?: ChatFileRef[] }) {
+export function createTask(data: {
+  problem: string;
+  mode: string;
+  files?: ChatFileRef[];
+}) {
   return request.post("/tasks", data);
 }
 

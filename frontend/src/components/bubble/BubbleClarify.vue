@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type { Message, ClarifyMessage } from "@/types/response";
 import ClarifyCard from "@/components/ClarifyCard.vue";
+import type { ClarifyMessage, Message } from "@/types/response";
+import { computed } from "vue";
 import BubbleAvatar from "./BubbleAvatar.vue";
 
 const props = defineProps<{
@@ -23,7 +23,10 @@ const clarifyAnswered = computed(() => {
 
 const timestamp = computed(() => {
   if (!props.message.created_at) return "";
-  return new Date(props.message.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+  return new Date(props.message.created_at).toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 });
 </script>
 

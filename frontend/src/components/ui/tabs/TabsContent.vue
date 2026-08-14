@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { TabsContentProps } from 'reka-ui'
-import { TabsContent, useForwardProps } from 'reka-ui'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
+import type { TabsContentProps } from "reka-ui";
+import { TabsContent, useForwardProps } from "reka-ui";
 
 interface Props extends TabsContentProps {
-  class?: string
+  class?: string;
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
-const forward = useForwardProps(props)
+const forward = useForwardProps(props);
 </script>
 
 <template>

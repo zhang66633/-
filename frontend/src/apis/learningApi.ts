@@ -75,7 +75,11 @@ export function fetchProfile() {
 }
 
 /** 初始诊断 */
-export function diagnose(role: string, selfAssessment: Record<string, number>, goal: string) {
+export function diagnose(
+  role: string,
+  selfAssessment: Record<string, number>,
+  goal: string,
+) {
   return request.post("/profile/diagnose", {
     role,
     self_assessment: selfAssessment,

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ToolStatus } from "@/types/response";
+import { CheckCircle2, Loader2, XCircle } from "lucide-vue-next";
 /**
  * 工具状态指示器 — 紧凑的状态徽章
  *
@@ -8,8 +10,6 @@
  *   error   → XCircle + "失败"（rose）
  */
 import { computed } from "vue";
-import { Loader2, CheckCircle2, XCircle } from "lucide-vue-next";
-import type { ToolStatus } from "@/types/response";
 
 const props = withDefaults(
   defineProps<{
@@ -27,21 +27,24 @@ const config = computed(() => {
         icon: Loader2,
         label: "执行中",
         iconClass: "animate-spin",
-        badgeClass: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",
+        badgeClass:
+          "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",
       };
     case "success":
       return {
         icon: CheckCircle2,
         label: "完成",
         iconClass: "",
-        badgeClass: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800",
+        badgeClass:
+          "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800",
       };
     case "error":
       return {
         icon: XCircle,
         label: "失败",
         iconClass: "",
-        badgeClass: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800",
+        badgeClass:
+          "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800",
       };
     default:
       return null;

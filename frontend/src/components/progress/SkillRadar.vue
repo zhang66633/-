@@ -54,7 +54,7 @@ const props = defineProps<{
 
 const points = computed(() =>
   props.skills.map((s, i) => {
-    const angle = (i * 120 - 90) * Math.PI / 180;
+    const angle = ((i * 120 - 90) * Math.PI) / 180;
     const r = (s.value / 100) * 48;
     return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
   }),

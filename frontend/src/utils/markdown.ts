@@ -1,6 +1,6 @@
-import { marked, type Token } from "marked";
-import markedKatex from "marked-katex-extension";
 import DOMPurify from "dompurify";
+import { type Token, marked } from "marked";
+import markedKatex from "marked-katex-extension";
 
 marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
 
@@ -75,7 +75,10 @@ const LANG_MAP: Record<string, string> = {
 };
 
 async function highlightCode(code: string, lang?: string): Promise<string> {
-  const escaped = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const escaped = code
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
   if (!lang || !code.trim()) return escaped;
 
   const hljsLang = LANG_MAP[lang.toLowerCase()] ?? lang.toLowerCase();
@@ -84,7 +87,10 @@ async function highlightCode(code: string, lang?: string): Promise<string> {
   try {
     await ensureLanguage(hljsLang);
     const hljs = await loadHljs();
-    const result = hljs.highlight(code, { language: hljsLang, ignoreIllegals: true });
+    const result = hljs.highlight(code, {
+      language: hljsLang,
+      ignoreIllegals: true,
+    });
     return result.value;
   } catch {
     // 高亮失败，回退纯文本
@@ -119,11 +125,14 @@ function cacheSet(key: string, value: string) {
 function createHighlightedRenderer() {
   const renderer = new marked.Renderer();
 
-  renderer.code = function ({ text, lang }: { text: string; lang?: string }) {
+  renderer.code = ({ text, lang }: { text: string; lang?: string }) => {
     // 用随机 id 关联复制按钮
     const id = `code-${Math.random().toString(36).slice(2, 9)}`;
     const langLabel = lang || "text";
-    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const escaped = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
 
     return `
 <div class="code-block-wrapper relative group my-4 rounded-lg border border-border overflow-hidden">
@@ -140,16 +149,23 @@ function createHighlightedRenderer() {
   };
 
   // 表格增强：包裹在响应式容器中（单元格用 parseInline 渲染行内格式）
-  renderer.table = function ({ header, rows }: { header: any[]; rows: any[][] }) {
+  renderer.table = ({ header, rows }: { header: any[]; rows: any[][] }) => {
     const thead = `<thead><tr>${header.map((h: any) => `<th>${renderer.parser.parseInline(h.tokens ?? [])}</th>`).join("")}</tr></thead>`;
     const tbody = `<tbody>${rows
-      .map((row: any[]) => `<tr>${row.map((cell: any) => `<td>${renderer.parser.parseInline(cell.tokens ?? [])}</td>`).join("")}</tr>`)
+      .map(
+        (row: any[]) =>
+          `<tr>${row.map((cell: any) => `<td>${renderer.parser.parseInline(cell.tokens ?? [])}</td>`).join("")}</tr>`,
+      )
       .join("")}</tbody>`;
     return `<div class="table-wrapper overflow-x-auto my-4 rounded-lg border border-border"><table class="min-w-full">${thead}${tbody}</table></div>`;
   };
 
   // 标题添加锚点 id（供 TOC 跳转），正文用 parseInline 渲染行内格式
-  renderer.heading = function ({ text, tokens, depth }: { text: string; tokens: Token[]; depth: number }) {
+  renderer.heading = ({
+    text,
+    tokens,
+    depth,
+  }: { text: string; tokens: Token[]; depth: number }) => {
     const id = text
       .replace(/<[^>]*>/g, "")
       .replace(/[^\w一-鿿\s-]/g, "")
@@ -225,13 +241,14 @@ export interface TocEntry {
 export function extractToc(html: string): TocEntry[] {
   const headingRegex = /<h([1-3])\s+id="([^"]*)"[^>]*>(.*?)<\/h[1-3]>/gi;
   const entries: TocEntry[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = headingRegex.exec(html)) !== null) {
+  let match = headingRegex.exec(html);
+  while (match !== null) {
     entries.push({
-      level: parseInt(match[1]),
+      level: Number.parseInt(match[1]),
       id: match[2],
       text: match[3].replace(/<[^>]*>/g, ""),
     });
+    match = headingRegex.exec(html);
   }
   return entries;
 }

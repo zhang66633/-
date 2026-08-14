@@ -1,6 +1,6 @@
-import { ref, computed } from "vue";
-import { defineStore } from "pinia";
 import type { Message, ToolStatus } from "@/types/response";
+import { defineStore } from "pinia";
+import { computed, ref } from "vue";
 
 export type SessionMode = "chat" | "solution" | "learning" | "qa" | "practice";
 
@@ -48,99 +48,165 @@ export const useChatSessionStore = defineStore(
 
     function getSessions(mode: SessionMode) {
       switch (mode) {
-        case "chat": return chatSessions;
-        case "solution": return solutionSessions;
-        case "learning": return learningSessions;
-        case "qa": return qaSessions;
-        case "practice": return practiceSessions;
+        case "chat":
+          return chatSessions;
+        case "solution":
+          return solutionSessions;
+        case "learning":
+          return learningSessions;
+        case "qa":
+          return qaSessions;
+        case "practice":
+          return practiceSessions;
       }
     }
 
     function getActiveId(mode: SessionMode) {
       switch (mode) {
-        case "chat": return activeChatId;
-        case "solution": return activeSolutionId;
-        case "learning": return activeLearningId;
-        case "qa": return activeQaId;
-        case "practice": return activePracticeId;
+        case "chat":
+          return activeChatId;
+        case "solution":
+          return activeSolutionId;
+        case "learning":
+          return activeLearningId;
+        case "qa":
+          return activeQaId;
+        case "practice":
+          return activePracticeId;
       }
     }
 
     function setActiveId(mode: SessionMode, id: string | null) {
       switch (mode) {
-        case "chat": activeChatId.value = id; break;
-        case "solution": activeSolutionId.value = id; break;
-        case "learning": activeLearningId.value = id; break;
-        case "qa": activeQaId.value = id; break;
-        case "practice": activePracticeId.value = id; break;
+        case "chat":
+          activeChatId.value = id;
+          break;
+        case "solution":
+          activeSolutionId.value = id;
+          break;
+        case "learning":
+          activeLearningId.value = id;
+          break;
+        case "qa":
+          activeQaId.value = id;
+          break;
+        case "practice":
+          activePracticeId.value = id;
+          break;
       }
     }
 
     const sortedChatSessions = computed(() =>
-      [...chatSessions.value].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+      [...chatSessions.value].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
     );
     const sortedSolutionSessions = computed(() =>
-      [...solutionSessions.value].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+      [...solutionSessions.value].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
     );
     const sortedLearningSessions = computed(() =>
-      [...learningSessions.value].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+      [...learningSessions.value].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
     );
     const sortedQaSessions = computed(() =>
-      [...qaSessions.value].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+      [...qaSessions.value].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
     );
     const sortedPracticeSessions = computed(() =>
-      [...practiceSessions.value].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+      [...practiceSessions.value].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
     );
 
     function getSortedSessions(mode: SessionMode) {
       switch (mode) {
-        case "chat": return sortedChatSessions;
-        case "solution": return sortedSolutionSessions;
-        case "learning": return sortedLearningSessions;
-        case "qa": return sortedQaSessions;
-        case "practice": return sortedPracticeSessions;
+        case "chat":
+          return sortedChatSessions;
+        case "solution":
+          return sortedSolutionSessions;
+        case "learning":
+          return sortedLearningSessions;
+        case "qa":
+          return sortedQaSessions;
+        case "practice":
+          return sortedPracticeSessions;
       }
     }
 
-    const activeChatSession = computed(() =>
-      chatSessions.value.find((s) => s.id === activeChatId.value) ?? null,
+    const activeChatSession = computed(
+      () => chatSessions.value.find((s) => s.id === activeChatId.value) ?? null,
     );
-    const activeSolutionSession = computed(() =>
-      solutionSessions.value.find((s) => s.id === activeSolutionId.value) ?? null,
+    const activeSolutionSession = computed(
+      () =>
+        solutionSessions.value.find((s) => s.id === activeSolutionId.value) ??
+        null,
     );
-    const activeLearningSession = computed(() =>
-      learningSessions.value.find((s) => s.id === activeLearningId.value) ?? null,
+    const activeLearningSession = computed(
+      () =>
+        learningSessions.value.find((s) => s.id === activeLearningId.value) ??
+        null,
     );
-    const activeQaSession = computed(() =>
-      qaSessions.value.find((s) => s.id === activeQaId.value) ?? null,
+    const activeQaSession = computed(
+      () => qaSessions.value.find((s) => s.id === activeQaId.value) ?? null,
     );
-    const activePracticeSession = computed(() =>
-      practiceSessions.value.find((s) => s.id === activePracticeId.value) ?? null,
+    const activePracticeSession = computed(
+      () =>
+        practiceSessions.value.find((s) => s.id === activePracticeId.value) ??
+        null,
     );
 
     function getActiveSession(mode: SessionMode) {
       switch (mode) {
-        case "chat": return activeChatSession;
-        case "solution": return activeSolutionSession;
-        case "learning": return activeLearningSession;
-        case "qa": return activeQaSession;
-        case "practice": return activePracticeSession;
+        case "chat":
+          return activeChatSession;
+        case "solution":
+          return activeSolutionSession;
+        case "learning":
+          return activeLearningSession;
+        case "qa":
+          return activeQaSession;
+        case "practice":
+          return activePracticeSession;
       }
     }
 
-    const activeChatMessages = computed(() => activeChatSession.value?.messages ?? []);
-    const activeSolutionMessages = computed(() => activeSolutionSession.value?.messages ?? []);
-    const activeLearningMessages = computed(() => activeLearningSession.value?.messages ?? []);
-    const activeQaMessages = computed(() => activeQaSession.value?.messages ?? []);
-    const activePracticeMessages = computed(() => activePracticeSession.value?.messages ?? []);
+    const activeChatMessages = computed(
+      () => activeChatSession.value?.messages ?? [],
+    );
+    const activeSolutionMessages = computed(
+      () => activeSolutionSession.value?.messages ?? [],
+    );
+    const activeLearningMessages = computed(
+      () => activeLearningSession.value?.messages ?? [],
+    );
+    const activeQaMessages = computed(
+      () => activeQaSession.value?.messages ?? [],
+    );
+    const activePracticeMessages = computed(
+      () => activePracticeSession.value?.messages ?? [],
+    );
 
     function getActiveMessages(mode: SessionMode) {
       switch (mode) {
-        case "chat": return activeChatMessages;
-        case "solution": return activeSolutionMessages;
-        case "learning": return activeLearningMessages;
-        case "qa": return activeQaMessages;
-        case "practice": return activePracticeMessages;
+        case "chat":
+          return activeChatMessages;
+        case "solution":
+          return activeSolutionMessages;
+        case "learning":
+          return activeLearningMessages;
+        case "qa":
+          return activeQaMessages;
+        case "practice":
+          return activePracticeMessages;
       }
     }
 
@@ -153,7 +219,10 @@ export const useChatSessionStore = defineStore(
       // 按 updatedAt 降序，保留最新 N 条，就地淘汰最旧会话
       const keepIds = new Set(
         [...list]
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .sort(
+            (a, b) =>
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+          )
           .slice(0, MAX_SESSIONS_PER_MODE)
           .map((s) => s.id),
       );
@@ -225,8 +294,13 @@ export const useChatSessionStore = defineStore(
         qa: "新问题",
         practice: "新练习",
       };
-      if (session.title === defaultTitle[mode] && msg.msg_type === "user" && msg.content) {
-        session.title = msg.content.slice(0, 30) + (msg.content.length > 30 ? "..." : "");
+      if (
+        session.title === defaultTitle[mode] &&
+        msg.msg_type === "user" &&
+        msg.content
+      ) {
+        session.title =
+          msg.content.slice(0, 30) + (msg.content.length > 30 ? "..." : "");
       }
     }
 
@@ -252,7 +326,8 @@ export const useChatSessionStore = defineStore(
       if (patch.thinking !== undefined) (msg as any).thinking = patch.thinking;
       if (patch.status !== undefined) (msg as any).status = patch.status;
       if (patch.output !== undefined) (msg as any).output = patch.output;
-      if (patch.answered !== undefined && "answered" in msg) (msg as any).answered = patch.answered;
+      if (patch.answered !== undefined && "answered" in msg)
+        (msg as any).answered = patch.answered;
       session.updatedAt = now();
     }
 
@@ -266,24 +341,65 @@ export const useChatSessionStore = defineStore(
     }
 
     return {
-      chatSessions, solutionSessions, learningSessions, qaSessions, practiceSessions,
-      activeChatId, activeSolutionId, activeLearningId, activeQaId, activePracticeId,
+      chatSessions,
+      solutionSessions,
+      learningSessions,
+      qaSessions,
+      practiceSessions,
+      activeChatId,
+      activeSolutionId,
+      activeLearningId,
+      activeQaId,
+      activePracticeId,
       runningMode,
-      sortedChatSessions, sortedSolutionSessions, sortedLearningSessions, sortedQaSessions, sortedPracticeSessions,
-      activeChatSession, activeSolutionSession, activeLearningSession, activeQaSession, activePracticeSession,
-      activeChatMessages, activeSolutionMessages, activeLearningMessages, activeQaMessages, activePracticeMessages,
-      createSession, newSession, switchSession, deleteSession, renameSession,
-      addMessage, updateMessage, clearActive,
-      getSessions, getActiveId, getSortedSessions, getActiveSession, getActiveMessages,
-      getIsRunning, setRunning,
+      sortedChatSessions,
+      sortedSolutionSessions,
+      sortedLearningSessions,
+      sortedQaSessions,
+      sortedPracticeSessions,
+      activeChatSession,
+      activeSolutionSession,
+      activeLearningSession,
+      activeQaSession,
+      activePracticeSession,
+      activeChatMessages,
+      activeSolutionMessages,
+      activeLearningMessages,
+      activeQaMessages,
+      activePracticeMessages,
+      createSession,
+      newSession,
+      switchSession,
+      deleteSession,
+      renameSession,
+      addMessage,
+      updateMessage,
+      clearActive,
+      getSessions,
+      getActiveId,
+      getSortedSessions,
+      getActiveSession,
+      getActiveMessages,
+      getIsRunning,
+      setRunning,
     };
   },
   {
     persist: {
       key: "mma-chat-sessions",
       storage: localStorage,
-      pick: ["chatSessions", "solutionSessions", "learningSessions", "qaSessions", "practiceSessions",
-             "activeChatId", "activeSolutionId", "activeLearningId", "activeQaId", "activePracticeId"],
+      pick: [
+        "chatSessions",
+        "solutionSessions",
+        "learningSessions",
+        "qaSessions",
+        "practiceSessions",
+        "activeChatId",
+        "activeSolutionId",
+        "activeLearningId",
+        "activeQaId",
+        "activePracticeId",
+      ],
     },
   },
 );

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import GenericRenderer from "@/components/tool/renderers/GenericRenderer.vue";
+import { getToolRenderer } from "@/components/tool/toolRenderers";
+import type { Message, ToolMessage, ToolStatus } from "@/types/response";
 /**
  * 工具消息气泡 — 按 tool_name 分发到对应渲染器
  *
@@ -6,9 +9,6 @@
  * 未注册的工具回退到 GenericRenderer。
  */
 import { computed, defineAsyncComponent } from "vue";
-import type { Message, ToolMessage, ToolStatus } from "@/types/response";
-import { getToolRenderer } from "@/components/tool/toolRenderers";
-import GenericRenderer from "@/components/tool/renderers/GenericRenderer.vue";
 import BubbleAvatar from "./BubbleAvatar.vue";
 
 const props = defineProps<{

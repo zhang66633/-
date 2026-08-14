@@ -57,9 +57,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import { Search, ChevronRight } from "lucide-vue-next";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronRight, Search } from "lucide-vue-next";
+import { computed, ref, watch } from "vue";
 
 interface SkillUnit {
   id: string;
@@ -74,17 +74,20 @@ interface SkillCategory {
   units: SkillUnit[];
 }
 
-const props = withDefaults(defineProps<{
-  categories?: SkillCategory[];
-  title?: string;
-  loading?: boolean;
-  error?: string;
-}>(), {
-  categories: () => [],
-  title: "技能树",
-  loading: false,
-  error: "",
-});
+const props = withDefaults(
+  defineProps<{
+    categories?: SkillCategory[];
+    title?: string;
+    loading?: boolean;
+    error?: string;
+  }>(),
+  {
+    categories: () => [],
+    title: "技能树",
+    loading: false,
+    error: "",
+  },
+);
 
 defineEmits<{
   select: [unitId: string];
@@ -116,25 +119,36 @@ const filteredTree = computed(() => {
 });
 
 function statusClass(status: string) {
-  return {
-    completed: "text-foreground",
-    active: "text-primary font-medium bg-primary/5",
-    locked: "text-muted-foreground",
-  }[status] ?? "text-muted-foreground";
+  return (
+    {
+      completed: "text-foreground",
+      active: "text-primary font-medium bg-primary/5",
+      locked: "text-muted-foreground",
+    }[status] ?? "text-muted-foreground"
+  );
 }
 
 function statusIcon(status: string) {
   return { completed: "✅", active: "🔄", locked: "⬜" }[status] ?? "⬜";
 }
 function diffLabel(d: string) {
-  return { beginner: "入门", intermediate: "进阶", advanced: "实战", competition: "竞赛" }[d] ?? "";
+  return (
+    {
+      beginner: "入门",
+      intermediate: "进阶",
+      advanced: "实战",
+      competition: "竞赛",
+    }[d] ?? ""
+  );
 }
 function diffBadge(d: string) {
-  return {
-    beginner: "bg-emerald-50 text-emerald-600",
-    intermediate: "bg-amber-50 text-amber-600",
-    advanced: "bg-purple-50 text-purple-600",
-    competition: "bg-red-50 text-red-600",
-  }[d] ?? "";
+  return (
+    {
+      beginner: "bg-emerald-50 text-emerald-600",
+      intermediate: "bg-amber-50 text-amber-600",
+      advanced: "bg-purple-50 text-purple-600",
+      competition: "bg-red-50 text-red-600",
+    }[d] ?? ""
+  );
 }
 </script>
