@@ -58,7 +58,28 @@ const progressPercent = ref(0);
 const renderedHtml = computed(() => {
   if (!props.markdown)
     return "<p class='text-muted-foreground'>暂无学习资料</p>";
-  return DOMPurify.sanitize(marked.parse(props.markdown) as string);
+  const raw = marked.parse(props.markdown) as string;
+  // 按标题/引用文本关键词打白名单 class(仅注入 class,再 sanitize 兜底)
+  const div = document.createElement("div");
+  div.innerHTML = raw;
+  for (const h of div.querySelectorAll("h2")) {
+    const t = h.textContent || "";
+    let cls = "";
+    if (/学习目标|本单元|你将|学完/.test(t)) cls = "sec-goal";
+    else if (/核心概念|核心知识|概念|关键|要点|知识点/.test(t))
+      cls = "sec-concept";
+    else if (/公式/.test(t)) cls = "sec-formula";
+    else if (/例题|示例|举例|案例/.test(t)) cls = "sec-example";
+    else if (/练习|习题|自测|检测|巩固/.test(t)) cls = "sec-practice";
+    if (cls) h.className = cls;
+  }
+  for (const b of div.querySelectorAll("blockquote")) {
+    const t = b.textContent || "";
+    if (/AI提示|AI 提示|提示|注意|建议|💡/.test(t)) {
+      b.className = b.className ? `${b.className} sec-tip` : "sec-tip";
+    }
+  }
+  return DOMPurify.sanitize(div.innerHTML);
 });
 
 function extractHeadings() {
@@ -198,4 +219,60 @@ onBeforeUnmount(() => {
 .prose :deep(pre code) { color: #cdd6f4; font-size: 0.875em; }
 .prose :deep(code) { font-size: 0.875em; }
 .prose :deep(.katex) { font-size: 1.1em; }
+
+/* ── 内容视觉层级: h2 主色左边条,按章节类型分色 ── */
+.prose :deep(h2) {
+  position: relative;
+  padding-left: 0.875rem;
+  margin-top: 2.25em;
+}
+.prose :deep(h2)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.12em;
+  bottom: 0.12em;
+  width: 3px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+}
+.prose :deep(h2.sec-goal)::before { background: hsl(150 60% 40%); }
+.prose :deep(h2.sec-concept)::before { background: hsl(var(--primary)); }
+.prose :deep(h2.sec-example)::before { background: hsl(35 85% 50%); }
+.prose :deep(h2.sec-practice)::before { background: hsl(270 50% 55%); }
+
+/* 公式章节: 居中 + 上下发丝线,更像视觉分隔 */
+.prose :deep(h2.sec-formula) {
+  text-align: center;
+  border-top: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0.6em 0;
+  margin-top: 2.5em;
+  margin-bottom: 1.5em;
+}
+.prose :deep(h2.sec-formula)::before { display: none; }
+
+/* h3: 菱形点缀,层级收窄 */
+.prose :deep(h3)::before {
+  content: "◆";
+  font-size: 0.62em;
+  margin-right: 0.5em;
+  color: hsl(var(--primary));
+  vertical-align: 0.08em;
+}
+
+/* AI 提示 callout */
+.prose :deep(blockquote.sec-tip) {
+  background: hsl(var(--accent) / 0.4);
+  border-left: 3px solid hsl(var(--primary));
+  border-radius: 0 0.5rem 0.5rem 0;
+  padding: 0.75rem 1rem;
+  font-style: normal;
+}
+.prose :deep(blockquote.sec-tip) p:first-child::before { content: "💡 "; }
+
+/* 表格: 斑马表头 */
+.prose :deep(table) { font-size: 0.875em; }
+.prose :deep(thead) { background: hsl(var(--muted)); }
+.prose :deep(thead th) { text-align: left; }
 </style>

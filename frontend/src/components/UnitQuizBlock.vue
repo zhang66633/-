@@ -8,6 +8,15 @@
     <div v-if="loading" class="flex items-center gap-2 py-6 text-sm text-muted-foreground">
       <Loader2 class="h-4 w-4 animate-spin" />自测题加载中…
     </div>
+    <div v-else-if="error" class="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-muted-foreground">
+      <p>自测题加载失败: {{ error }}</p>
+      <button
+        class="mt-2 cursor-pointer rounded-md border border-border px-3 py-1 text-xs text-foreground transition-colors hover:bg-accent"
+        @click="load"
+      >
+        重试
+      </button>
+    </div>
     <div v-else-if="questions.length === 0" class="rounded-md border border-border bg-card p-4 text-sm text-muted-foreground">
       本单元的自测题正在编写中,稍后再来看看吧。
     </div>
@@ -37,6 +46,13 @@
           <div v-html="renderMarkdown(results[qi].explanation)" />
         </div>
       </div>
+
+      <!-- 全部答完的总结 -->
+      <div v-if="allDone" class="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+        <span class="font-medium">本轮自测: {{ correctCount }}/{{ questions.length }} 正确</span>
+        <span v-if="correctCount === questions.length" class="ml-2 text-muted-foreground">🎉 全对,可以标记本单元完成了</span>
+        <span v-else class="ml-2 text-muted-foreground">建议复习错题后再标记完成</span>
+      </div>
     </div>
   </div>
 </template>
@@ -49,13 +65,19 @@ import {
 } from "@/apis/learningApi";
 import { renderMarkdown } from "@/utils/markdown";
 import { Loader2 } from "lucide-vue-next";
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 
 const props = defineProps<{
   unitId: string;
 }>();
 
+const emit = defineEmits<{
+  /** 全部答完时触发 */
+  complete: [payload: { correct: number; total: number }];
+}>();
+
 const loading = ref(false);
+const error = ref("");
 const questions = ref<QuizQuestion[]>([]);
 const choices = reactive<(number | null)[]>([]);
 interface QuizResult {
@@ -65,6 +87,24 @@ interface QuizResult {
   explanation: string;
 }
 const results = reactive<(QuizResult | null)[]>([]);
+
+const answeredCount = computed(() => results.filter((r) => r !== null).length);
+const correctCount = computed(() => results.filter((r) => r?.correct).length);
+const allDone = computed(
+  () =>
+    questions.value.length > 0 &&
+    answeredCount.value === questions.value.length,
+);
+
+// 全部答完 → 通知父页面(如 toast)
+watch(allDone, (done) => {
+  if (done) {
+    emit("complete", {
+      correct: correctCount.value,
+      total: questions.value.length,
+    });
+  }
+});
 
 async function onAnswer(qi: number, choice: number) {
   const q = questions.value[qi];
@@ -78,8 +118,9 @@ async function onAnswer(qi: number, choice: number) {
   };
 }
 
-onMounted(async () => {
+async function load() {
   loading.value = true;
+  error.value = "";
   try {
     const res = await fetchUnitQuiz(props.unitId);
     questions.value = res.data.questions;
@@ -87,8 +128,12 @@ onMounted(async () => {
       choices[i] = null;
       results[i] = null;
     }
+  } catch (e: any) {
+    error.value = e?.message || "网络异常";
   } finally {
     loading.value = false;
   }
-});
+}
+
+onMounted(load);
 </script>

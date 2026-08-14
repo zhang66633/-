@@ -36,11 +36,27 @@
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <span class="font-mono text-[10px] text-muted-foreground hidden sm:inline">⏱ {{ unit?.estimated_minutes ?? '--' }}分钟</span>
-          <button class="font-mono text-[10px] text-muted-foreground hover:text-foreground" @click="chatPanel?.toggle()">{{ chatPanel?.open ? '收起助手' : '💬 助手' }}</button>
+          <button class="font-mono text-[10px] text-muted-foreground hover:text-foreground" @click="chatPanel?.toggle()">{{ chatPanel?.open ? '收起助手' : '💬 问AI' }}</button>
         </div>
       </div>
 
-      <div v-if="store.loading" class="flex-1 flex items-center justify-center"><Loader2 class="h-6 w-6 animate-spin text-muted-foreground" /></div>
+      <!-- 加载骨架屏: 左侧目录条 + 正文段落,避免整页空白转圈 -->
+      <div v-if="store.loading" class="flex-1 min-h-0 flex gap-8 overflow-hidden p-8">
+        <div class="hidden w-52 shrink-0 space-y-2.5 md:block">
+          <Skeleton v-for="i in 7" :key="i" class="h-3.5" :class="i % 3 === 0 ? 'w-2/3' : 'w-full'" />
+        </div>
+        <div class="flex-1 space-y-3.5 overflow-hidden">
+          <Skeleton class="h-7 w-2/3" />
+          <Skeleton class="h-4 w-full" />
+          <Skeleton class="h-4 w-full" />
+          <Skeleton class="h-4 w-5/6" />
+          <Skeleton class="mt-4 h-4 w-full" />
+          <Skeleton class="h-4 w-3/4" />
+          <Skeleton class="mt-4 h-28 w-full" />
+          <Skeleton class="h-4 w-full" />
+          <Skeleton class="h-4 w-2/3" />
+        </div>
+      </div>
       <div v-else-if="store.error" class="flex-1 flex items-center justify-center"><p class="text-sm text-destructive">{{ store.error }}</p></div>
 
       <ChatPanel
@@ -48,31 +64,51 @@
         ref="chatPanel"
         storage-key="unit-chat"
         :default-width="400"
-        button-label="💬 助手"
+        button-label="💬 问AI"
+        :start-collapsed="true"
+        :collapse-below="1024"
         class="flex-1 min-h-0"
       >
         <template #main>
           <LearningDoc ref="docRef" :markdown="docMarkdown" :unit-id="unit.unit_id"
             :on-add-note="openNoteEditor" :on-ask-a-i="handleAskAI"
             @headings-change="headings = $event" @scroll-section="activeHeading = $event">
-            <UnitQuizBlock :unit-id="unit.unit_id" />
+            <UnitQuizBlock :unit-id="unit.unit_id" @complete="onQuizComplete" />
           </LearningDoc>
         </template>
 
         <ChatArea
           :messages="chatSession.activeLearningMessages"
           :is-running="chatSession.getIsRunning('learning')"
-          :empty-text="`${agentName} 在此答疑`" :empty-subtext="'选中文档文字 → 点「问AI」快速提问'"
+          :empty-text="`有问题随时问我`" :empty-subtext="'选中文档文字 → 点「问AI」快速提问'"
           :input-placeholder="`向${agentName}提问...`"
           :prefill-text="prefillText"
           :session-title="chatSession.activeLearningSession?.title"
+          :quick-actions="quickActions"
           cancellable @send="handleSend" @cancel="cancelStream"
           @clear="chatSession.clearSession('learning')"
           @new-session="chatSession.newSession('learning')" />
       </ChatPanel>
 
+      <!-- 完成反馈: 下一步推荐(标记完成后出现) -->
+      <div v-if="unit && showNextRec" class="shrink-0 border-t bg-card px-4 py-2.5">
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">接下来建议学习</span>
+          <button class="text-xs text-muted-foreground hover:text-foreground" @click="showNextRec = false">✕</button>
+        </div>
+        <NextRecommendationCard :role="store.currentRole" @go="(id: string) => $router.push(`/learn/${id}`)" />
+      </div>
+
       <div v-if="unit" class="flex items-center gap-2 border-t px-4 py-2 shrink-0 bg-card">
-        <button class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs hover:bg-accent" @click="markComplete"><CheckCircle class="h-3.5 w-3.5" />标记完成</button>
+        <button
+          class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors hover:bg-accent disabled:opacity-50"
+          :disabled="marking || unit.status === 'completed'"
+          @click="markComplete"
+        >
+          <Loader2 v-if="marking" class="h-3.5 w-3.5 animate-spin" />
+          <CheckCircle v-else class="h-3.5 w-3.5" />
+          {{ marking ? '标记中…' : unit.status === 'completed' ? '已完成 ✓' : '标记完成' }}
+        </button>
         <button class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs hover:bg-accent" @click="openNoteEditor('', '')"><StickyNote class="h-3.5 w-3.5" />做笔记</button>
         <span class="flex-1" />
         <span class="font-mono text-[10px] text-muted-foreground">{{ agentEmoji }} {{ agentName }}</span>
@@ -114,7 +150,11 @@ import type { NoteItem } from "@/components/NotePanel.vue";
 import UnitQuizBlock from "@/components/UnitQuizBlock.vue";
 // biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import ChatPanel from "@/components/chat/ChatPanel.vue";
+// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
+import NextRecommendationCard from "@/components/learning/NextRecommendationCard.vue";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useStreamChat } from "@/composables/useStreamChat";
+import { toast } from "@/composables/useToast";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { useLearningStore } from "@/stores/learning";
 import {
@@ -138,7 +178,10 @@ const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
 
 const docRef = ref<InstanceType<typeof LearningDoc>>();
 const chatPanel = ref<InstanceType<typeof ChatPanel>>();
-const leftOpen = ref(true);
+// 窄屏挂载时默认收起目录(单向,不与用户争夺)
+const leftOpen = ref(
+  typeof window !== "undefined" ? window.innerWidth >= 1280 : true,
+);
 const headings = ref<{ id: string; text: string; level: number }[]>([]);
 const activeHeading = ref("");
 const notes = ref<NoteItem[]>([]);
@@ -270,16 +313,52 @@ const unitContext = computed(() => {
 function handleSend(text: string) {
   handleUserSend(text, undefined, unitContext.value);
 }
+
+// ── 上下文感知快捷提问(随当前滚动到的章节动态变化) ──
+const quickActions = computed(() => {
+  const h = headings.value.find((x) => x.id === activeHeading.value);
+  const section = h?.text || unit.value?.title || "这一部分";
+  const base = `关于「${section}」`;
+  return [
+    { label: "解释这一段", text: `${base},请解释一下核心内容。` },
+    { label: "举一个例子", text: `${base},请举一个具体的例子。` },
+    { label: "用更简单的话解释", text: `${base},请用更简单的话解释。` },
+    {
+      label: "检查我的理解",
+      text: `${base},我来说说我的理解,你帮我检查是否正确。`,
+    },
+    { label: "生成一道练习题", text: `${base},请给我出一道练习题并批改。` },
+  ];
+});
+
+// ── 标记完成 + 完成反馈 ──
+const marking = ref(false);
+const showNextRec = ref(false);
+
 function markComplete() {
-  if (!unit.value) return;
+  if (!unit.value || marking.value) return;
+  marking.value = true;
   store
     .markComplete(unit.value.unit_id)
     .then(() => {
-      alert("已标记完成！掌握度已更新。");
+      toast("这个知识点掌握完成 ✓", "success");
+      showNextRec.value = true;
     })
-    .catch(() => {
-      alert("标记失败，请重试");
+    .catch((e: any) => {
+      toast(e?.message || "标记失败,请重试", "error");
+    })
+    .finally(() => {
+      marking.value = false;
     });
+}
+
+function onQuizComplete(p: { correct: number; total: number }) {
+  toast(
+    p.correct === p.total
+      ? `自测全对: ${p.correct}/${p.total} 🎉`
+      : `自测完成: ${p.correct}/${p.total} 正确`,
+    p.correct === p.total ? "success" : "info",
+  );
 }
 function scrollToHeading(id: string) {
   docRef.value?.scrollToHeading(id);

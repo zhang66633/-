@@ -65,9 +65,16 @@ export function markUnitComplete(unitId: string) {
   });
 }
 
+/** 下一步推荐响应(review_units 后端恒为空,按 unknown[] 兼容) */
+export interface NextRecommendation {
+  recommended_unit: LearningUnit | null;
+  review_units: unknown[];
+  message: string;
+}
+
 /** 获取下一步推荐 */
 export function fetchNextRecommendation(role: string) {
-  return request.get(`/learning/next/${role}`);
+  return request.get<NextRecommendation>(`/learning/next/${role}`);
 }
 
 /** 获取用户画像 */
