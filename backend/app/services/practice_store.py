@@ -104,6 +104,7 @@ class PracticeStore:
         is_correct: bool,
         user_id: str = "default",
         round_id: str = "",
+        created_at: str | None = None,
     ) -> None:
         with self._lock:
             with self._get_conn() as conn:
@@ -111,7 +112,8 @@ class PracticeStore:
                     "INSERT INTO practice_records"
                     "(user_id, question_id, choice, is_correct, round_id, created_at)"
                     " VALUES (?, ?, ?, ?, ?, ?)",
-                    (user_id, question_id, choice, int(is_correct), round_id, _utcnow()),
+                    (user_id, question_id, choice, int(is_correct), round_id,
+                     created_at or _utcnow()),
                 )
                 # 错题本状态转移: 答错入本, 答对出本(自动掌握)
                 if is_correct:
@@ -246,6 +248,73 @@ class PracticeStore:
                 (user_id,),
             ).fetchall()
         return {r["question_id"] for r in rows}
+
+    def active_dates(self, user_id: str = "default") -> set[str]:
+        """有作答记录的日期集合(YYYY-MM-DD,供热力图/连续天数)。"""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT substr(created_at, 1, 10) AS d"
+                " FROM practice_records WHERE user_id = ?",
+                (user_id,),
+            ).fetchall()
+        return {r["d"] for r in rows}
+
+    def get_correct_categories(self, user_id: str = "default") -> int:
+        """答对过题目的不同类别数(经 quiz_bank 反查)。"""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT question_id FROM practice_records"
+                " WHERE user_id = ? AND is_correct = 1",
+                (user_id,),
+            ).fetchall()
+        from ..learning.quiz_bank import get_question
+
+        cats = set()
+        for r in rows:
+            q = get_question(r["question_id"])
+            if q:
+                cats.add(q["category"])
+        return len(cats)
+
+    def get_max_round_streak(self, user_id: str = "default") -> int:
+        """单轮练习内最大连对数(按 round_id 分组,按作答顺序)。"""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT round_id, is_correct FROM practice_records"
+                " WHERE user_id = ? ORDER BY id ASC",
+                (user_id,),
+            ).fetchall()
+        best = 0
+        cur = 0
+        prev_round = object()
+        for r in rows:
+            if r["round_id"] != prev_round:
+                cur = 0
+                prev_round = r["round_id"]
+            if r["is_correct"]:
+                cur += 1
+                best = max(best, cur)
+            else:
+                cur = 0
+        return best
+
+    def get_fixed_mistake_count(self, user_id: str = "default") -> int:
+        """订正错题数: 先答错、之后又答对的不同题目数。"""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT question_id, is_correct FROM practice_records"
+                " WHERE user_id = ? ORDER BY id ASC",
+                (user_id,),
+            ).fetchall()
+        wrong_seen: set[str] = set()
+        fixed: set[str] = set()
+        for r in rows:
+            if r["is_correct"]:
+                if r["question_id"] in wrong_seen:
+                    fixed.add(r["question_id"])
+            else:
+                wrong_seen.add(r["question_id"])
+        return len(fixed)
 
     def get_stats(self, user_id: str = "default") -> dict[str, Any]:
         """统计: 总作答次数 / 作对次数 / 错题数 / 已掌握题数。"""
