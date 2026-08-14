@@ -93,6 +93,17 @@ class AnthropicProvider(BaseProvider):
 
 # ── provider resolver ──────────────────────────────────────────────
 
+def classify_provider(model: str) -> str:
+    """按模型名归类供应商（单一真源，config.get_llm_config 复用）。
+
+    返回 'anthropic'（Claude 系）或 'openai'（OpenAI 兼容协议，
+    覆盖 DeepSeek / Qwen / GLM / GPT / o1-o3 等）。
+    """
+    if "claude" in model.lower():
+        return "anthropic"
+    return "openai"
+
+
 def get_provider(model: str) -> BaseProvider:
     """Return the appropriate provider for a given model name."""
     if "deepseek" in model.lower():

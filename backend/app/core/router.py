@@ -27,19 +27,18 @@ def route_to_first_agent(state: AgentState) -> str:
 
 def after_agent_router(state: AgentState) -> str:
     """每个 agent 执行完后，路由到下一个 agent 或 format_response。
-    
-    如果验证未通过且未超过最大重试次数，回退到 rollback_target。
+
+    仅当存在「待回退」目标（rollback_target 非空）且仍有重试额度时回退一次；
+    建模节点会消费该标志，从而避免验证 FAIL 反复回退到 modeling 的死循环。
     """
     plan = state.get("execution_plan", [])
     current_idx = state.get("current_step_index", 0)
     max_retries = state.get("max_retries", 3)
     retry_count = state.get("retry_count", 0)
 
-    # 验证回退：如果验证未通过且未超重试限制
-    if (not state.get("verification_passed", True) 
-            and retry_count <= max_retries
-            and state.get("rollback_target")):
-        target = state["rollback_target"]
+    # 回退：rollback_target 非空即存在待处理回退，且未超重试限制时才路由一次
+    rollback_target = state.get("rollback_target")
+    if rollback_target and retry_count <= max_retries:
         node_map = {
             "analysis": "analysis_agent",
             "modeling": "modeling_agent",
@@ -49,7 +48,7 @@ def after_agent_router(state: AgentState) -> str:
             "export_results": "export_results_agent",
             "writing": "writing_agent",
         }
-        return node_map.get(target, "modeling_agent")
+        return node_map.get(rollback_target, "modeling_agent")
 
     # 正常流程：检查下一个步骤
     next_idx = current_idx + 1

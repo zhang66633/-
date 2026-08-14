@@ -73,6 +73,7 @@ class SkillMastery(BaseModel):
     skill_id: str
     name: str
     mastery: float = Field(default=0.2, ge=0.0, le=1.0)  # P(掌握)
+    peak_mastery: float = Field(default=0.2, ge=0.0, le=1.0)  # 峰值掌握度（不随时间衰减）
     prior: float = 0.2
     correct_count: int = 0
     incorrect_count: int = 0

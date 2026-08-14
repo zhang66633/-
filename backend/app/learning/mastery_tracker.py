@@ -59,39 +59,60 @@ class MasteryTracker:
                 skill_id=skill_id,
                 name=name,
                 mastery=prior,
+                peak_mastery=prior,
                 prior=prior,
             )
 
         return self.skills[user_id][skill_id]
 
     def update_from_event(self, user_id: str, event: LearningEvent) -> None:
-        """根据学习事件更新掌握度."""
+        """根据学习事件更新峰值掌握度与展示掌握度.
+
+        mastery 已改为派生展示值（峰值 × 保留率），事件只抬升峰值掌握度，
+        避免衰减后的展示值被再次当作真实掌握度参与加减，造成掌握度漂移。
+        """
         for skill_id in event.skill_ids:
             skill = self.get_or_create_skill(user_id, skill_id)
 
+            # 峰值兜底：存量无 peak_mastery 的技能以当前 mastery 初始化
+            peak = getattr(skill, "peak_mastery", None)
+            if peak is None:
+                peak = skill.mastery
+            skill.peak_mastery = max(peak, skill.mastery)
+
             if event.event_type == "practice" and event.score is not None:
                 if event.score >= 0.6:  # 正确
-                    skill.mastery = min(1.0, skill.mastery + 0.15)
+                    skill.peak_mastery = min(1.0, skill.peak_mastery + 0.15)
                     skill.correct_count += 1
                 else:  # 错误
-                    skill.mastery = max(0.05, skill.mastery - 0.10)
+                    skill.peak_mastery = max(0.05, skill.peak_mastery - 0.10)
                     skill.incorrect_count += 1
                 skill.last_practiced_at = event.created_at
 
             elif event.event_type == "learn":
                 # 学习事件: 先验提升但不等于掌握
-                skill.mastery = min(1.0, skill.mastery + 0.05)
+                skill.peak_mastery = min(1.0, skill.peak_mastery + 0.05)
 
             elif event.event_type == "review":
                 # 复习事件: 重置衰减
                 skill.last_practiced_at = event.created_at
 
+            # 展示掌握度 = 峰值 × 当前保留率（刚练习/复习完保留率≈1）
+            days = 0.0
+            if skill.last_practiced_at is not None:
+                days = max(
+                    0.0,
+                    (event.created_at - skill.last_practiced_at).total_seconds() / 86400.0,
+                )
+            skill.mastery = skill.peak_mastery * ebbinghaus_retention(days)
+
             self.skills[user_id][skill_id] = skill
 
     def apply_decay(self, user_id: str, now: Optional[datetime] = None) -> dict[str, float]:
-        """对所有技能应用艾宾浩斯衰减, 返回低于阈值的技能列表.
+        """幂等地计算所有技能的衰减后掌握度, 返回低于阈值的技能列表.
 
-        此方法应在每日定时任务中调用.
+        掌握度改为派生展示值：峰值掌握度 × 艾宾浩斯保留率，
+        不再对 mastery 原地相乘，重复调用不会造成指数崩塌。
         """
         if now is None:
             now = datetime.now()
@@ -108,9 +129,17 @@ class MasteryTracker:
             days = (now - skill.last_practiced_at).total_seconds() / 86400.0
             retention = ebbinghaus_retention(days)
 
-            # 应用遗忘衰减
-            old_mastery = skill.mastery
-            skill.mastery = old_mastery * retention
+            # 峰值兜底：存量无 peak_mastery 的技能以当前 mastery 初始化
+            peak = getattr(skill, "peak_mastery", None)
+            if peak is None:
+                peak = skill.mastery
+                skill.peak_mastery = peak
+            else:
+                peak = max(peak, skill.mastery)
+                skill.peak_mastery = peak
+
+            # 展示值 = 峰值 × 保留率（幂等：始终由峰值推导，不依赖旧的 mastery）
+            skill.mastery = peak * retention
 
             # 如果保留率低于阈值, 加入复习提醒
             if retention < REVIEW_THRESHOLD:

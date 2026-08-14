@@ -13,7 +13,6 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from app.config import get_settings
 from app.core.state import AgentState
 from app.knowledge.loader import KnowledgeBaseLoader
-from app.knowledge.retriever import HybridRetriever
 from app.sandbox.executor import SandboxExecutor
 from app.services.redis_pubsub import get_publisher
 from app.tools.interaction_tools import RunCodeTool
@@ -52,6 +51,13 @@ from .prompts.preprocessing import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
+class TaskCancelledError(Exception):
+    """任务被取消时的哨兵异常 — 用于在节点内提前终止编排器。"""
+
+
 # ── helper: publish node progress ────────────────────────────────────
 
 
@@ -73,6 +79,12 @@ def _is_cancelled(task_id: str) -> bool:
         return False
 
 
+def _check_cancelled(task_id: str) -> None:
+    """节点入口的取消检查：已取消则抛哨兵异常，让编排器提前退出。"""
+    if _is_cancelled(task_id):
+        raise TaskCancelledError(task_id)
+
+
 def _save_working_memory(session_id: str, stage: str, output: str, extra: dict | None = None):
     """保存阶段检查点 + 异步更新问题状态文档。
 
@@ -83,11 +95,29 @@ def _save_working_memory(session_id: str, stage: str, output: str, extra: dict |
         from app.services.working_memory import WorkingMemory
         wm = WorkingMemory(session_id)
         wm.save_checkpoint(stage, output, extra)
-        # LLM 重写放后台线程，不阻塞流水线
+    except Exception as e:  # noqa: BLE001
+        # 工作记忆不阻塞主流程，但记录失败便于排查
+        logger.warning(
+            "工作记忆检查点保存失败 (session=%s, stage=%s): %s",
+            session_id, stage, e,
+        )
+        return
+
+    # LLM 重写放后台线程，不阻塞流水线；
+    # 当前线程无运行事件循环时跳过异步重写（检查点已保存，问题文档留待下次更新）
+    try:
         loop = asyncio.get_event_loop()
         loop.run_in_executor(None, wm.update_problem_doc, stage, output, None)
-    except Exception:
-        pass  # 工作记忆不阻塞主流程
+    except RuntimeError:
+        logger.warning(
+            "当前线程无运行事件循环，跳过问题文档异步重写 (session=%s, stage=%s)",
+            session_id, stage,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "问题文档异步重写失败 (session=%s, stage=%s): %s",
+            session_id, stage, e,
+        )
 
 
 # ============================================================
@@ -96,6 +126,7 @@ def _save_working_memory(session_id: str, stage: str, output: str, extra: dict |
 def classify_problem(state: AgentState) -> dict:
     """识别问题类型、复杂度、数据依赖。"""
     task_id = state["session_id"]
+    _check_cancelled(task_id)
     _pub_event(task_id, "node_start", "classify")
 
     llm = get_llm("classifier", state.get("api_key_config"))
@@ -143,6 +174,7 @@ def classify_problem(state: AgentState) -> dict:
 def retrieve_knowledge(state: AgentState) -> dict:
     """从三层知识库检索相关内容。"""
     task_id = state["session_id"]
+    _check_cancelled(task_id)
     _pub_event(task_id, "node_start", "retrieve_knowledge")
     settings = get_settings()
 
@@ -205,10 +237,8 @@ def retrieve_knowledge(state: AgentState) -> dict:
     # 语义搜索 — 始终执行，与 tag 结果互补
     tag_ids = {m.get("id") for m in methods} | {p.get("id") for p in papers} | {t.get("id") for t in templates} | {pr.get("id") for pr in problems}
     try:
-        retriever = HybridRetriever(
-            kb_root=settings.kb_root,
-            persist_dir=settings.chroma_dir,
-        )
+        from ..knowledge.retriever import get_shared_retriever
+        retriever = get_shared_retriever()
         docs = retriever.invoke(state["problem_raw"], k=5)
         for doc in docs:
             meta = doc.metadata
@@ -310,6 +340,7 @@ def retrieve_knowledge(state: AgentState) -> dict:
 def plan_execution(state: AgentState) -> dict:
     """根据分类和知识库，动态生成子 agent 执行计划。"""
     task_id = state["session_id"]
+    _check_cancelled(task_id)
     _pub_event(task_id, "node_start", "plan_execution")
     llm = get_llm("planner", state.get("api_key_config"))
 
@@ -400,6 +431,7 @@ def analysis_agent_node(state: AgentState) -> dict:
     """问题分析 Agent — 用 LLM 深度分析问题结构。"""
     idx = _next_step(state)
     task_id = state["session_id"]
+    _check_cancelled(task_id)
     _pub_event(task_id, "node_start", "analysis_agent", {"step": idx + 1})
     llm = get_llm("analysis", state.get("api_key_config"))
 
@@ -467,6 +499,7 @@ def modeling_agent_node(state: AgentState) -> dict:
     """模型构建 Agent — 基于分析结果建立数学模型。"""
     idx = _next_step(state)
     task_id = state["session_id"]
+    _check_cancelled(task_id)
     _pub_event(task_id, "node_start", "modeling_agent", {"step": idx + 1})
     llm = get_llm("modeling", state.get("api_key_config"))
 
@@ -523,6 +556,8 @@ def modeling_agent_node(state: AgentState) -> dict:
     return {
         "model_output": model_output,
         "current_step_index": idx,
+        # 消费回退标志：本次回退已在建模节点执行，后续走正常下一步（solving→verification）
+        "rollback_target": None,
         "messages": [
             SystemMessage(
                 content=f"[建模Agent] 第{idx+1}步完成，"
@@ -617,6 +652,7 @@ def solving_agent_node(state: AgentState) -> dict:
     """
     idx = _next_step(state)
     task_id = state["session_id"]
+    _check_cancelled(task_id)
     _pub_event(task_id, "node_start", "solving_agent", {"step": idx + 1})
     llm = get_llm("solving", state.get("api_key_config"))
 
@@ -645,6 +681,8 @@ def solving_agent_node(state: AgentState) -> dict:
         return {
             "solving_output": final_output,
             "current_step_index": idx,
+            # 消费回退标志（求解回退目标）：防止路由再次回到 solving 自循环
+            "rollback_target": None,
             "messages": [SystemMessage(content=f"[求解Agent] 第{idx+1}步完成（教学模式）")],
         }
 
@@ -805,6 +843,8 @@ def solving_agent_node(state: AgentState) -> dict:
     return {
         "solving_output": final_output,
         "current_step_index": idx,
+        # 消费回退标志（求解回退目标）：防止路由再次回到 solving 自循环
+        "rollback_target": None,
         "messages": [
             SystemMessage(
                 content=f"[求解Agent] 第{idx+1}步完成，"
@@ -829,6 +869,7 @@ def verification_agent_node(state: AgentState) -> dict:
     """验证分析 Agent — 检验模型+结果，判定通过或回退。"""
     idx = _next_step(state)
     task_id = state["session_id"]
+    _check_cancelled(task_id)
     _pub_event(task_id, "node_start", "verification_agent", {"step": idx + 1})
     llm = get_llm("verification", state.get("api_key_config"))
 
@@ -866,7 +907,38 @@ def verification_agent_node(state: AgentState) -> dict:
             ver_json = {}
 
     passed = ver_json.get("verdict", "PASS") == "PASS"
-    rollback = ver_json.get("rollback_target", "modeling") if not passed else "modeling"
+    # 回退目标：仅 FAIL 时读取判定块；白名单仅 modeling/solving（两者都会消费回退标志），
+    # 其余值（LLM 幻觉）回退到 modeling，PASS 永不回退
+    rollback = None
+    if not passed:
+        raw_target = ver_json.get("rollback_target")
+        rollback = raw_target if raw_target in ("modeling", "solving") else "modeling"
+
+    # ── 回退控制：rollback_target 非空即「待回退」，由 modeling 节点消费，
+    #    避免验证 FAIL 后反复被路由回 modeling 造成死循环 ──
+    retry_count = state.get("retry_count", 0)
+    max_retries = state.get("max_retries", 3)
+    plan = state.get("execution_plan", [])
+
+    if passed:
+        # PASS 绝不触发回退，步骤指针保持当前位置
+        rollback_target = None
+        new_retry_count = retry_count
+        next_step_index = idx
+    else:
+        new_retry_count = retry_count + 1
+        if new_retry_count <= max_retries:
+            # 仍有重试额度：回退到 modeling，并把指针拨回其前一位，
+            # 让正常下一步自然重跑 modeling→solving→verification
+            rollback_target = rollback
+            if rollback_target in plan:
+                next_step_index = plan.index(rollback_target) - 1
+            else:
+                next_step_index = idx
+        else:
+            # 重试额度耗尽：放弃回退，继续后续流程（写作→format_response）
+            rollback_target = None
+            next_step_index = idx
 
     # 如果有代码块，尝试执行灵敏度分析
     code = _extract_code_block(full_text)
@@ -882,10 +954,12 @@ def verification_agent_node(state: AgentState) -> dict:
     _pub_event(task_id, "node_end", "verification_agent", {
         "step": idx + 1,
         "passed": passed,
-        "rollback_target": rollback if not passed else None,
+        "rollback_target": rollback_target,
         "summary": full_text[:800],
         "title": "验证分析",
-        "desc": "✅ 通过" if passed else "❌ 不通过，回退到 " + rollback,
+        "desc": ("✅ 通过" if passed
+                 else ("❌ 不通过，回退到 " + rollback if rollback_target
+                       else "❌ 不通过，重试已耗尽")),
         "output_length": len(full_text),
     })
 
@@ -897,13 +971,13 @@ def verification_agent_node(state: AgentState) -> dict:
         "verification_passed": passed,
         "verification_output": full_text,
         "verification_feedback": full_text[:500] if not passed else None,
-        "rollback_target": rollback if not passed else None,
-        "retry_count": state.get("retry_count", 0) + (0 if passed else 1),
-        "current_step_index": idx,
+        "rollback_target": rollback_target,
+        "retry_count": new_retry_count,
+        "current_step_index": next_step_index,
         "messages": [
             SystemMessage(
                 content=f"[验证Agent] 第{idx+1}步完成 — "
-                        f"{'✅ 通过' if passed else '❌ 不通过，回退到 ' + rollback}"
+                        f"{'✅ 通过' if passed else ('❌ 不通过，回退到 ' + rollback_target if rollback_target else '❌ 不通过，重试已耗尽')}"
             )
         ],
     }
@@ -972,6 +1046,7 @@ def writing_agent_node(state: AgentState) -> dict:
     """
     idx = _next_step(state)
     task_id = state["session_id"]
+    _check_cancelled(task_id)
     _pub_event(task_id, "node_start", "writing_agent", {"step": idx + 1})
     llm = get_llm("writing", state.get("api_key_config"))
 
@@ -1109,6 +1184,7 @@ def data_preprocessing_agent_node(state: AgentState) -> dict:
     """
     idx = _next_step(state)
     task_id = state["session_id"]
+    _check_cancelled(task_id)
 
     # 无数据文件时跳过
     data_files = state.get("data_files") or []
@@ -1257,6 +1333,7 @@ def export_results_agent_node(state: AgentState) -> dict:
     """
     idx = _next_step(state)
     task_id = state["session_id"]
+    _check_cancelled(task_id)
 
     _pub_event(task_id, "node_start", "export_results_agent", {"step": idx + 1})
     settings = get_settings()
@@ -1318,6 +1395,7 @@ def export_results_agent_node(state: AgentState) -> dict:
 def format_response(state: AgentState) -> dict:
     """整合所有 agent 输出，按模式格式化。"""
     task_id = state["session_id"]
+    _check_cancelled(task_id)
     _pub_event(task_id, "node_start", "format_response")
 
     if state["mode"] == "teach":

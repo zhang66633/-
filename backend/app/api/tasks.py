@@ -226,6 +226,7 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
     try:
         from app.core.state import create_initial_state
         from app.core.workflow import get_orchestrator
+        from app.core.nodes import _is_cancelled, TaskCancelledError
 
         # 获取该用户的活跃 API Key
         active_key = get_active_api_key(user_id)
@@ -285,6 +286,9 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
         final_state = state
 
         async for chunk in orchestrator.astream(state, {"recursion_limit": 50}, stream_mode="updates"):
+            # 取消检查：任务被取消则提前退出编排器（节点入口另有检查）
+            if _is_cancelled(task_id):
+                raise TaskCancelledError(task_id)
             for node_name, node_output in chunk.items():
                 stage, desc = node_meta.get(node_name, (node_name, f"执行: {node_name}"))
                 summary = _make_summary(node_name, node_output) if node_output else ""
@@ -374,6 +378,10 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
                 },
             )
 
+    except TaskCancelledError:
+        # 用户主动取消：标记任务为 cancelled（cancel 会置 status 并发出取消信号）
+        logger.info("任务已被取消: %s", task_id)
+        get_session_manager().cancel(task_id)
     except Exception as e:
         import traceback
         logger.error("Orchestrator failed for task %s:\n%s", task_id, traceback.format_exc())
