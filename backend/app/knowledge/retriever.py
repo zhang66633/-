@@ -16,11 +16,8 @@ from rank_bm25 import BM25Okapi
 
 from .embedder import KBEmbedder
 from .loader import KnowledgeBaseLoader, invalidate_kb_cache
+from .ranking import RRF_K, mmr_rerank, rrf_fusion  # 排序纯函数真源在 knowledge/ranking.py
 from .schemas import MethodCard, Paper, Problem, Template
-
-
-# RRF 融合常量：score(d) = sum(1 / (RRF_K + rank_i(d)))
-RRF_K = 60
 
 
 class HybridRetriever(BaseRetriever):
@@ -240,73 +237,21 @@ class HybridRetriever(BaseRetriever):
         k: int = 5,
         lam: float = 0.5,
     ) -> List[Document]:
-        """Maximum Marginal Relevance reranking.
+        """Maximum Marginal Relevance reranking（委托 knowledge/ranking.mmr_rerank）。
 
-        lam=1.0 → pure relevance;  lam=0.0 → pure diversity.
-
-        入参 `score` 已是归一化相似度 [0,1]（调用侧不再做 1.0-score 反转，本方法也不
-        再反转）。diversity 项优先用 vector store 里可取的文档向量做余弦相似度；取不到
-        时退化为字符 bigram 重叠（对中文更友好）。向量可用时用 `query` 向量与文档向量的
-        余弦修正相关性，使 `query` 参数真正参与排序。
+        lam=1.0 → pure relevance;  lam=0.0 → pure diversity。
+        向量从 vector store 注入纯函数：文档向量 + query 向量；取不到时
+        纯函数内自动退化为字符 bigram 重叠（对中文更友好）。
         """
-        if not scored_docs:
-            return []
-
         docs = [d for d, _ in scored_docs]
-        n = len(docs)
-
-        # 归一化相似度直接使用（去除历史双重反转）
-        sims = np.array([s for _, s in scored_docs], dtype=np.float64)
-        sims = np.clip(sims, 0.0, 1.0)
-        if sims.max() > 0:
-            sims = sims / (sims.max() + 1e-8)
-
-        # 文档向量（可用时）→ 余弦 diversity；不可用 → 字符 bigram 重叠
-        emb = self._fetch_doc_embeddings(docs)
-        if emb is not None and emb.shape[0] == n and emb.shape[1] > 0:
-            emb = emb / np.maximum(np.linalg.norm(emb, axis=1, keepdims=True), 1e-8)
-            pairwise = emb @ emb.T
-            np.fill_diagonal(pairwise, 0.0)
-            pairwise = np.clip(pairwise, -1.0, 1.0)
-
-            # 用 query 向量修正相关性（query-doc 余弦）
-            qvec = self._embed_query(query)
-            if qvec is not None and qvec.size > 0:
-                qvec = qvec / (np.linalg.norm(qvec) + 1e-8)
-                qrel = emb @ qvec
-                sims = 0.5 * sims + 0.5 * np.clip(qrel, 0.0, 1.0)
-                sims = sims / (sims.max() + 1e-8)
-        else:
-            pairwise = self._char_bigram_matrix(docs)
-
-        selected: List[int] = []
-        remaining = list(range(n))
-
-        for _ in range(min(k, n)):
-            if not remaining:
-                break
-
-            if not selected:
-                # First pick: highest relevance
-                best = max(remaining, key=lambda j: sims[j])
-            else:
-                # MMR: λ*relevance - (1-λ)*max_similarity_to_selected
-                def mmr_score(j: int) -> float:
-                    rel = sims[j]
-                    div_penalty = max(pairwise[j, s] for s in selected)
-                    return lam * rel - (1.0 - lam) * div_penalty
-
-                best = max(remaining, key=mmr_score)
-
-            selected.append(best)
-            remaining.remove(best)
-
-        result = []
-        for idx in selected:
-            doc = docs[idx]
-            doc.metadata["score"] = round(float(sims[idx]), 4)
-            result.append(doc)
-        return result
+        return mmr_rerank(
+            query,
+            scored_docs,
+            k=k,
+            lam=lam,
+            doc_embeddings=self._fetch_doc_embeddings(docs),
+            query_embedding=self._embed_query(query),
+        )
 
     def _fetch_doc_embeddings(self, docs: List[Document]) -> Optional[np.ndarray]:
         """从 vector store 取文档向量（N×d）；不可用或缺失返回 None。"""
@@ -335,25 +280,6 @@ class HybridRetriever(BaseRetriever):
             return np.asarray(fn.embed_query(query), dtype=np.float64)
         except Exception:
             return None
-
-    @staticmethod
-    def _char_bigrams(text: str) -> set:
-        """字符 bigram 集合（中文无空格时比词级 Jaccard 更有效）。"""
-        text = (text or "").lower()
-        return {text[i:i + 2] for i in range(len(text) - 1)}
-
-    def _char_bigram_matrix(self, docs: List[Document]) -> np.ndarray:
-        """字符 bigram 重叠的 pairwise 相似度矩阵（diversity 兜底）。"""
-        n = len(docs)
-        sets = [self._char_bigrams(d.page_content) for d in docs]
-        pairwise = np.zeros((n, n), dtype=np.float64)
-        for i in range(n):
-            for j in range(i + 1, n):
-                si, sj = sets[i], sets[j]
-                if si and sj:
-                    v = len(si & sj) / len(si | sj)
-                    pairwise[i, j] = pairwise[j, i] = v
-        return pairwise
 
     @staticmethod
     def _normalize_chroma_score(distance: float) -> float:
@@ -560,43 +486,8 @@ class HybridRetriever(BaseRetriever):
         k_constant: int = RRF_K,
         top_n: Optional[int] = None,
     ) -> list[Document]:
-        """Reciprocal Rank Fusion: merge multiple ranked lists.
-
-        score(d) = sum(1 / (k_constant + rank_i(d)))  for each list where d appears.
-
-        Args:
-            ranked_lists: Each list is already ranked (best first).
-            k_constant: RRF constant (default RRF_K=60).
-            top_n: Optional truncation of the fused result, independent of k_constant.
-        Returns:
-            Documents sorted by RRF score descending, truncated to top_n if given.
-        """
-        if not ranked_lists:
-            return []
-
-        rrf_scores: dict[str, tuple[float, Document]] = {}
-
-        for doc_list in ranked_lists:
-            for rank, doc in enumerate(doc_list):
-                doc_id = doc.metadata.get("id", doc.page_content[:50])
-                rrf = 1.0 / (k_constant + rank + 1)
-                if doc_id in rrf_scores:
-                    prev_score, _ = rrf_scores[doc_id]
-                    rrf_scores[doc_id] = (prev_score + rrf, doc)
-                else:
-                    rrf_scores[doc_id] = (rrf, doc)
-
-        # Sort by RRF score descending
-        sorted_items = sorted(rrf_scores.values(), key=lambda x: x[0], reverse=True)
-        result = []
-        for rrf_score, doc in sorted_items:
-            doc.metadata["score"] = round(rrf_score, 6)
-            result.append(doc)
-
-        if top_n is not None:
-            result = result[:top_n]
-
-        return result
+        """Reciprocal Rank Fusion（委托 knowledge/ranking.rrf_fusion）。"""
+        return rrf_fusion(ranked_lists, k_constant=k_constant, top_n=top_n)
 
     # ── time decay ───────────────────────────────────────────────────────
 

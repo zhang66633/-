@@ -191,6 +191,31 @@ def test_singleton_symbols_importable():
     assert callable(invalidate_shared_retriever)
 
 
+def test_ranking_module_pure_functions():
+    """god-files 拆分后的纯函数模块直接可用（ranking.py）。"""
+    from app.knowledge import ranking
+
+    docs = [
+        Document(page_content="线性规划", metadata={"id": "a"}),
+        Document(page_content="整数规划", metadata={"id": "b"}),
+        Document(page_content="时间序列", metadata={"id": "c"}),
+    ]
+    # rrf_fusion: rank 递减 + top_n 独立于 k_constant
+    fused = ranking.rrf_fusion([docs, list(reversed(docs))], k_constant=60, top_n=2)
+    assert len(fused) == 2 and fused[0].metadata["id"] == "a"
+    assert abs(fused[0].metadata["score"] - (1 / 61 + 1 / 63)) < 1e-6
+
+    # char bigram 对中文有效
+    assert "线性" in ranking.char_bigrams("线性规划")
+
+    # mmr_rerank 无向量时走 bigram 兜底，不产生 NaN
+    out = ranking.mmr_rerank("q", [(d, 0.9 - i * 0.1) for i, d in enumerate(docs)], k=3, lam=0.5)
+    assert len(out) == 3
+    for d in out:
+        assert not math.isnan(d.metadata["score"])
+        assert d.metadata["score"] >= 0.0
+
+
 # ── 直接以脚本运行时自执行全部 test_* ────────────────────────────────
 
 if __name__ == "__main__":

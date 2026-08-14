@@ -20,6 +20,15 @@ from langchain_openai import OpenAIEmbeddings
 
 from .loader import KnowledgeBaseLoader
 
+
+def _invalidate_retriever_cache() -> None:
+    """知识库内容变更后使共享检索器缓存（loader 解析 + BM25）失效。懒导入避免循环依赖。"""
+    try:
+        from .retriever import invalidate_shared_retriever
+        invalidate_shared_retriever()
+    except Exception:
+        pass  # 检索器未初始化（如首次建索引期）时静默
+
 # ── per-file hash tracking metadata file ────────────────────────────────
 
 _HASH_DB = ".kb_index_hashes.json"
@@ -256,6 +265,7 @@ class KBEmbedder:
             stored[str(yaml_path)] = [d.metadata.get("id", "") for d in docs]
             hashes["__doc_ids__"] = stored
         self._write_hashes(hashes)
+        _invalidate_retriever_cache()
         return len(docs)
 
     def remove_document(self, doc_id: str) -> bool:
@@ -267,6 +277,7 @@ class KBEmbedder:
             results = store.get(where={"id": doc_id})
             if results and results["ids"]:
                 store.delete(ids=results["ids"])
+                _invalidate_retriever_cache()
                 return True
         except Exception:
             pass
