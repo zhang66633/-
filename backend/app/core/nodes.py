@@ -55,7 +55,8 @@ from .prompts.preprocessing import (
 
 from .node_helpers import (  # noqa: F401  (god-files 拆分 #31：辅助函数外置)
     TaskCancelledError, _check_cancelled, _clean_md, _collect_file_urls,
-    _collect_image_urls, _extract_code_block, _extract_json, _is_cancelled,
+    _collect_image_urls, _extract_code_block, _extract_json,
+    _extract_verdict_json, _is_cancelled, _log_usage,
     _next_step, _persist_task_files, _persist_task_images, _pub_event,
     _save_working_memory, logger,
 )
@@ -72,6 +73,7 @@ def classify_problem(state: AgentState) -> dict:
         SystemMessage(content=CLASSIFIER_SYSTEM_PROMPT),
         HumanMessage(content=prompt),
     ])
+    _log_usage(task_id, "classify", response)
 
     # 解析 JSON 输出
     result = _extract_json(str(response.content))
@@ -334,6 +336,7 @@ def plan_execution(state: AgentState) -> dict:
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_prompt),
     ])
+    _log_usage(task_id, "plan", response)
 
     plan = _extract_json(str(response.content))
 
@@ -400,6 +403,7 @@ def analysis_agent_node(state: AgentState) -> dict:
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_prompt),
     ])
+    _log_usage(task_id, "analysis", response)
 
     analysis_output = str(response.content)
 
@@ -470,6 +474,7 @@ def modeling_agent_node(state: AgentState) -> dict:
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_prompt),
     ])
+    _log_usage(task_id, "modeling", response)
 
     model_output = str(response.content)
 
@@ -525,6 +530,7 @@ def solving_agent_node(state: AgentState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ])
+        _log_usage(task_id, "solving_teach", response)
         final_output = str(response.content)
         _pub_event(task_id, "node_end", "solving_agent", {
             "step": idx + 1,
@@ -611,6 +617,7 @@ def solving_agent_node(state: AgentState) -> dict:
 
     for _ in range(max_rounds):
         response = llm_with_tools.invoke(messages)
+        _log_usage(task_id, "solving_tool", response)
         messages.append(response)
 
         tool_calls = getattr(response, "tool_calls", None) or []
@@ -671,6 +678,7 @@ def solving_agent_node(state: AgentState) -> dict:
         fallback = llm.invoke(messages + [HumanMessage(
             content="请停止调用工具，基于以上已获得的全部求解结果，立即输出结构化求解报告。"
         )])
+        _log_usage(task_id, "solving_fallback", fallback)
         final_output = str(fallback.content)
 
     # 图表和文件持久化到任务文件区（临时目录可能被系统清理）
@@ -743,14 +751,9 @@ def verification_agent_node(state: AgentState) -> dict:
 
     full_text = str(response.content)
 
-    # 提取 JSON 判定块
-    ver_json = {}
-    json_match = re.search(r'\{[^{}]*"verdict"\s*:\s*"(PASS|FAIL)"[^{}]*\}', full_text)
-    if json_match:
-        try:
-            ver_json = json.loads(json_match.group(0))
-        except json.JSONDecodeError:
-            ver_json = {}
+    # 提取 JSON 判定块（_extract_verdict_json：兼容嵌套/围栏/前后散文，替换旧正则）
+    ver_json = _extract_verdict_json(full_text)
+    _log_usage(task_id, "verification", response)
 
     passed = ver_json.get("verdict", "PASS") == "PASS"
     # 回退目标：仅 FAIL 时读取判定块；白名单仅 modeling/solving（两者都会消费回退标志），
@@ -901,6 +904,7 @@ def writing_agent_node(state: AgentState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ])
+        _log_usage(task_id, "writing_teach", response)
         writing_output = _clean_md(response.content)
         _pub_event(task_id, "node_end", "writing_agent", {
             "step": idx + 1, "output_length": len(writing_output),
@@ -930,9 +934,11 @@ def writing_agent_node(state: AgentState) -> dict:
 
     # 1) 大纲
     _pub_event(task_id, "node_progress", "writing_agent", {"stage": "outline"})
-    outline = _clean_md(llm_outline.invoke([HumanMessage(
+    _outline_resp = llm_outline.invoke([HumanMessage(
         content=WRITING_OUTLINE_PROMPT.format(**materials)
-    )]).content)
+    )])
+    _log_usage(task_id, "writing_outline", _outline_resp)
+    outline = _clean_md(_outline_resp.content)
 
     # 提取标题（大纲首行 "# xxx"）
     paper_title = "数学建模论文"
@@ -948,12 +954,14 @@ def writing_agent_node(state: AgentState) -> dict:
         # 第四章子节和核心章都用大 token 预算
         is_core = "四、模型" in title
         llm_for_section = llm_core_section if is_core else llm_section
-        sec = _clean_md(llm_for_section.invoke([HumanMessage(
+        _sec_resp = llm_for_section.invoke([HumanMessage(
             content=WRITING_SECTION_PROMPT.format(
                 outline=outline, section_title=title,
                 section_requirements=requirements, **materials,
             )
-        )]).content)
+        )])
+        _log_usage(task_id, f"writing_section_{i + 1}", _sec_resp)
+        sec = _clean_md(_sec_resp.content)
         if sec and not sec.startswith("##"):
             sec = f"## {title}\n\n{sec}"
         section_texts.append(sec)
@@ -961,25 +969,31 @@ def writing_agent_node(state: AgentState) -> dict:
     # 3) 摘要最后写（提炼正文真实结果）
     _pub_event(task_id, "node_progress", "writing_agent", {"stage": "abstract"})
     paper_body = "\n\n".join(section_texts)
-    abstract = _clean_md(llm_abstract.invoke([HumanMessage(
+    _abstract_resp = llm_abstract.invoke([HumanMessage(
         content=WRITING_ABSTRACT_PROMPT.format(outline=outline, paper_body=paper_body)
-    )]).content)
+    )])
+    _log_usage(task_id, "writing_abstract", _abstract_resp)
+    abstract = _clean_md(_abstract_resp.content)
 
     # 4) 拼装：标题 + 摘要 + 正文
     paper = f"# {paper_title}\n\n{abstract}\n\n{paper_body}"
 
     # 5) 红队审校（合规 + 洞察双 gate）
     _pub_event(task_id, "node_progress", "writing_agent", {"stage": "red_team"})
-    critique = _clean_md(llm_redteam.invoke([HumanMessage(
+    _rt_resp = llm_redteam.invoke([HumanMessage(
         content=RED_TEAM_PROMPT.format(paper=paper)
-    )]).content)
+    )])
+    _log_usage(task_id, "writing_redteam", _rt_resp)
+    critique = _clean_md(_rt_resp.content)
 
     # 6) 有实质问题则最小化修订一轮
     if critique and "PASS" not in critique.upper().split("\n")[0]:
         _pub_event(task_id, "node_progress", "writing_agent", {"stage": "revise"})
-        revised = _clean_md(llm_revise.invoke([HumanMessage(
+        _rev_resp = llm_revise.invoke([HumanMessage(
             content=WRITING_REVISE_PROMPT.format(paper=paper, critique=critique)
-        )]).content)
+        )])
+        _log_usage(task_id, "writing_revise", _rev_resp)
+        revised = _clean_md(_rev_resp.content)
         if revised and len(revised) > len(paper) // 2:  # 修订结果应大体完整
             paper = revised
 
@@ -1080,6 +1094,7 @@ def data_preprocessing_agent_node(state: AgentState) -> dict:
 
     for _ in range(max_rounds):
         response = llm_with_tools.invoke(messages)
+        _log_usage(task_id, "preprocessing_tool", response)
         messages.append(response)
 
         tool_calls = getattr(response, "tool_calls", None) or []
@@ -1128,6 +1143,7 @@ def data_preprocessing_agent_node(state: AgentState) -> dict:
         fallback = llm.invoke(messages + [HumanMessage(
             content="请停止调用工具，基于以上已获得的分析结果，立即输出结构化 EDA 报告。"
         )])
+        _log_usage(task_id, "preprocessing_fallback", fallback)
         final_output = str(fallback.content)
 
     # 持久化 EDA 图表

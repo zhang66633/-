@@ -25,6 +25,40 @@ logger = logging.getLogger(__name__)
 
 SANDBOX_IMAGE = "mathmodel-sandbox"
 
+# Docker 守护进程探测缓存（避免每次执行都探测；失败后 60s 内不重试）
+_daemon_probe = {"ok": None, "ts": 0.0}
+
+
+def docker_daemon_up() -> bool:
+    """探测 Docker 守护进程是否可用（结果缓存 60 秒）。
+
+    docker CLI 已安装但 Docker Desktop 未启动时 `docker run` 会直接失败，
+    因此「可用」= 二进制存在 **且** daemon 可连通。
+    """
+    import time as _time
+    now = _time.monotonic()
+    if _daemon_probe["ok"] is not None and (now - _daemon_probe["ts"]) < 60:
+        return _daemon_probe["ok"]
+
+    ok = False
+    try:
+        probe = subprocess.run(
+            ["docker", "info", "--format", "{{.ServerVersion}}"],
+            capture_output=True, text=True, timeout=3,
+        )
+        ok = probe.returncode == 0 and bool(probe.stdout.strip())
+    except Exception:
+        ok = False
+
+    _daemon_probe["ok"] = ok
+    _daemon_probe["ts"] = now
+    if not ok:
+        logger.warning(
+            "docker 守护进程不可用（未安装或 Docker Desktop 未启动），"
+            "沙箱回退 subprocess 模式（仅限可信输入）"
+        )
+    return ok
+
 
 def _make_preexec_fn(max_memory_mb: int, timeout: int):
     """创建 Unix preexec_fn 设置资源限制。Windows 下返回 None。"""
@@ -94,14 +128,10 @@ class SandboxExecutor:
                     logger.warning("复制文件到沙箱失败 %s: %s", fpath, e)
 
         if self.backend == "docker":
-            # docker 不可用时回退 subprocess 并告警（Windows 下 subprocess 模式无内存限制，仅限可信输入）
-            import shutil as _shutil
-            if _shutil.which("docker") is None:
-                logger.warning(
-                    "SANDBOX_BACKEND=docker 但本机未安装 docker，回退 subprocess 模式（无硬隔离，仅限可信输入）"
-                )
-                return self._run_subprocess(code, output_subdir, run_id)
-            return self._run_docker(code, output_subdir, run_id)
+            # 优先 docker（硬隔离）；二进制缺失或 daemon 未启动 → 自动回退 subprocess
+            if docker_daemon_up():
+                return self._run_docker(code, output_subdir, run_id)
+            return self._run_subprocess(code, output_subdir, run_id)
         else:
             return self._run_subprocess(code, output_subdir, run_id)
 

@@ -114,6 +114,24 @@ def test_verification_hallucinated_target_sanitized():
     assert out["rollback_target"] == "modeling"  # 白名单外一律收敛为 modeling
 
 
+def test_verification_nested_json_fenced():
+    """嵌套 JSON + ```json 围栏 + 后续散文 → _extract_verdict_json 仍能判定。"""
+    _stub_llm(
+        '```json\n{"verdict": "FAIL", "rollback_target": "solving", "details": {"layer": 1}}\n```\n'
+        "后续分析正文……"
+    )
+    out = nodes.verification_agent_node(_base_state(current_step_index=2))
+    assert out["rollback_target"] == "solving"  # 白名单内，原样返回
+    assert out["retry_count"] == 1
+
+
+def test_verification_json_among_prose():
+    _stub_llm('判定结果：{"verdict": "PASS"} 其余分析文字')
+    out = nodes.verification_agent_node(_base_state(current_step_index=2))
+    assert out["verification_passed"] is True
+    assert out["rollback_target"] is None
+
+
 def test_modeling_consumes_rollback_flag():
     _stub_llm("模型输出内容")
     out = nodes.modeling_agent_node(_base_state(

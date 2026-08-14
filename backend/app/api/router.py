@@ -136,6 +136,24 @@ async def logout():
 async def health_check():
     return HealthResponse(status="ok", service="math-model-agent", version="0.1.0")
 
+
+@api_router.get("/sandbox/status")
+async def sandbox_status():
+    """沙箱执行模式状态（供前端面板展示当前是 Docker 硬隔离还是 subprocess 回退）。"""
+    from ..sandbox.executor import docker_daemon_up
+    from ..config import get_settings
+
+    settings = get_settings()
+    docker_up = docker_daemon_up()
+    backend = "docker" if (settings.sandbox_backend == "docker" and docker_up) else "subprocess"
+    return {
+        "backend": backend,
+        "configured": settings.sandbox_backend,
+        "docker_available": docker_up,
+        "note": ("docker 硬隔离" if backend == "docker"
+                 else "docker 不可用（未安装或未启动），已回退 subprocess 模式"),
+    }
+
 # 合并 auth 子路由
 for route in _auth_router.routes:
     api_router.routes.append(route)

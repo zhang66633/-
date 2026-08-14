@@ -19,6 +19,7 @@ SSE 事件协议：
 import asyncio
 import json
 import logging
+import time
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
@@ -336,9 +337,9 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                 yield "data: [DONE]\n\n"
                 return
 
-            # 通知前端：开始调用工具
+            # 通知前端：开始调用工具（协议 v2：带 id；tool_result 带 ok/duration_ms/error）
             for tc in tool_calls_final:
-                yield f"data: {json.dumps({'tool_call': {'name': tc.get('name'), 'args': tc.get('args') or {}}}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'tool_call': {'id': tc.get('id'), 'name': tc.get('name'), 'args': tc.get('args') or {}}}, ensure_ascii=False)}\n\n"
 
             # 把 LLM 的 tool_calls 写回消息历史（AIMessage with tool_calls）
             messages.append(
@@ -355,36 +356,65 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                 )
             )
 
-            # 执行每个工具
-            for tc in tool_calls_final:
+            # ── 并行执行：所有工具并发（run_code 各自独立沙箱目录，安全）；
+            #    每工具带超时（web_search 30s，其余 60s），超时/异常结构化返回 ──
+            def _tool_timeout(name: str) -> float:
+                return 30.0 if name == "web_search" else 60.0
+
+            async def _execute_one(tc: dict) -> dict:
                 tool_name = tc.get("name")
                 tool_args = tc.get("args") or {}
                 tool = tool_map.get(tool_name)
+                t0 = time.monotonic()
                 if tool is None:
-                    result_text = f"未知工具: {tool_name}"
-                else:
-                    # run_code 额外推送执行状态事件
-                    if tool_name == "run_code":
-                        yield f"data: {json.dumps({'code_exec': {'status': 'running'}}, ensure_ascii=False)}\n\n"
+                    return {"ok": False, "error": f"未知工具: {tool_name}",
+                            "duration_ms": 0, "text": f"未知工具: {tool_name}"}
+                try:
+                    text = await asyncio.wait_for(
+                        asyncio.to_thread(tool.invoke, tool_args),
+                        timeout=_tool_timeout(tool_name),
+                    )
+                    return {"ok": True,
+                            "duration_ms": int((time.monotonic() - t0) * 1000),
+                            "text": str(text)}
+                except asyncio.TimeoutError:
+                    logger.warning("tool %s 超时（%ss）", tool_name, _tool_timeout(tool_name))
+                    return {"ok": False, "error": f"工具执行超时（{_tool_timeout(tool_name):.0f}s）",
+                            "duration_ms": int((time.monotonic() - t0) * 1000),
+                            "text": f"工具执行超时（{_tool_timeout(tool_name):.0f}s）"}
+                except Exception as e:  # noqa: BLE001
+                    logger.exception("tool %s failed", tool_name)
+                    return {"ok": False, "error": str(e)[:200],
+                            "duration_ms": int((time.monotonic() - t0) * 1000),
+                            "text": f"工具执行失败: {e}"}
 
-                    try:
-                        result_text = await asyncio.to_thread(tool.invoke, tool_args)
-                    except Exception as e:  # noqa: BLE001
-                        logger.exception("tool %s failed", tool_name)
-                        result_text = f"工具执行失败: {e}"
+            # run_code 先发 running 事件（保证前端立刻进入执行态）
+            for tc in tool_calls_final:
+                if tc.get("name") == "run_code":
+                    yield f"data: {json.dumps({'code_exec': {'status': 'running'}}, ensure_ascii=False)}\n\n"
 
-                    # run_code: 解析结果，推送 stdout + images
-                    if tool_name == "run_code":
-                        code_data = _parse_code_result(result_text)
-                        yield f"data: {json.dumps({'code_exec': {'status': 'done', **code_data}}, ensure_ascii=False)}\n\n"
+            results = await asyncio.gather(*[_execute_one(tc) for tc in tool_calls_final])
 
-                # 通知前端：工具结果摘要
-                yield f"data: {json.dumps({'tool_result': {'name': tool_name, 'preview': _result_preview(result_text)}}, ensure_ascii=False)}\n\n"
+            # 按 LLM 原始顺序回灌消息 + 推送结果事件
+            for tc, r in zip(tool_calls_final, results):
+                tool_name = tc.get("name")
+                if tool_name == "run_code":
+                    code_data = _parse_code_result(r["text"])
+                    yield f"data: {json.dumps({'code_exec': {'status': 'done', **code_data, 'ok': r['ok'], 'duration_ms': r['duration_ms']}}, ensure_ascii=False)}\n\n"
+                result_payload = {
+                    "name": tool_name,
+                    "preview": _result_preview(r["text"]),
+                    "ok": r["ok"],
+                    "duration_ms": r["duration_ms"],
+                }
+                if r.get("error"):
+                    result_payload["error"] = r["error"]
+                yield f"data: {json.dumps({'tool_result': result_payload}, ensure_ascii=False)}\n\n"
 
                 # 把结果写回历史，供下一轮 LLM 使用
                 messages.append(
                     ToolMessage(
-                        content=result_text,
+                        content=r["text"],
                         tool_call_id=tc.get("id") or tc.get("tool_call_id") or tool_name,
                     )
                 )

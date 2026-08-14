@@ -215,3 +215,51 @@ def _extract_json(text: str) -> dict | list:
 
     return {}
 
+
+def _log_usage(task_id: str, node: str, response) -> None:
+    """记录一次 LLM 调用的 token 用量（管线成本可观测性）。"""
+    try:
+        usage = getattr(response, "usage_metadata", None) or {}
+        if usage:
+            logger.info(
+                "LLM 用量 [%s/%s]: in=%s out=%s total=%s",
+                task_id, node,
+                usage.get("input_tokens"), usage.get("output_tokens"),
+                usage.get("total_tokens"),
+            )
+    except Exception:
+        pass  # 用量缺失不影响主流程
+
+
+def _extract_verdict_json(text: str) -> dict:
+    """从验证节点输出提取含 verdict 的判定 JSON（容忍前后散文、嵌套、围栏）。
+
+    替代旧的正则 `\\{[^{}]*"verdict"...\\}`（嵌套/跨行即失败）：
+    先复用 _extract_json，失败时定位第一个含 "verdict" 的平衡花括号块。
+    """
+    parsed = _extract_json(str(text))
+    if isinstance(parsed, dict) and "verdict" in parsed:
+        return parsed
+
+    text = str(text)
+    start = text.find('"verdict"')
+    if start < 0:
+        return {}
+    brace = text.rfind("{", 0, start)
+    if brace < 0:
+        return {}
+    depth = 0
+    for i in range(brace, len(text)):
+        ch = text[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    obj = json.loads(text[brace:i + 1])
+                    return obj if isinstance(obj, dict) else {}
+                except json.JSONDecodeError:
+                    return {}
+    return {}
+

@@ -205,3 +205,28 @@ GET  /api/profile/achievements        # 用户已解锁成就 + 进度
 - 不改对方目录；共享文件改动必须先沟通。
 - 后端改动跑 `cd backend && python -m pytest`；前端改动跑 `cd frontend && pnpm typecheck && pnpm lint`。
 - 每个方向功能完成后，双方在本文档「完成度评估」对应行打勾并更新 `RESOURCES_AND_ROADMAP.md`。
+
+### 4.4 SSE 聊天工具事件协议 v2（A 已实现，B 面板照此渲染）
+
+\\\json
+// 工具调用开始（新增 id 字段，与后续 tool_result 关联）
+{"tool_call": {"id": "call_xxx", "name": "search_method_cards", "args": {...}}}
+
+// 工具结果（v2：新增 ok / duration_ms / error 字段）
+{"tool_result": {"name": "...", "preview": "摘要(≤200字)", "ok": true, "duration_ms": 1234, "error": "可选，失败时才有"}}
+
+// 代码执行（保持原状 + 新增 ok/duration_ms）
+{"code_exec": {"status": "running"}}
+{"code_exec": {"status": "done", "stdout": "...", "images": [...], "ok": true, "duration_ms": 5678}}
+\\\
+
+说明：工具已改为**并行执行**（KB 检索/数学/搜索并发，run_code 独立沙箱目录同样并发），每工具带超时（web_search 30s，其余 60s），失败不再静默——面板可据 \ok/error/duration_ms\ 渲染状态徽标与耗时。
+
+### 4.5 沙箱模式状态（A 已实现）
+
+\\\
+GET /api/sandbox/status
+→ {"backend": "subprocess"|"docker", "configured": "docker", "docker_available": false, "note": "..."}
+\\\
+
+面板可在设置/首页展示当前沙箱模式（docker 硬隔离 vs subprocess 回退）。

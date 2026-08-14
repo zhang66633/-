@@ -122,7 +122,9 @@ def test_fix_and_perfect(tmp_path):
 if __name__ == "__main__":
     import tempfile
 
-    with tempfile.TemporaryDirectory() as d:
+    # ignore_cleanup_errors：Windows 下 sqlite 连接未关闭会阻塞临时目录删除（WinError 32）；
+    # 深层修复应在 LearningStore/PracticeStore 提供 close()（B 域，待补）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         p = Path(d)
         test_empty_state(p / "e")
         test_progress_and_unlock(p / "p")
