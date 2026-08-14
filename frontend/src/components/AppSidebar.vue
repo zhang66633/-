@@ -14,13 +14,40 @@
       </div>
     </div>
 
-    <div v-if="sessionList.length > 0" class="border-b py-2 flex-1 overflow-y-auto min-h-0">
+    <!-- 展开态: 完整导航(主区域,可滚动,学习入口优先) -->
+    <nav v-if="!collapsed" class="flex-1 overflow-y-auto py-3 min-h-0">
+      <button :class="[NAV_ITEM, isNavActive('/') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate('/')">
+        <span v-if="isNavActive('/')" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
+        <Home class="h-4 w-4 shrink-0" />
+        <span :class="isNavActive('/') ? 'font-display font-medium' : ''">首页</span>
+      </button>
+      <div v-for="group in visibleGroups" :key="group.label" class="mt-1">
+        <button class="flex items-center gap-2 w-full px-5 py-1.5 text-left font-mono text-[10px] uppercase tracking-wider transition-colors"
+          :class="group.label === learnGroup.label && activeGroup === learnGroup.label ? 'text-primary' : 'text-muted-foreground/60 hover:text-muted-foreground'"
+          @click="toggleGroup(group.label)">
+          <ChevronRight class="h-3 w-3 shrink-0 transition-transform" :class="{ 'rotate-90': expandedGroups.has(group.label) }" />
+          <component :is="group.icon" class="h-3.5 w-3.5 shrink-0" />
+          {{ group.label }}
+        </button>
+        <div v-show="expandedGroups.has(group.label)" class="space-y-0.5">
+          <button v-for="(item, i) in group.items" :key="item.path"
+            :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate(item.path)">
+            <span v-if="isNavActive(item.path)" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
+            <component :is="item.icon" class="h-4 w-4 shrink-0 opacity-60" />
+            <span :class="isNavActive(item.path) ? 'font-display font-medium' : ''">{{ item.label }}</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- 历史会话(降权: 移到导航之下,紧凑展示,功能不变) -->
+    <div v-if="!collapsed && sessionList.length > 0" class="border-t py-2 shrink-0 max-h-40 overflow-y-auto min-h-0">
       <p class="px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">{{ sessionListTitle }}</p>
       <TransitionGroup name="session-list">
         <div
           v-for="s in sessionList"
           :key="s.id"
-          class="group relative flex w-full items-center gap-2 py-1.5 pr-2 pl-5 text-sm cursor-pointer transition-all duration-200"
+          class="group relative flex w-full items-center gap-2 py-1 pr-2 pl-5 text-sm cursor-pointer transition-all duration-200"
           :class="isActiveSession(s.id) ? 'text-foreground bg-accent/50' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
           @click="switchTo(s.id)"
         >
@@ -72,30 +99,6 @@
       </TransitionGroup>
     </div>
 
-    <!-- 展开态: 完整导航 -->
-    <nav v-if="!collapsed" :class="sessionList.length > 0 ? 'py-3 shrink-0' : 'flex-1 py-6'">
-      <button :class="[NAV_ITEM, isNavActive('/') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate('/')">
-        <span v-if="isNavActive('/')" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
-        <Home class="h-4 w-4 shrink-0" />
-        <span :class="isNavActive('/') ? 'font-display font-medium' : ''">首页</span>
-      </button>
-      <div v-for="group in visibleGroups" :key="group.label" class="mt-1">
-        <button class="flex items-center gap-2 w-full px-5 py-1.5 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60 hover:text-muted-foreground transition-colors" @click="toggleGroup(group.label)">
-          <ChevronRight class="h-3 w-3 shrink-0 transition-transform" :class="{ 'rotate-90': expandedGroups.has(group.label) }" />
-          <component :is="group.icon" class="h-3.5 w-3.5 shrink-0" />
-          {{ group.label }}
-        </button>
-        <div v-show="expandedGroups.has(group.label)" class="space-y-0.5">
-          <button v-for="(item, i) in group.items" :key="item.path"
-            :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate(item.path)">
-            <span v-if="isNavActive(item.path)" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
-            <component :is="item.icon" class="h-4 w-4 shrink-0 opacity-60" />
-            <span :class="isNavActive(item.path) ? 'font-display font-medium' : ''">{{ item.label }}</span>
-          </button>
-        </div>
-      </div>
-    </nav>
-
     <!-- 折叠态: 仅图标 -->
     <nav v-else class="flex-1 py-4 flex flex-col items-center gap-2">
       <button v-for="item in collapsedNavItems" :key="item.path"
@@ -106,12 +109,13 @@
       </button>
     </nav>
 
-    <!-- 底部固定项 -->
-    <div v-if="!collapsed" class="border-t py-2 shrink-0">
+    <!-- 底部固定项(技术配置降权: 小字+弱化) -->
+    <div v-if="!collapsed" class="border-t py-1.5 shrink-0">
       <button v-for="item in bottomItems" :key="item.path"
-        :class="[NAV_ITEM, isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30']" @click="navigate(item.path)">
-        <span v-if="isNavActive(item.path)" class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-px bg-primary" />
-        <component :is="item.icon" class="h-4 w-4 shrink-0 opacity-60" />
+        class="group relative flex w-full items-center gap-3 py-1.5 pr-4 pl-5 text-xs transition-colors"
+        :class="isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground/70 hover:text-foreground hover:bg-accent/30'" @click="navigate(item.path)">
+        <span v-if="isNavActive(item.path)" class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-px bg-primary" />
+        <component :is="item.icon" class="h-3.5 w-3.5 shrink-0 opacity-60" />
         <span :class="isNavActive(item.path) ? 'font-display font-medium' : ''">{{ item.label }}</span>
       </button>
     </div>

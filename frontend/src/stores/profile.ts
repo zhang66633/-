@@ -46,15 +46,17 @@ export const useProfileStore = defineStore("profile", () => {
     }
   }
 
-  /** 获取学习进度 */
-  async function loadProgress() {
+  /** 获取学习进度。返回是否成功,让页面区分「加载失败」与「尚未开始学习」 */
+  async function loadProgress(): Promise<boolean> {
     loading.value = true;
     try {
       const { default: request } = await import("@/utils/request");
       const progressRes = await request.get("/profile/progress");
       progress.value = progressRes.data;
+      return true;
     } catch {
       progress.value = null;
+      return false;
     } finally {
       loading.value = false;
     }

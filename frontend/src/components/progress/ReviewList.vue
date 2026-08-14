@@ -8,7 +8,8 @@
       <div
         v-for="item in items"
         :key="item.id"
-        class="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30"
+        class="flex cursor-pointer items-center justify-between py-2 px-3 rounded-md bg-muted/30 transition-colors hover:bg-accent/50"
+        @click="$emit('open', item.id)"
       >
         <div class="min-w-0 flex-1">
           <p class="text-sm truncate">{{ item.name }}</p>
@@ -23,13 +24,21 @@
             />
           </div>
         </div>
+        <ArrowRight class="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ArrowRight } from "lucide-vue-next";
+
 defineProps<{
   items: Array<{ id: string; name: string; retention: number }>;
+}>();
+
+defineEmits<{
+  /** 点击某条待复习 → 跳到对应单元 */
+  open: [id: string];
 }>();
 </script>

@@ -136,6 +136,11 @@
           <span class="font-mono text-xs tracking-wider">·2 &nbsp; 学习中心</span>
         </div>
 
+        <!-- 继续学习(AI 推荐,仅完成诊断后显示) -->
+        <div v-if="profileStore.hasProfile" class="mb-8">
+          <NextRecommendationCard :role="learningStore.currentRole" compact @go="(id: string) => router.push(`/learn/${id}`)" />
+        </div>
+
         <!-- 三角色入门 -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
           <!-- 建模手 -->
@@ -201,11 +206,21 @@
       </section>
 
       <!-- ·3 知识库 -->
-      <section v-if="statsReady" class="pb-20">
+      <section class="pb-20">
         <div class="section-rule mb-10">
           <span class="font-mono text-xs tracking-wider">·3 &nbsp; 知识库</span>
         </div>
-        <div class="grid grid-cols-3 gap-8">
+        <!-- 加载中骨架(消除静默缺失) -->
+        <div v-if="!statsReady && !statsFailed" class="grid grid-cols-3 gap-8">
+          <div v-for="i in 3" :key="i" class="space-y-2.5">
+            <Skeleton class="h-9 w-16" />
+            <Skeleton class="h-3 w-24" />
+          </div>
+        </div>
+        <!-- 失败: 弱化一行,不误导 -->
+        <p v-else-if="statsFailed" class="font-mono text-xs text-muted-foreground/60">知识库统计暂不可用</p>
+        <!-- 数据 -->
+        <div v-else class="grid grid-cols-3 gap-8">
           <div v-for="s in statItems" :key="s.key">
             <p class="font-mono text-4xl sm:text-5xl font-medium tabular-nums leading-none">{{ s.value }}</p>
             <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mt-3">{{ s.label }}</p>
@@ -227,6 +242,11 @@
 
 <script setup lang="ts">
 import { getKBStats } from "@/apis/knowledgeApi";
+// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
+import NextRecommendationCard from "@/components/learning/NextRecommendationCard.vue";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useLearningStore } from "@/stores/learning";
+import { useProfileStore } from "@/stores/profile";
 import request from "@/utils/request";
 import {
   ArrowRight,
@@ -248,6 +268,8 @@ import { useRoute, useRouter } from "vue-router";
 
 const router = useRouter();
 const route = useRoute();
+const profileStore = useProfileStore();
+const learningStore = useLearningStore();
 
 const deniedMessage = ref("");
 watch(
@@ -303,6 +325,7 @@ async function activateKey() {
 }
 
 const statsReady = ref(false);
+const statsFailed = ref(false);
 
 const learnModules = [
   {
@@ -332,6 +355,8 @@ const statItems = ref([
 ]);
 
 onMounted(async () => {
+  // 画像(继续学习卡;失败静默降级)
+  profileStore.checkProfile();
   try {
     const res = await getKBStats();
     const data = res.data;
@@ -343,6 +368,7 @@ onMounted(async () => {
     statsReady.value = true;
   } catch {
     statsReady.value = false;
+    statsFailed.value = true;
   }
   await checkMyKey();
 });
