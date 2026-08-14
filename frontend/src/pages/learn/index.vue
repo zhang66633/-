@@ -3,14 +3,9 @@ import ChatArea from "@/components/ChatArea.vue";
 import SkillGraph from "@/components/SkillGraph.vue";
 // biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import ChatPanel from "@/components/chat/ChatPanel.vue";
-// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
-import OnboardingWizard from "@/components/onboarding/OnboardingWizard.vue";
 import { useStreamChat } from "@/composables/useStreamChat";
-import { toast } from "@/composables/useToast";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { type AgentRole, useLearningStore } from "@/stores/learning";
-import { type DiagnosePayload, useOnboardingStore } from "@/stores/onboarding";
-import { useProfileStore } from "@/stores/profile";
 import { PanelLeft, PanelLeftOpen } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -19,9 +14,6 @@ const router = useRouter();
 const treeOpen = ref(true);
 const store = useLearningStore();
 const chatSession = useChatSessionStore();
-const onboardingStore = useOnboardingStore();
-const profileStore = useProfileStore();
-const wizard = ref<InstanceType<typeof OnboardingWizard>>();
 const hubChatPanel = ref<InstanceType<typeof ChatPanel>>();
 // 聊天面板开合(组件实例暴露的 open 是响应式的),收起时显示空白区水印
 const hubChatOpen = computed(() => hubChatPanel.value?.open ?? false);
@@ -39,38 +31,10 @@ const roleLabel = computed(() => {
   return labels[store.currentRole] ?? "建模手";
 });
 
-onMounted(async () => {
-  await profileStore.checkProfile();
-  if (!profileStore.hasProfile) {
-    onboardingStore.start();
-  }
+onMounted(() => {
   store.loadPath();
   restoreLatestSession();
 });
-
-// 诊断: 向导点「开始分析」后执行真实 API,期间向导保持分析动画
-let diagnosing = false;
-async function onDiagnose(payload: DiagnosePayload) {
-  if (diagnosing) return;
-  diagnosing = true;
-  try {
-    await profileStore.runDiagnose(payload);
-    // 用诊断结果的水平生成自适应学习路径
-    store.currentLevel = payload.level;
-    await store.generateNewPath(payload.role, payload.level, payload.goal);
-    // generateNewPath 内部吞错,以 store.error 判断成败
-    wizard.value?.reportResult(!store.error, store.error || undefined);
-  } catch (e: any) {
-    wizard.value?.reportResult(false, e?.message || "诊断失败,请检查后端服务");
-  } finally {
-    diagnosing = false;
-  }
-}
-
-// 收尾: 零 API 调用(诊断已在 onDiagnose 完成,防止跑两遍)
-function onDiagnoseFinish(_payload: DiagnosePayload) {
-  toast("诊断完成,你的个性化学习路径已生成", "success");
-}
 
 function handleUnitSelect(unitId: string) {
   router.push(`/learn/${unitId}`);
@@ -185,12 +149,5 @@ const hubQuickActions = [
         </ChatPanel>
       </div>
     </div>
-
-    <!-- 诊断向导 -->
-    <OnboardingWizard
-      ref="wizard"
-      @diagnose="onDiagnose"
-      @finish="onDiagnoseFinish"
-    />
   </div>
 </template>

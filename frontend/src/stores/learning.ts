@@ -6,7 +6,6 @@ import type {
 import {
   fetchLearningPath,
   fetchUnitDetail,
-  generatePath,
   markUnitComplete,
 } from "@/apis/learningApi";
 import { defineStore } from "pinia";
@@ -19,7 +18,6 @@ export type AgentRole = "modeler" | "programmer" | "writer";
 export const useLearningStore = defineStore("learning", () => {
   // ── 状态 ──────────────────────────────────────────
   const currentRole = ref<AgentRole>("modeler");
-  const currentLevel = ref<string>("beginner");
   const path = ref<LearningPath | null>(null);
   const currentUnit = ref<LearningUnit | null>(null);
   const loading = ref(false);
@@ -68,21 +66,6 @@ export const useLearningStore = defineStore("learning", () => {
     }
   }
 
-  async function generateNewPath(role: AgentRole, level: string, goal: string) {
-    loading.value = true;
-    error.value = "";
-    try {
-      const res = await generatePath(role, level, goal);
-      path.value = res.data.path;
-      currentRole.value = role;
-      currentLevel.value = level;
-    } catch (e: any) {
-      error.value = e?.message || "生成学习路径失败";
-    } finally {
-      loading.value = false;
-    }
-  }
-
   async function loadUnit(unitId: string) {
     loading.value = true;
     error.value = "";
@@ -122,7 +105,6 @@ export const useLearningStore = defineStore("learning", () => {
 
   return {
     currentRole,
-    currentLevel,
     path,
     currentUnit,
     loading,
@@ -132,7 +114,6 @@ export const useLearningStore = defineStore("learning", () => {
     completedUnits,
     progressPercent,
     loadPath,
-    generateNewPath,
     loadUnit,
     markComplete,
     switchRole,

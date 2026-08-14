@@ -1,6 +1,4 @@
-import type { LearningPath } from "@/apis/learningApi";
-import { diagnose as diagnoseApi, fetchProfile } from "@/apis/learningApi";
-import type { SelfAssessment } from "@/stores/onboarding";
+import { fetchProfile } from "@/apis/learningApi";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
@@ -10,37 +8,17 @@ export const useProfileStore = defineStore("profile", () => {
   const progress = ref<any>(null);
   const error = ref("");
 
-  /** 检查是否需要诊断 */
+  /** 检查学习画像(首页「继续学习」卡等依赖) */
   async function checkProfile() {
     loading.value = true;
     error.value = "";
     try {
       const res = await fetchProfile();
       const p = res.data.profile;
-      // 如果没有任何角色配置，认为需要诊断
+      // 有角色配置即认为存在学习画像
       hasProfile.value = p.roles && p.roles.length > 0;
     } catch {
       hasProfile.value = false;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  /** 执行诊断 */
-  async function runDiagnose(payload: {
-    role: string;
-    self_assessment: SelfAssessment;
-    goal: string;
-    weekly_hours: number;
-  }) {
-    loading.value = true;
-    error.value = "";
-    try {
-      await diagnoseApi(payload.role, payload.self_assessment, payload.goal);
-      hasProfile.value = true;
-    } catch (e: any) {
-      error.value = e?.message || "诊断失败";
-      throw e;
     } finally {
       loading.value = false;
     }
@@ -81,7 +59,6 @@ export const useProfileStore = defineStore("profile", () => {
     progress,
     error,
     checkProfile,
-    runDiagnose,
     loadProgress,
     ackAchievements,
   };

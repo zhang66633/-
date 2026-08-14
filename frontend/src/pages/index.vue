@@ -136,7 +136,7 @@
           <span class="font-mono text-xs tracking-wider">·2 &nbsp; 学习中心</span>
         </div>
 
-        <!-- 继续学习(AI 推荐,仅完成诊断后显示) -->
+        <!-- 继续学习(AI 推荐,有学习画像时显示) -->
         <div v-if="profileStore.hasProfile" class="mb-8">
           <NextRecommendationCard :role="learningStore.currentRole" compact @go="(id: string) => router.push(`/learn/${id}`)" />
         </div>

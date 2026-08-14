@@ -1,4 +1,3 @@
-import type { SelfAssessment } from "@/stores/onboarding";
 import request from "@/utils/request";
 
 // ── 类型定义 ──────────────────────────────────────────
@@ -44,15 +43,6 @@ export function fetchLearningPath(role: string) {
   return request.get<{ path: LearningPath }>(`/learning/path/${role}`);
 }
 
-/** 生成个性化学习路径 */
-export function generatePath(role: string, level: string, goal: string) {
-  return request.post<{ path: LearningPath }>("/learning/path/generate", {
-    role,
-    level,
-    goal,
-  });
-}
-
 /** 获取学习单元详情 */
 export function fetchUnitDetail(unitId: string) {
   return request.get<{ unit: LearningUnit }>(`/learning/units/${unitId}`);
@@ -80,19 +70,6 @@ export function fetchNextRecommendation(role: string) {
 /** 获取用户画像 */
 export function fetchProfile() {
   return request.get("/profile");
-}
-
-/** 初始诊断 */
-export function diagnose(
-  role: string,
-  selfAssessment: SelfAssessment,
-  goal: string,
-) {
-  return request.post("/profile/diagnose", {
-    role,
-    self_assessment: selfAssessment,
-    goal,
-  });
 }
 
 /** 获取学习进度 */
