@@ -7,10 +7,12 @@ import { useChatSessionStore } from "@/stores/chatSession";
 import { type AgentRole, useLearningStore } from "@/stores/learning";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { useProfileStore } from "@/stores/profile";
-import { computed, onMounted } from "vue";
+import { PanelLeft, PanelLeftOpen } from "lucide-vue-next";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
+const treeOpen = ref(true);
 const store = useLearningStore();
 const chatSession = useChatSessionStore();
 const onboardingStore = useOnboardingStore();
@@ -79,15 +81,28 @@ function handleSend(text: string) {
 
       <!-- 主内容区: 技能树 + 对话区 -->
       <div class="flex-1 flex min-h-0">
-        <!-- 左侧技能树 -->
-        <div class="w-64 shrink-0 border-r overflow-y-auto p-4">
-          <SkillGraph
-            :categories="store.skillTree"
-            :title="`${roleLabel}技能树`"
-            :loading="store.loading"
-            :error="store.error"
-            @select="handleUnitSelect"
-          />
+        <!-- 左侧技能树(可折叠) -->
+        <div
+          class="shrink-0 border-r overflow-y-auto transition-all duration-200"
+          :class="treeOpen ? 'w-64 p-4' : 'w-10'"
+        >
+          <button
+            class="mb-2 flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground hover:bg-accent/50 transition-colors"
+            :title="treeOpen ? '折叠技能树' : '展开技能树'"
+            @click="treeOpen = !treeOpen"
+          >
+            <PanelLeftOpen v-if="treeOpen" class="h-3.5 w-3.5" />
+            <PanelLeft v-else class="h-3.5 w-3.5" />
+          </button>
+          <div v-show="treeOpen">
+            <SkillGraph
+              :categories="store.skillTree"
+              :title="`${roleLabel}技能树`"
+              :loading="store.loading"
+              :error="store.error"
+              @select="handleUnitSelect"
+            />
+          </div>
         </div>
 
         <!-- 右侧智能体对话区 -->
@@ -102,6 +117,7 @@ function handleSend(text: string) {
             cancellable
             @send="handleSend"
             @cancel="cancelStream"
+            @clear="chatSession.clearSession('learning')"
             @new-session="chatSession.newSession('learning')"
           />
         </div>

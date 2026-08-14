@@ -36,45 +36,40 @@
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <span class="font-mono text-[10px] text-muted-foreground hidden sm:inline">⏱ {{ unit?.estimated_minutes ?? '--' }}分钟</span>
-          <button class="font-mono text-[10px] text-muted-foreground hover:text-foreground" @click="chatOpen = !chatOpen">{{ chatOpen ? '收起助手' : '💬 助手' }}</button>
+          <button class="font-mono text-[10px] text-muted-foreground hover:text-foreground" @click="chatPanel?.toggle()">{{ chatPanel?.open ? '收起助手' : '💬 助手' }}</button>
         </div>
       </div>
 
       <div v-if="store.loading" class="flex-1 flex items-center justify-center"><Loader2 class="h-6 w-6 animate-spin text-muted-foreground" /></div>
       <div v-else-if="store.error" class="flex-1 flex items-center justify-center"><p class="text-sm text-destructive">{{ store.error }}</p></div>
 
-      <div v-else-if="unit" class="flex-1 flex min-h-0">
-        <!-- 文档区 -->
-        <div class="flex-1 min-w-0 min-h-0">
+      <ChatPanel
+        v-else-if="unit"
+        ref="chatPanel"
+        storage-key="unit-chat"
+        :default-width="400"
+        button-label="💬 助手"
+        class="flex-1 min-h-0"
+      >
+        <template #main>
           <LearningDoc ref="docRef" :markdown="docMarkdown" :unit-id="unit.unit_id"
             :on-add-note="openNoteEditor" :on-ask-a-i="handleAskAI"
             @headings-change="headings = $event" @scroll-section="activeHeading = $event">
             <UnitQuizBlock :unit-id="unit.unit_id" />
           </LearningDoc>
-        </div>
+        </template>
 
-        <!-- 拖拽分隔条 -->
-        <div
-          v-if="chatOpen"
-          class="w-1.5 shrink-0 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors relative group"
-          @mousedown="startResize"
-        >
-          <div class="absolute inset-y-0 -left-1 -right-1" />
-        </div>
-
-        <!-- 聊天区 -->
-        <div v-show="chatOpen" class="shrink-0 border-l flex flex-col min-h-0 overflow-hidden" :style="{ width: chatWidth + 'px' }">
-          <ChatArea
-            :messages="chatSession.activeLearningMessages"
-            :is-running="chatSession.getIsRunning('learning')"
-            :empty-text="`${agentName} 在此答疑`" :empty-subtext="'选中文档文字 → 点「问AI」快速提问'"
-            :input-placeholder="`向${agentName}提问...`"
-            :prefill-text="prefillText"
-            :session-title="chatSession.activeLearningSession?.title"
-            cancellable @send="handleSend" @cancel="cancelStream"
-            @new-session="chatSession.newSession('learning')" />
-        </div>
-      </div>
+        <ChatArea
+          :messages="chatSession.activeLearningMessages"
+          :is-running="chatSession.getIsRunning('learning')"
+          :empty-text="`${agentName} 在此答疑`" :empty-subtext="'选中文档文字 → 点「问AI」快速提问'"
+          :input-placeholder="`向${agentName}提问...`"
+          :prefill-text="prefillText"
+          :session-title="chatSession.activeLearningSession?.title"
+          cancellable @send="handleSend" @cancel="cancelStream"
+          @clear="chatSession.clearSession('learning')"
+          @new-session="chatSession.newSession('learning')" />
+      </ChatPanel>
 
       <div v-if="unit" class="flex items-center gap-2 border-t px-4 py-2 shrink-0 bg-card">
         <button class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs hover:bg-accent" @click="markComplete"><CheckCircle class="h-3.5 w-3.5" />标记完成</button>
@@ -117,6 +112,8 @@ import LearningDoc from "@/components/LearningDoc.vue";
 import NotePanel from "@/components/NotePanel.vue";
 import type { NoteItem } from "@/components/NotePanel.vue";
 import UnitQuizBlock from "@/components/UnitQuizBlock.vue";
+// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
+import ChatPanel from "@/components/chat/ChatPanel.vue";
 import { useStreamChat } from "@/composables/useStreamChat";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { useLearningStore } from "@/stores/learning";
@@ -128,7 +125,7 @@ import {
   PanelLeftOpen,
   StickyNote,
 } from "lucide-vue-next";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
 const route = useRoute();
@@ -140,44 +137,14 @@ const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
 );
 
 const docRef = ref<InstanceType<typeof LearningDoc>>();
-const chatOpen = ref(true);
-const chatWidth = ref(400);
+const chatPanel = ref<InstanceType<typeof ChatPanel>>();
 const leftOpen = ref(true);
 const headings = ref<{ id: string; text: string; level: number }[]>([]);
 const activeHeading = ref("");
 const notes = ref<NoteItem[]>([]);
 const prefillText = ref("");
 
-// ── 拖拽调整聊天区宽度 ─────────────────────────────
-
-let resizeStartX = 0;
-let resizeStartWidth = 0;
-
-function startResize(e: MouseEvent) {
-  resizeStartX = e.clientX;
-  resizeStartWidth = chatWidth.value;
-  document.addEventListener("mousemove", onResize);
-  document.addEventListener("mouseup", stopResize);
-  document.body.style.cursor = "col-resize";
-  document.body.style.userSelect = "none";
-}
-
-function onResize(e: MouseEvent) {
-  const delta = resizeStartX - e.clientX;
-  chatWidth.value = Math.max(280, Math.min(700, resizeStartWidth + delta));
-}
-
-function stopResize() {
-  document.removeEventListener("mousemove", onResize);
-  document.removeEventListener("mouseup", stopResize);
-  document.body.style.cursor = "";
-  document.body.style.userSelect = "";
-}
-
-onBeforeUnmount(() => {
-  document.removeEventListener("mousemove", onResize);
-  document.removeEventListener("mouseup", stopResize);
-});
+// ── 聊天面板缩放收起已统一到 ChatPanel 组件 ──────────
 
 // ── 问AI ───────────────────────────────────────────
 

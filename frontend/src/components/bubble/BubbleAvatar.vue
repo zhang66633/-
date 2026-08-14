@@ -22,6 +22,7 @@ const identity = computed(() => {
 const agentColor = computed(() => identity.value?.color ?? "");
 
 const letter = computed(() => {
+  if (isUser.value) return "U";
   if (isAgent.value) return "";
   if (isSystem.value) return "S";
   if (isTool.value) return "T";

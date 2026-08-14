@@ -6,7 +6,7 @@
       :title="sessionTitle"
       :messages-count="messages.length"
       @new-session="$emit('new-session')"
-      @export="$emit('export')"
+      @clear="$emit('clear')"
     />
 
     <!-- 消息区域 — 虚拟滚动 -->
@@ -21,7 +21,7 @@
 
       <!-- 连接中骨架 -->
       <div v-if="isConnecting" class="space-y-4">
-        <div v-for="i in 3" :key="i" class="flex items-start gap-3 animate-pulse">
+        <div v-for="i in 2" :key="i" class="flex items-start gap-3 animate-pulse">
           <div class="h-8 w-8 rounded-sm border border-border" />
           <div class="space-y-2 flex-1">
             <div class="h-3 bg-muted rounded w-1/4" />
@@ -75,7 +75,6 @@
       :messages-count="messages.length"
       :prefill="prefillText"
       @send="(text, files) => $emit('send', text, files)"
-      @export="$emit('export')"
     />
   </div>
 </template>
@@ -129,7 +128,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   send: [text: string, files?: ChatFileRef[]];
   cancel: [];
-  export: [];
+  clear: [];
   "new-session": [];
   openPaper: [];
 }>();

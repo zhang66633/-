@@ -22,7 +22,7 @@ const timestamp = computed(() => {
     <div class="flex-1 min-w-0">
       <div class="flex flex-col items-end">
         <div
-          class="max-w-[calc(100%-72px)] rounded-md rounded-br-sm px-4 py-3 text-sm leading-relaxed bg-foreground text-background"
+          class="max-w-[85%] rounded-md rounded-br-sm px-4 py-3 text-sm leading-relaxed bg-foreground text-background"
         >
           {{ content }}
         </div>
@@ -32,8 +32,8 @@ const timestamp = computed(() => {
         >{{ timestamp }}</span>
       </div>
     </div>
-    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-border">
-      <span class="font-display text-xs font-medium leading-none">U</span>
+    <div class="flex shrink-0 flex-col items-center self-start pt-0.5">
+      <BubbleAvatar :message="message" />
     </div>
   </div>
 </template>

@@ -1,7 +1,8 @@
 <template>
-  <div class="flex h-full bg-background">
+  <ChatPanel ref="chatPanel" storage-key="practice-ai" :default-width="320" button-label="💬 刷题助手">
+    <template #main>
     <!-- 主区 -->
-    <div class="flex-1 flex flex-col min-w-0">
+    <div class="flex h-full flex-col min-w-0">
       <!-- 顶部 -->
       <div class="flex items-center justify-between border-b px-6 py-3 shrink-0">
         <div class="flex items-center gap-3">
@@ -347,21 +348,22 @@
       </div>
     </div>
 
-    <!-- ══════ 侧边 AI 面板 ══════ -->
-    <div class="w-80 shrink-0 border-l flex flex-col min-h-0">
-      <ChatArea
-        :messages="chatSession.activePracticeMessages"
-        :is-running="chatSession.getIsRunning('practice')"
-        empty-text="刷题助手"
-        empty-subtext="答错后点「🤖 问 AI 为什么」,把题目带进来问"
-        input-placeholder="针对当前题目提问…"
-        :session-title="chatSession.activePracticeSession?.title"
-        cancellable
-        @send="handleSend"
-        @cancel="cancelStream"
-        @new-session="chatSession.newSession('practice')"
-      />
-    </div>
+    </template>
+
+    <!-- ══════ 侧边 AI 面板(可缩放收起) ══════ -->
+    <ChatArea
+      :messages="chatSession.activePracticeMessages"
+      :is-running="chatSession.getIsRunning('practice')"
+      empty-text="刷题助手"
+      empty-subtext="答错后点「🤖 问 AI 为什么」,把题目带进来问"
+      input-placeholder="针对当前题目提问…"
+      :session-title="chatSession.activePracticeSession?.title"
+      cancellable
+      @send="handleSend"
+      @cancel="cancelStream"
+      @clear="chatSession.clearSession('practice')"
+      @new-session="chatSession.newSession('practice')"
+    />
 
     <!-- 退出确认弹层 -->
     <Teleport to="body">
@@ -382,12 +384,14 @@
         </div>
       </div>
     </Teleport>
-  </div>
+  </ChatPanel>
 </template>
 
 <script setup lang="ts">
 import ChatArea from "@/components/ChatArea.vue";
 import GuidedCardSelection from "@/components/GuidedCardSelection.vue";
+// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
+import ChatPanel from "@/components/chat/ChatPanel.vue";
 import { useStreamChat } from "@/composables/useStreamChat";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { usePracticeStore } from "@/stores/practice";
@@ -397,6 +401,7 @@ import { computed, onMounted, ref } from "vue";
 
 const store = usePracticeStore();
 const chatSession = useChatSessionStore();
+const chatPanel = ref<InstanceType<typeof ChatPanel>>();
 // 会话存 practice 模式,后端请求走 learning 模式(含出题/教学提示词,合法 mode)
 const { handleUserSend, cancelStream } = useStreamChat("practice", "learning");
 
@@ -504,6 +509,8 @@ function redoWrong() {
 }
 
 function askAI() {
+  // 面板收起时自动展开
+  if (chatPanel.value && !chatPanel.value.open) chatPanel.value.expand();
   const q = currentQuestion.value;
   const r = reveal.value;
   if (!q) return;

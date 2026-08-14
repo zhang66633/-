@@ -1,0 +1,130 @@
+<template>
+  <div class="relative flex h-full min-h-0">
+    <!-- 主内容区 -->
+    <div class="min-h-0 min-w-0 flex-1">
+      <slot name="main" />
+    </div>
+
+    <!-- 拖拽分隔条 -->
+    <div
+      v-if="open"
+      class="group relative w-1.5 shrink-0 cursor-col-resize transition-colors hover:bg-primary/30 active:bg-primary/50"
+      @mousedown="startResize"
+    >
+      <div class="absolute inset-y-0 -left-1 -right-1" />
+      <!-- 收起按钮(分隔条中央) -->
+      <button
+        class="absolute top-1/2 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-[10px] text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100"
+        title="收起聊天面板"
+        @click="close"
+      >
+        »
+      </button>
+    </div>
+
+    <!-- 聊天面板 -->
+    <div
+      v-show="open"
+      class="flex min-h-0 shrink-0 flex-col overflow-hidden border-l"
+      :style="{ width: width + 'px' }"
+    >
+      <slot />
+    </div>
+
+    <!-- 收起后的悬浮展开按钮 -->
+    <button
+      v-if="!open"
+      class="absolute bottom-4 right-4 z-20 flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-xs font-medium shadow-md transition-all hover:bg-accent"
+      :title="buttonLabel"
+      @click="open = true"
+    >
+      {{ buttonLabel }}
+    </button>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onBeforeUnmount, ref } from "vue";
+
+const props = withDefaults(
+  defineProps<{
+    /** localStorage 记忆键(每页唯一) */
+    storageKey: string;
+    defaultWidth?: number;
+    min?: number;
+    max?: number;
+    buttonLabel?: string;
+  }>(),
+  {
+    defaultWidth: 360,
+    min: 280,
+    max: 700,
+    buttonLabel: "💬 助手",
+  },
+);
+
+function loadWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(`chatpanel:${props.storageKey}`));
+    if (Number.isFinite(v) && v >= props.min && v <= props.max) return v;
+  } catch {
+    /* ignore */
+  }
+  return props.defaultWidth;
+}
+
+const open = ref(true);
+const width = ref(loadWidth());
+
+function close() {
+  open.value = false;
+}
+
+let moveHandler: ((ev: MouseEvent) => void) | null = null;
+let upHandler: (() => void) | null = null;
+
+function startResize(e: MouseEvent) {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = width.value;
+
+  moveHandler = (ev: MouseEvent) => {
+    const next = Math.min(
+      props.max,
+      Math.max(props.min, startWidth + (ev.clientX - startX)),
+    );
+    width.value = next;
+  };
+  upHandler = () => {
+    if (moveHandler) document.removeEventListener("mousemove", moveHandler);
+    if (upHandler) document.removeEventListener("mouseup", upHandler);
+    moveHandler = null;
+    upHandler = null;
+    try {
+      localStorage.setItem(
+        `chatpanel:${props.storageKey}`,
+        String(Math.round(width.value)),
+      );
+    } catch {
+      /* ignore */
+    }
+  };
+  document.addEventListener("mousemove", moveHandler);
+  document.addEventListener("mouseup", upHandler);
+}
+
+onBeforeUnmount(() => {
+  if (moveHandler) document.removeEventListener("mousemove", moveHandler);
+  if (upHandler) document.removeEventListener("mouseup", upHandler);
+});
+
+defineExpose({
+  open,
+  toggle: () => {
+    open.value = !open.value;
+  },
+  expand: () => {
+    open.value = true;
+  },
+});
+</script>

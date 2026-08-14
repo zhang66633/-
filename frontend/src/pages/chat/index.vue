@@ -11,7 +11,7 @@
         input-placeholder="输入消息..."
         @send="handleUserSend"
         @cancel="cancelStream"
-        @export="handleExport"
+        @clear="chatSession.clearSession('chat')"
         @new-session="chatSession.newSession('chat')"
       />
     </div>
@@ -20,7 +20,6 @@
 
 <script setup lang="ts">
 import ChatArea from "@/components/ChatArea.vue";
-import { downloadMarkdown } from "@/composables/useExport";
 import { useStreamChat } from "@/composables/useStreamChat";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { onMounted } from "vue";
@@ -30,10 +29,6 @@ const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
   "chat",
   "chat",
 );
-
-function handleExport() {
-  downloadMarkdown(chatSession.activeChatMessages, "对话记录.md");
-}
 
 onMounted(restoreLatestSession);
 </script>

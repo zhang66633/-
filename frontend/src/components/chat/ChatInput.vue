@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { type ChatFileRef, uploadChatFile } from "@/apis/chatApi";
-import { Download, Loader2, Paperclip, Send, X } from "lucide-vue-next";
+import { Loader2, Paperclip, Send, X } from "lucide-vue-next";
 import { nextTick, ref, watch } from "vue";
 
 const props = withDefaults(
@@ -20,7 +20,6 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   send: [text: string, files?: ChatFileRef[]];
-  export: [];
 }>();
 
 const inputText = ref("");
@@ -132,15 +131,6 @@ function sendMessage() {
         accept=".csv,.xlsx,.xls,.txt,.md,.json,.pdf,.py,.dat,.tsv"
         @change="onFileSelected"
       />
-      <!-- 导出按钮 -->
-      <button
-        v-if="messagesCount > 0"
-        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background hover:bg-accent transition-colors"
-        title="导出对话 (Markdown)"
-        @click="$emit('export')"
-      >
-        <Download class="h-4 w-4" />
-      </button>
       <textarea
         ref="textareaRef"
         v-model="inputText"

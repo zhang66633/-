@@ -306,6 +306,15 @@ export const useChatSessionStore = defineStore(
       setActiveId(mode, null);
     }
 
+    /** 清空当前会话的全部消息(保留会话本身)。 */
+    function clearSession(mode: SessionMode) {
+      const session = getActiveSession(mode).value;
+      if (session) {
+        session.messages = [];
+        session.updatedAt = now();
+      }
+    }
+
     /** 显式新建会话（不清空当前会话）。 */
     function newSession(mode: SessionMode): string {
       return createSession(mode);
@@ -341,6 +350,7 @@ export const useChatSessionStore = defineStore(
       addMessage,
       updateMessage,
       clearActive,
+      clearSession,
       getSessions,
       getActiveId,
       getSortedSessions,

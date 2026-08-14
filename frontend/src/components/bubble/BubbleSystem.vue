@@ -62,13 +62,13 @@ const timestamp = computed(() => {
 
 <template>
   <div class="flex gap-3 w-full my-2 animate-in fade-in slide-in-from-bottom-2">
-    <div class="flex flex-col items-center shrink-0">
+    <div class="flex shrink-0 flex-col items-center self-start pt-0.5">
       <BubbleAvatar :message="message" />
     </div>
     <div class="flex-1 min-w-0">
       <div class="flex flex-col items-start">
-        <div class="max-w-[calc(100%-72px)] rounded-md rounded-bl-sm border border-border bg-background text-foreground px-4 py-3 text-sm leading-relaxed">
-          <div class="min-w-[260px] space-y-1.5">
+        <div class="max-w-[85%] rounded-md rounded-bl-sm border border-border bg-background text-foreground px-4 py-3 text-sm leading-relaxed">
+          <div class="space-y-1.5">
             <div class="flex items-center gap-1.5">
               <component :is="sysIcon" class="h-3.5 w-3.5 shrink-0" :class="sysColor" />
               <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{{ headline }}</span>
