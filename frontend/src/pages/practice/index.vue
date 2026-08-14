@@ -70,8 +70,8 @@
 
         <!-- 题目列表(力扣紧凑表格) -->
         <div class="flex-1 overflow-y-auto min-h-0">
-          <div v-if="store.bankLoading" class="flex items-center justify-center py-20 text-sm text-muted-foreground">
-            <Loader2 class="h-5 w-5 animate-spin mr-2" />题库加载中…
+          <div v-if="store.bankLoading" class="space-y-2 p-4">
+            <Skeleton v-for="i in 8" :key="i" class="h-8" :class="i % 3 === 0 ? 'w-11/12' : 'w-full'" />
           </div>
           <div v-else-if="filteredBank.length === 0" class="flex flex-col items-center justify-center py-20 text-sm text-muted-foreground gap-2">
             <span class="text-2xl">📭</span>
@@ -160,8 +160,8 @@
 
       <!-- ══════ 错题本视图 ══════ -->
       <div v-else-if="!inSession && !sessionDone && activeTab === 'mistakes'" class="flex-1 overflow-y-auto min-h-0">
-        <div v-if="store.mistakesLoading" class="flex items-center justify-center py-20 text-sm text-muted-foreground">
-          <Loader2 class="h-5 w-5 animate-spin mr-2" />加载中…
+        <div v-if="store.mistakesLoading" class="space-y-2 p-4">
+          <Skeleton v-for="i in 6" :key="i" class="h-8" :class="i % 3 === 0 ? 'w-11/12' : 'w-full'" />
         </div>
         <div v-else-if="mistakes.length === 0" class="flex flex-col items-center justify-center py-20 gap-2 text-muted-foreground">
           <span class="text-2xl">🎉</span>
@@ -392,11 +392,11 @@ import ChatArea from "@/components/ChatArea.vue";
 import GuidedCardSelection from "@/components/GuidedCardSelection.vue";
 // biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import ChatPanel from "@/components/chat/ChatPanel.vue";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useStreamChat } from "@/composables/useStreamChat";
 import { useChatSessionStore } from "@/stores/chatSession";
 import { usePracticeStore } from "@/stores/practice";
 import { renderMarkdown } from "@/utils/markdown";
-import { Loader2 } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 
 const store = usePracticeStore();
