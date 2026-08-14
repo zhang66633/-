@@ -141,6 +141,14 @@ async def confirm_import(
                 embed_error = str(e)
                 logger.warning("向量化失败: %s", e)
 
+        # 入库完成（YAML 已写入）：失效共享 retriever + loader 解析缓存，
+        # 确保下一次检索能立即看到新条目。
+        try:
+            from app.knowledge.retriever import invalidate_shared_retriever
+            invalidate_shared_retriever()
+        except Exception as e:  # 失效失败不影响入库结果
+            logger.warning("检索缓存失效失败: %s", e)
+
         return {
             "status": "ok",
             "type": req.type,

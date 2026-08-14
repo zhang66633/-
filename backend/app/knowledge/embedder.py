@@ -375,10 +375,10 @@ class KBEmbedder:
 
     def _cards_to_documents(self) -> List[Document]:
         docs = []
+        source_map = self._build_source_map("methods")
         for card in self.loader.load_all_methods():
             doc = self._card_to_document(card)
-            # Find source YAML path for this card
-            source = self._find_source_file("methods", card.id)
+            source = source_map.get(card.id)
             if source:
                 doc.metadata["_source_file"] = str(source)
             docs.append(doc)
@@ -386,9 +386,10 @@ class KBEmbedder:
 
     def _papers_to_documents(self) -> List[Document]:
         docs = []
+        source_map = self._build_source_map("papers")
         for paper in self.loader.load_all_papers():
             doc = self._paper_to_document(paper)
-            source = self._find_source_file("papers", paper.id)
+            source = source_map.get(paper.id)
             if source:
                 doc.metadata["_source_file"] = str(source)
             docs.append(doc)
@@ -396,9 +397,10 @@ class KBEmbedder:
 
     def _templates_to_documents(self) -> List[Document]:
         docs = []
+        source_map = self._build_source_map("templates")
         for tpl in self.loader.load_all_templates():
             doc = self._template_to_document(tpl)
-            source = self._find_source_file("templates", tpl.id)
+            source = source_map.get(tpl.id)
             if source:
                 doc.metadata["_source_file"] = str(source)
             docs.append(doc)
@@ -406,33 +408,39 @@ class KBEmbedder:
 
     def _problems_to_documents(self) -> List[Document]:
         docs = []
+        source_map = self._build_source_map("problems")
         for prob in self.loader.load_all_problems():
             doc = self._problem_to_document(prob)
-            source = self._find_source_file("problems", prob.id)
+            source = source_map.get(prob.id)
             if source:
                 doc.metadata["_source_file"] = str(source)
             docs.append(doc)
         return docs
 
-    def _find_source_file(self, subdir: str, doc_id: str) -> Optional[Path]:
-        """Find the YAML file that produced a given document ID."""
+    def _build_source_map(self, subdir: str) -> Dict[str, Path]:
+        """一次遍历 subdir 下所有 YAML，建 {doc_id: 源文件路径} 映射。
+
+        替代逐文档调用 `_find_source_file` 的 O(D×F) 扫描，解析成本从
+        O(文档数 × 文件数) 降到 O(文件数)，映射在整个索引构建过程中复用。
+        """
         search_dir = self.kb_root / subdir
+        mapping: Dict[str, Path] = {}
         if not search_dir.exists():
-            return None
+            return mapping
+        import yaml
         for yf in search_dir.rglob("*.yaml"):
             try:
-                import yaml
                 data = yaml.safe_load(yf.read_text(encoding="utf-8"))
-                if not data:
-                    continue
-                # Try all known top-level keys
-                for key in ("method_card", "paper", "template", "problem"):
-                    if key in data and isinstance(data[key], dict):
-                        if data[key].get("id") == doc_id:
-                            return yf
             except Exception:
                 continue
-        return None
+            if not data or not isinstance(data, dict):
+                continue
+            # 尝试所有已知顶层键
+            for key in ("method_card", "paper", "template", "problem"):
+                val = data.get(key)
+                if isinstance(val, dict) and val.get("id"):
+                    mapping[val["id"]] = yf
+        return mapping
 
     # Reuse the rich document builders from retriever for consistency
     @staticmethod

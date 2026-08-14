@@ -1,11 +1,24 @@
 """YAML knowledge base loader with Pydantic validation."""
 
+import threading
 from pathlib import Path
 from typing import List
 
 import yaml
 
 from .schemas import MethodCard, Paper, Problem, Template
+
+
+# ── 进程级缓存：避免每次检索都全量重解析 YAML ─────────────────────────
+# 键为 (str(kb_root), kind)；`invalidate_kb_cache()` 在 reindex/import 后清空。
+_kb_cache: dict = {}
+_kb_cache_lock = threading.Lock()
+
+
+def invalidate_kb_cache() -> None:
+    """清空知识库解析缓存（reindex/import 后由 retriever 单例失效钩子触发）。"""
+    with _kb_cache_lock:
+        _kb_cache.clear()
 
 
 class KnowledgeBaseLoader:
@@ -18,32 +31,60 @@ class KnowledgeBaseLoader:
         self.templates_dir = self.kb_root / "templates"
         self.problems_dir = self.kb_root / "problems"
 
+    def _load_cached(self, kind: str, builder):
+        """按 (kb_root, kind) 缓存解析结果，复用已解析的 collection。
+
+        缓存进程级共享、按 kb_root 隔离；`invalidate_kb_cache()` 在 reindex/import
+        完成后清空。builder 无参并返回对应类型的列表。
+        """
+        key = (str(self.kb_root), kind)
+        with _kb_cache_lock:
+            cached = _kb_cache.get(key)
+            if cached is not None:
+                return cached
+        result = builder()
+        with _kb_cache_lock:
+            _kb_cache[key] = result
+        return result
+
     def load_all_methods(self) -> List[MethodCard]:
-        """Load all method cards from YAML files."""
-        cards = []
-        for yaml_file in self.methods_dir.rglob("*.yaml"):
-            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-            if data and "method_card" in data:
-                cards.append(MethodCard(**data["method_card"]))
-        return cards
+        """Load all method cards from YAML files（进程级缓存，按 kb_root 复用）。"""
+
+        def _build() -> List[MethodCard]:
+            cards = []
+            for yaml_file in self.methods_dir.rglob("*.yaml"):
+                data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+                if data and "method_card" in data:
+                    cards.append(MethodCard(**data["method_card"]))
+            return cards
+
+        return self._load_cached("methods", _build)
 
     def load_all_papers(self) -> List[Paper]:
-        """Load all structured papers from YAML files."""
-        papers = []
-        for yaml_file in self.papers_dir.rglob("*.yaml"):
-            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-            if data and "paper" in data:
-                papers.append(Paper(**data["paper"]))
-        return papers
+        """Load all structured papers from YAML files（进程级缓存）。"""
+
+        def _build() -> List[Paper]:
+            papers = []
+            for yaml_file in self.papers_dir.rglob("*.yaml"):
+                data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+                if data and "paper" in data:
+                    papers.append(Paper(**data["paper"]))
+            return papers
+
+        return self._load_cached("papers", _build)
 
     def load_all_templates(self) -> List[Template]:
-        """Load all analysis templates from YAML files."""
-        templates = []
-        for yaml_file in self.templates_dir.rglob("*.yaml"):
-            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-            if data and "template" in data:
-                templates.append(Template(**data["template"]))
-        return templates
+        """Load all analysis templates from YAML files（进程级缓存）。"""
+
+        def _build() -> List[Template]:
+            templates = []
+            for yaml_file in self.templates_dir.rglob("*.yaml"):
+                data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+                if data and "template" in data:
+                    templates.append(Template(**data["template"]))
+            return templates
+
+        return self._load_cached("templates", _build)
 
     def get_method_by_id(self, card_id: str) -> MethodCard | None:
         """Find a specific method card by ID."""
@@ -88,15 +129,19 @@ class KnowledgeBaseLoader:
     # ── Problem (竞赛真题) ────────────────────────────────────────────
 
     def load_all_problems(self) -> List[Problem]:
-        """Load all competition problems from YAML files."""
-        problems = []
-        if not self.problems_dir.exists():
+        """Load all competition problems from YAML files（进程级缓存）。"""
+
+        def _build() -> List[Problem]:
+            problems = []
+            if not self.problems_dir.exists():
+                return problems
+            for yaml_file in self.problems_dir.rglob("*.yaml"):
+                data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+                if data and "problem" in data:
+                    problems.append(Problem(**data["problem"]))
             return problems
-        for yaml_file in self.problems_dir.rglob("*.yaml"):
-            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-            if data and "problem" in data:
-                problems.append(Problem(**data["problem"]))
-        return problems
+
+        return self._load_cached("problems", _build)
 
     def get_problem_by_id(self, problem_id: str) -> Problem | None:
         """Find a specific problem by ID."""

@@ -178,14 +178,10 @@ def _get_loader():
 
 
 def _get_retriever():
-    settings = get_settings()
-    from ..knowledge.retriever import HybridRetriever
+    """返回进程级共享 retriever 单例（复用 BM25 与 Chroma，避免每请求重建）。"""
+    from ..knowledge.retriever import get_shared_retriever
 
-    return HybridRetriever(
-        kb_root=settings.kb_root,
-        persist_dir=settings.chroma_dir,
-        embedding_provider=settings.kb_embedding_provider,
-    )
+    return get_shared_retriever()
 
 
 def _get_embedder():
@@ -300,11 +296,15 @@ async def kb_search(
     try:
         retriever = _get_retriever()
         metadata_filter = {"type": type} if type else None
+        # /search 为交互式高精度路径：显式开启 query expansion 与 LLM rerank
+        #（低延迟路径如 pipeline/RAG chat 走 retriever 默认的保守配置，二者解耦）。
         docs = retriever._get_relevant_documents(
             q,
             metadata_filter=metadata_filter,
             problem_type=problem_type,
             k=k,
+            use_query_expansion=True,
+            use_reranker=True,
         )
 
         results = []
@@ -550,6 +550,9 @@ async def kb_reindex(
             persist_dir=settings.chroma_dir,
         )
         count = embedder.build_index(incremental=incremental)
+        # 索引重建后失效共享 retriever + loader 缓存，避免下一次检索命中旧 Chroma 集合
+        from ..knowledge.retriever import invalidate_shared_retriever
+        invalidate_shared_retriever()
         mode = "增量" if incremental else "全量"
         return ReindexResponse(
             success=True,

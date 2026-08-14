@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import re as _re
 from collections import defaultdict
 from pathlib import Path
@@ -14,8 +15,12 @@ from langchain_core.retrievers import BaseRetriever
 from rank_bm25 import BM25Okapi
 
 from .embedder import KBEmbedder
-from .loader import KnowledgeBaseLoader
+from .loader import KnowledgeBaseLoader, invalidate_kb_cache
 from .schemas import MethodCard, Paper, Problem, Template
+
+
+# RRF 融合常量：score(d) = sum(1 / (RRF_K + rank_i(d)))
+RRF_K = 60
 
 
 class HybridRetriever(BaseRetriever):
@@ -29,7 +34,7 @@ class HybridRetriever(BaseRetriever):
     """
 
     TAG_MATCH_SCORE: ClassVar[float] = 0.85  # fixed relevance score for tag-based matches
-    RRF_K: ClassVar[int] = 60  # RRF constant
+    RRF_K: ClassVar[int] = RRF_K  # 与模块级常量保持一致（向后兼容引用 self.RRF_K）
 
     # BaseRetriever 是 pydantic 模型，字段必须先声明才能赋值
     embedder: KBEmbedder
@@ -107,15 +112,15 @@ class HybridRetriever(BaseRetriever):
             fetch_k:            Candidates per path (default k*4, max 20).
             use_mmr:            Enable MMR diversification (default True).
             mmr_lambda:         Relevance-vs-diversity trade-off (default 0.5).
-            use_reranker:       Enable LLM precision rerank (default True).
-            use_query_expansion: Enable query rewriting + HyDE (default True).
+            use_reranker:       Enable LLM precision rerank (default False — 低延迟路径默认关).
+            use_query_expansion: Enable query rewriting + HyDE (default False — 低延迟路径默认关).
         """
         k = kwargs.get("k", 5)
         fetch_k = kwargs.get("fetch_k", max(k * 4, 20))
         use_mmr = kwargs.get("use_mmr", True)
         mmr_lambda = kwargs.get("mmr_lambda", 0.5)
-        use_reranker = kwargs.get("use_reranker", True)
-        use_query_expansion = kwargs.get("use_query_expansion", True)
+        use_reranker = kwargs.get("use_reranker", False)
+        use_query_expansion = kwargs.get("use_query_expansion", False)
         problem_type = kwargs.get("problem_type")
         metadata_filter = kwargs.get("metadata_filter")
 
@@ -177,7 +182,8 @@ class HybridRetriever(BaseRetriever):
         if all_vector_ranked or all_bm25_ranked:
             fused_docs = self._rrf_fusion(
                 all_vector_ranked + all_bm25_ranked,
-                k=fetch_k,
+                k_constant=self.RRF_K,
+                top_n=fetch_k,
             )
 
 
@@ -204,8 +210,8 @@ class HybridRetriever(BaseRetriever):
 
         # ── 3. MMR diversity rerank ───────────────────────────────────────
         if use_mmr and len(final_docs) > k:
-            # Convert to (doc, score) format for MMR
-            scored_for_mmr = [(d, 1.0 - d.metadata.get("score", 0.5)) for d in final_docs]
+            # score 已是归一化相似度，直接喂给 MMR（不再做 1.0 - score 反转）
+            scored_for_mmr = [(d, d.metadata.get("score", 0.0)) for d in final_docs]
             docs = self._mmr_rerank(query, scored_for_mmr, k=k, lam=mmr_lambda)
         else:
             docs = final_docs[:k]
@@ -227,8 +233,8 @@ class HybridRetriever(BaseRetriever):
 
     # ── MMR ────────────────────────────────────────────────────────────
 
-    @staticmethod
     def _mmr_rerank(
+        self,
         query: str,
         scored_docs: List[tuple[Document, float]],
         k: int = 5,
@@ -237,31 +243,41 @@ class HybridRetriever(BaseRetriever):
         """Maximum Marginal Relevance reranking.
 
         lam=1.0 → pure relevance;  lam=0.0 → pure diversity.
-        ChromaDB returns L2 *distance* (lower = better), so we invert to similarity.
+
+        入参 `score` 已是归一化相似度 [0,1]（调用侧不再做 1.0-score 反转，本方法也不
+        再反转）。diversity 项优先用 vector store 里可取的文档向量做余弦相似度；取不到
+        时退化为字符 bigram 重叠（对中文更友好）。向量可用时用 `query` 向量与文档向量的
+        余弦修正相关性，使 `query` 参数真正参与排序。
         """
         if not scored_docs:
             return []
 
         docs = [d for d, _ in scored_docs]
-        # Invert L2 distance to similarity score [0, 1]
-        distances = np.array([s for _, s in scored_docs], dtype=np.float64)
-        sims = 1.0 / (1.0 + distances)  # [0, 1]
-        sims = sims / (sims.max() + 1e-8)  # normalize
-
-        # Pairwise cosine similarity of document embeddings (approximated via page_content)
-        # For a proper implementation we'd re-embed, but this lightweight heuristic
-        # penalises docs with identical content and rewards diversity of coverage.
         n = len(docs)
-        pairwise = np.eye(n, dtype=np.float64)
-        for i in range(n):
-            for j in range(i + 1, n):
-                # Simple Jaccard-like overlap of token sets as diversity proxy
-                ti = set(docs[i].page_content.split())
-                tj = set(docs[j].page_content.split())
-                if not ti or not tj:
-                    pairwise[i, j] = pairwise[j, i] = 0.0
-                    continue
-                pairwise[i, j] = pairwise[j, i] = len(ti & tj) / len(ti | tj)
+
+        # 归一化相似度直接使用（去除历史双重反转）
+        sims = np.array([s for _, s in scored_docs], dtype=np.float64)
+        sims = np.clip(sims, 0.0, 1.0)
+        if sims.max() > 0:
+            sims = sims / (sims.max() + 1e-8)
+
+        # 文档向量（可用时）→ 余弦 diversity；不可用 → 字符 bigram 重叠
+        emb = self._fetch_doc_embeddings(docs)
+        if emb is not None and emb.shape[0] == n and emb.shape[1] > 0:
+            emb = emb / np.maximum(np.linalg.norm(emb, axis=1, keepdims=True), 1e-8)
+            pairwise = emb @ emb.T
+            np.fill_diagonal(pairwise, 0.0)
+            pairwise = np.clip(pairwise, -1.0, 1.0)
+
+            # 用 query 向量修正相关性（query-doc 余弦）
+            qvec = self._embed_query(query)
+            if qvec is not None and qvec.size > 0:
+                qvec = qvec / (np.linalg.norm(qvec) + 1e-8)
+                qrel = emb @ qvec
+                sims = 0.5 * sims + 0.5 * np.clip(qrel, 0.0, 1.0)
+                sims = sims / (sims.max() + 1e-8)
+        else:
+            pairwise = self._char_bigram_matrix(docs)
 
         selected: List[int] = []
         remaining = list(range(n))
@@ -291,6 +307,53 @@ class HybridRetriever(BaseRetriever):
             doc.metadata["score"] = round(float(sims[idx]), 4)
             result.append(doc)
         return result
+
+    def _fetch_doc_embeddings(self, docs: List[Document]) -> Optional[np.ndarray]:
+        """从 vector store 取文档向量（N×d）；不可用或缺失返回 None。"""
+        try:
+            vs = self.vector_store
+            ids = [d.metadata.get("id", "") for d in docs]
+            if vs is None or not any(ids):
+                return None
+            got = vs.get(ids=ids, include=["embeddings"])
+            embs = got.get("embeddings") if isinstance(got, dict) else None
+            if not embs or len(embs) != len(docs):
+                return None
+            return np.asarray(embs, dtype=np.float64)
+        except Exception:
+            return None
+
+    def _embed_query(self, query: str) -> Optional[np.ndarray]:
+        """用 vector store 的 embedding function 嵌入 query；不可用返回 None。"""
+        try:
+            if not query:
+                return None
+            vs = self.vector_store
+            fn = getattr(vs, "_embedding_function", None) or getattr(vs, "embedding_function", None)
+            if fn is None:
+                return None
+            return np.asarray(fn.embed_query(query), dtype=np.float64)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _char_bigrams(text: str) -> set:
+        """字符 bigram 集合（中文无空格时比词级 Jaccard 更有效）。"""
+        text = (text or "").lower()
+        return {text[i:i + 2] for i in range(len(text) - 1)}
+
+    def _char_bigram_matrix(self, docs: List[Document]) -> np.ndarray:
+        """字符 bigram 重叠的 pairwise 相似度矩阵（diversity 兜底）。"""
+        n = len(docs)
+        sets = [self._char_bigrams(d.page_content) for d in docs]
+        pairwise = np.zeros((n, n), dtype=np.float64)
+        for i in range(n):
+            for j in range(i + 1, n):
+                si, sj = sets[i], sets[j]
+                if si and sj:
+                    v = len(si & sj) / len(si | sj)
+                    pairwise[i, j] = pairwise[j, i] = v
+        return pairwise
 
     @staticmethod
     def _normalize_chroma_score(distance: float) -> float:
@@ -492,15 +555,21 @@ class HybridRetriever(BaseRetriever):
     # ── RRF fusion ───────────────────────────────────────────────────────
 
     @staticmethod
-    def _rrf_fusion(ranked_lists: list[list[Document]], k: int = 60) -> list[Document]:
+    def _rrf_fusion(
+        ranked_lists: list[list[Document]],
+        k_constant: int = RRF_K,
+        top_n: Optional[int] = None,
+    ) -> list[Document]:
         """Reciprocal Rank Fusion: merge multiple ranked lists.
 
-        score(d) = sum(1 / (k + rank_i(d)))  for each list where d appears.
+        score(d) = sum(1 / (k_constant + rank_i(d)))  for each list where d appears.
+
         Args:
             ranked_lists: Each list is already ranked (best first).
-            k: RRF constant (default 60).
+            k_constant: RRF constant (default RRF_K=60).
+            top_n: Optional truncation of the fused result, independent of k_constant.
         Returns:
-            Documents sorted by RRF score descending.
+            Documents sorted by RRF score descending, truncated to top_n if given.
         """
         if not ranked_lists:
             return []
@@ -510,7 +579,7 @@ class HybridRetriever(BaseRetriever):
         for doc_list in ranked_lists:
             for rank, doc in enumerate(doc_list):
                 doc_id = doc.metadata.get("id", doc.page_content[:50])
-                rrf = 1.0 / (k + rank + 1)
+                rrf = 1.0 / (k_constant + rank + 1)
                 if doc_id in rrf_scores:
                     prev_score, _ = rrf_scores[doc_id]
                     rrf_scores[doc_id] = (prev_score + rrf, doc)
@@ -523,6 +592,9 @@ class HybridRetriever(BaseRetriever):
         for rrf_score, doc in sorted_items:
             doc.metadata["score"] = round(rrf_score, 6)
             result.append(doc)
+
+        if top_n is not None:
+            result = result[:top_n]
 
         return result
 
@@ -788,3 +860,33 @@ class HybridRetriever(BaseRetriever):
             self._get_relevant_documents = with_kwargs  # type: ignore[method-assign]
 
         return self
+
+
+# ── 共享单例（跨 pipeline / search / chat 复用，避免每请求重建 BM25 + 重载 Chroma）──
+
+_shared_retriever: Optional["HybridRetriever"] = None
+_shared_retriever_lock = threading.Lock()
+
+
+def get_shared_retriever() -> "HybridRetriever":
+    """返回进程级共享的 HybridRetriever 单例（懒加载，BM25/Chroma 只建一次）。"""
+    global _shared_retriever
+    if _shared_retriever is None:
+        with _shared_retriever_lock:
+            if _shared_retriever is None:
+                from ..config import get_settings
+
+                settings = get_settings()
+                _shared_retriever = HybridRetriever(
+                    kb_root=settings.kb_root,
+                    persist_dir=settings.chroma_dir,
+                    embedding_provider=settings.kb_embedding_provider,
+                )
+    return _shared_retriever
+
+
+def invalidate_shared_retriever() -> None:
+    """失效共享单例并清空 loader 解析缓存（reindex/import 后调用）。"""
+    global _shared_retriever
+    _shared_retriever = None
+    invalidate_kb_cache()
