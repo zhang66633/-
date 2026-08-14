@@ -22,18 +22,10 @@
         <span :class="isNavActive('/') ? 'font-display font-medium' : ''">首页</span>
       </button>
       <div v-for="group in visibleGroups" :key="group.label" class="mt-1">
-        <!-- 静态小节标签(图标+汉字,不支持折叠;激活组与子项同款高亮:白字+主色图标+左竖条) -->
-        <p class="relative flex items-center gap-2 w-full px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider"
-          :class="activeGroup === group.label ? 'text-foreground font-medium' : 'text-muted-foreground/60'">
-          <span
-            v-if="activeGroup === group.label"
-            class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-px bg-primary"
-          />
-          <component
-            :is="group.icon"
-            class="h-3.5 w-3.5 shrink-0"
-            :class="activeGroup === group.label ? 'text-primary' : ''"
-          />
+        <!-- 静态小节标签(图标+汉字;两个组头常亮高亮,不随页面切换) -->
+        <p class="relative flex items-center gap-2 w-full px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-foreground font-medium">
+          <span class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-px bg-primary" />
+          <component :is="group.icon" class="h-3.5 w-3.5 shrink-0 text-primary" />
           {{ group.label }}
         </p>
         <div class="space-y-0.5">
@@ -149,13 +141,7 @@
 
 <script setup lang="ts">
 import VersionSwitcher from "@/components/VersionSwitcher.vue";
-import {
-  bottomItems,
-  learnGroup,
-  learnPaths,
-  paperGroup,
-  paperPaths,
-} from "@/config/navItems";
+import { bottomItems, learnGroup, paperGroup } from "@/config/navItems";
 import { NAV_ITEM } from "@/config/styles";
 import {
   type ChatSession,
@@ -195,19 +181,6 @@ const collapsedNavItems = computed(() => {
 // ── 导航分组逻辑 ─────────────────────────────────────
 
 const allGroups = [paperGroup, learnGroup];
-
-// 当前页面属于哪个组(仅用于学习中心组标题高亮;分组不再折叠)
-const activeGroup = computed(() => {
-  const path = route.path;
-  if (path === "/") return null;
-  for (const p of paperPaths) {
-    if (path.startsWith(p)) return paperGroup.label;
-  }
-  for (const p of learnPaths) {
-    if (path.startsWith(p)) return learnGroup.label;
-  }
-  return null;
-});
 
 const visibleGroups = computed(() => allGroups);
 
