@@ -110,7 +110,7 @@
 
 <script setup lang="ts">
 import ChatArea from "@/components/ChatArea.vue";
-import type LearningDoc from "@/components/LearningDoc.vue";
+import LearningDoc from "@/components/LearningDoc.vue";
 import NotePanel from "@/components/NotePanel.vue";
 import type { NoteItem } from "@/components/NotePanel.vue";
 import { useStreamChat } from "@/composables/useStreamChat";
