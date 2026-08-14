@@ -54,18 +54,27 @@
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | 修复路径穿越与文件接口鉴权（发现 1、4） | P1 | XS-S | none | IN PROGRESS（代码完成，待测试验证） |
-| 002 | 修复论文导出打印窗口 XSS（发现 2） | P1 | S | none | IN PROGRESS（子代理 C 实施中） |
-| 003 | 修复方案模式状态机：回退死循环 + logger NameError + 取消生效（发现 9、10、12） | P1 | S-M | none | IN PROGRESS（子代理 A 实施中） |
-| 004 | 建立验证基线：测试 harness + 表征测试 + lint/typecheck + CI（发现 26） | P1 | L | none（先于任何重构） | IN PROGRESS（脚本已加，测试套件待写） |
-| 005 | 暴露面收敛：会话/task/files 鉴权 + 绑定 127.0.0.1 + DEBUG=false 校验（发现 4、5） | P2 | S | 001 | IN PROGRESS（代码完成，待测试验证） |
-| 006 | 沙箱默认 Docker + 容器加固（发现 3） | P2 | M | none | IN PROGRESS（代码完成，待验证） |
-| 007 | 检索性能与融合数学（发现 21、22、24、25） | P2 | M | none | IN PROGRESS（子代理 B 实施中） |
-| 008 | SQLite 连接复用（发现 23） | P2 | S | none | DONE（待测试） |
-| 009 | 前端批量修复（发现 8、14-20） | P2 | M | none | IN PROGRESS（子代理 C 实施中） |
-| 010 | 验证基线补齐：pytest 套件 + CI（发现 26） | P1 | L | 005/007/009 | TODO |
-| 011 | 依赖治理 + 部署修复 + 卫生（发现 27、28、30、32、33） | P2 | M | none | IN PROGRESS（卫生/依赖清单完成，部署待改） |
+| 001 | 修复路径穿越与文件接口鉴权（发现 1、4） | P1 | XS-S | none | DONE（测试 test_files_path_guard/test_sqlite_store 通过） |
+| 002 | 修复论文导出打印窗口 XSS（发现 2） | P1 | S | none | DONE（vue-tsc 零错误 + grep 验证） |
+| 003 | 修复方案模式状态机：回退死循环 + logger NameError + 取消生效（发现 9、10、12） | P1 | S-M | none | DONE（test_router 8/8；solving 消费回退标志补丁由主审追加） |
+| 004 | 建立验证基线：测试 harness + 表征测试 + lint/typecheck + CI（发现 26） | P1 | L | none（先于任何重构） | DONE（7 套件 24 测试全过 + vue-tsc/biome 脚本 + GitHub Actions） |
+| 005 | 暴露面收敛：会话/task/files 鉴权 + 绑定 127.0.0.1 + DEBUG=false 校验（发现 4、5） | P2 | S | 001 | DONE（config/.env 收紧 + 会话隔离） |
+| 006 | 沙箱默认 Docker + 容器加固（发现 3） | P2 | M | none | DONE（docker 默认 + 回退告警 + cap-drop/pids/read-only + connect_ex 补丁） |
+| 007 | 检索性能与融合数学（发现 21、22、24、25） | P2 | M | none | DONE（test_retriever_fusion 8/8；手工 CRUD 失效钩子为遗留项） |
+| 008 | SQLite 连接复用（发现 23） | P2 | S | none | DONE（threading.local + close；test_sqlite_store 通过） |
+| 009 | 前端批量修复（发现 8、14-20） | P2 | M | none | DONE（vue-tsc 零错误；biome 424 项为既有问题） |
+| 010 | 验证基线补齐：pytest 套件 + CI（发现 26） | P1 | L | 005/007/009 | DONE（7 套件全部通过 + ci.yml） |
+| 011 | 依赖治理 + 部署修复 + 卫生（发现 27、28、30、32、33） | P2 | M | none | DONE（poetry.lock 因本机无 poetry 遗留，见计划 Implementation notes） |
 | 012 | 文档权威校准（发现 29） | P2 | S | none | DONE |
+
+## Remaining follow-ups (not planned in this batch)
+
+- **发现 31（god files 拆分）**：依赖测试基线稳定 + 单独重构轮次，本轮未动（L 工作量、MED 风险）；测试基线现已就位（010），可择机立项。
+- **发现 32 的后半（export_routes.py markdown 剥离器与 marked 不一致）**：低风险低收益，未改；如导出质量投诉再立项。
+- **biome 424 项既有 lint 问题**：未在本轮修复（范围外），`pnpm lint` 已接线，可逐步消化或加 baseline。
+- **poetry.lock**：本机无 poetry；在装有 poetry 的环境执行 `poetry lock` 后入库。
+- **手工知识库 CRUD 的检索失效钩子**：B 子代理记录的遗留（reindex/import 已接，手工 create/update/delete 未接）。
+- **pnpm approve-builds**：fresh install 需 `onlyBuiltDependencies`（已写入 package.json）；本机 esbuild 二进制因沙箱 EPERM 无法重建，用户环境正常 `pnpm install` 即可。
 
 ## Findings considered and rejected
 
