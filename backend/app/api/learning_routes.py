@@ -89,9 +89,12 @@ async def complete_unit(unit_id: str, req: UnitCompleteRequest):
     )
     tracker.update_from_event(req.user_id, event)
 
-    # 记录到成就系统
+    # 记录到成就系统 + 持久化(学习事件唯一事实源)
     achievement_service = get_achievement_service()
     achievement_service.add_event(event)
+    get_learning_store().add_event(
+        unit_id=unit_id, event_type="learn", score=1.0, user_id=req.user_id,
+    )
 
     # 更新单元状态
     unit.status = UnitStatus.COMPLETED
@@ -138,6 +141,7 @@ from ..learning.quiz_bank import (  # noqa: E402
     categories_summary, get_by_unit, get_question, list_questions, public_view,
 )
 from ..services.practice_store import get_practice_store  # noqa: E402
+from ..services.learning_store import get_learning_store  # noqa: E402
 
 MAX_QUIZ_PER_ROUND = 100
 
@@ -277,6 +281,11 @@ async def quiz_answer(req: QuizAnswerRequest):
     )
     get_mastery_tracker().update_from_event(req.user_id, event)
     get_achievement_service().add_event(event)
+    # 持久化练习事件(热力图/连续天数/成就的数据源)
+    get_learning_store().add_event(
+        unit_id=q["unit_id"], event_type="practice",
+        score=1.0 if correct else 0.0, user_id=req.user_id,
+    )
 
     return QuizAnswerResponse(
         question_id=req.question_id,
