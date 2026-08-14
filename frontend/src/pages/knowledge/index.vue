@@ -718,12 +718,14 @@ async function doReindex() {
 const impType = ref("problem"); const impText = ref(""); const impName = ref(""); const impFiles = ref<File[]>([]);
 const dragOver = ref(false); const fileRef = ref<HTMLInputElement | null>(null);
 const extracting = ref(false); const saving = ref(false); const extractPreview = ref(""); const extractError = ref("");
+const extractedEntryId = ref("");
 const impTypes = [{ label: "竞赛真题", value: "problem" }, { label: "方法卡片", value: "method" }, { label: "框架模板", value: "template" }];
 
 // 论文上传（独立状态，关联到已导入的题目）
 const paperText = ref(""); const paperName = ref(""); const paperFiles = ref<File[]>([]);
 const paperDragOver = ref(false); const paperFileRef = ref<HTMLInputElement | null>(null);
 const paperExtracting = ref(false); const paperSaving = ref(false); const paperPreview = ref(""); const paperError = ref("");
+const paperExtractedEntryId = ref("");
 const impTypeLabel = computed(() => impTypes.find((o) => o.value === impType.value)?.label ?? "");
 const impPlaceholder = computed(() => ({
   method: "粘贴方法描述...\n例如: 粒子群优化算法(PSO)是一种基于群体智能的启发式优化算法...",
@@ -756,7 +758,7 @@ function fmtSize(b: number) { if (b<1024) return `${b}B`; if (b<1048576) return 
 
 async function doExtract() {
   if (!impText.value.trim() && impFiles.value.length === 0) return;
-  extracting.value = true; extractError.value = ""; extractPreview.value = "";
+  extracting.value = true; extractError.value = ""; extractPreview.value = ""; extractedEntryId.value = "";
   try {
     const uploadParams: any = { text: impText.value.trim() || undefined, files: impFiles.value.length > 0 ? impFiles.value : undefined, kb_type: impType.value, name: impName.value };
     if (impType.value === 'paper' && lastProblemRef.value) {
@@ -767,7 +769,7 @@ async function doExtract() {
     while (tries < 60) {
       await new Promise(r => setTimeout(r, 1000));
       const job = await getExtractionJob(res.data.job_id);
-      if (job.data.status === "completed") { extractPreview.value = job.data.result?.yaml_content || ""; break; }
+      if (job.data.status === "completed") { extractPreview.value = job.data.result?.yaml_content || ""; extractedEntryId.value = job.data.result?.entry_id || ""; break; }
       if (job.data.status === "error") { extractError.value = job.data.error || "提取失败"; break; }
       tries++;
     }
@@ -777,23 +779,30 @@ async function doExtract() {
 }
 async function doSaveExtract() {
   saving.value = true;
-  // 从预览 YAML 中解析 entry_id
-  const yamlMatch = extractPreview.value.match(/id:\s*["']?(prob_\d+|paper_\w+|mc_\d+|tpl_\w+)["']?/);
-  const entryId = yamlMatch ? yamlMatch[1] : "";
+  // 提取完成即已入库（后端在 job 完成时返回 entry_id），此处仅校验再确认
+  const entryId = extractedEntryId.value;
 
-  await loadStats(); await new Promise(r => setTimeout(r, 500));
+  if (!entryId) {
+    extractError.value = "提取结果尚未入库，请重新提取。";
+    saving.value = false;
+    return;
+  }
+
+  await loadStats();
 
   // 如果是题目导入，记录下来，方便后续追加论文
-  if (impType.value === 'problem' && entryId) {
+  if (impType.value === 'problem') {
     lastProblemRef.value = entryId;
   }
 
-  extractPreview.value = ""; extractError.value = ""; impText.value = ""; impName.value = ""; clearAll(); saving.value = false;
+  extractPreview.value = ""; extractError.value = ""; impText.value = ""; impName.value = ""; clearAll();
+  extractedEntryId.value = "";
+  saving.value = false;
 
-  if (impType.value === 'problem' && lastProblemRef.value) {
+  if (impType.value === 'problem') {
     // 不弹 alert，让用户在追加区域操作
   } else {
-    alert("已保存到知识库,切换到「检索知识」可搜索验证。");
+    alert("已提取入库，切换到「检索知识」可搜索验证。");
   }
 }
 
@@ -817,7 +826,7 @@ function paperClearAll() { paperFiles.value = []; paperText.value = ""; paperNam
 
 async function paperDoExtract() {
   if (!paperText.value.trim() && paperFiles.value.length === 0) return;
-  paperExtracting.value = true; paperError.value = ""; paperPreview.value = "";
+  paperExtracting.value = true; paperError.value = ""; paperPreview.value = ""; paperExtractedEntryId.value = "";
   try {
     const res = await uploadKnowledge({
       text: paperText.value.trim() || undefined,
@@ -829,7 +838,7 @@ async function paperDoExtract() {
     while (tries < 60) {
       await new Promise(r => setTimeout(r, 1000));
       const job = await getExtractionJob(res.data.job_id);
-      if (job.data.status === "completed") { paperPreview.value = job.data.result?.yaml_content || ""; break; }
+      if (job.data.status === "completed") { paperPreview.value = job.data.result?.yaml_content || ""; paperExtractedEntryId.value = job.data.result?.entry_id || ""; break; }
       if (job.data.status === "error") { paperError.value = job.data.error || "提取失败"; break; }
       tries++;
     }
@@ -840,9 +849,20 @@ async function paperDoExtract() {
 
 async function paperDoSave() {
   paperSaving.value = true;
-  await loadStats(); await new Promise(r => setTimeout(r, 500));
-  paperPreview.value = ""; paperError.value = ""; paperText.value = ""; paperName.value = ""; paperClearAll(); paperSaving.value = false;
-  alert("论文已保存并关联到题目！");
+  // 提取完成即已入库（后端返回 entry_id），此处仅校验再确认
+  const entryId = paperExtractedEntryId.value;
+
+  if (!entryId) {
+    paperError.value = "提取结果尚未入库，请重新提取。";
+    paperSaving.value = false;
+    return;
+  }
+
+  await loadStats();
+  paperPreview.value = ""; paperError.value = ""; paperText.value = ""; paperName.value = ""; paperClearAll();
+  paperExtractedEntryId.value = "";
+  paperSaving.value = false;
+  alert("论文已提取入库并关联到题目！");
 }
 
 // ── shared ──────────────────────────────────────────────────────

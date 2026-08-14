@@ -33,10 +33,10 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function handleCallback(code: string): Promise<boolean> {
+  async function handleCallback(code: string, state: string): Promise<boolean> {
     loading.value = true;
     try {
-      const data = await getAuthCallback(code);
+      const data = await getAuthCallback(code, state);
       _setSession(data.access_token, data.user);
       authReady.value = true;
       return true;
@@ -86,6 +86,11 @@ export const useAuthStore = defineStore("auth", () => {
     isContributor.value = false;
     authReady.value = true;
     _saveToken(null);
+    // 登出时清理本地持久化会话与用户级偏好，避免跨账号泄露
+    try {
+      localStorage.removeItem("mma-chat-sessions");
+      localStorage.removeItem("mma:nickname");
+    } catch { /* ignore */ }
   }
 
   function _loadToken(): string | null {

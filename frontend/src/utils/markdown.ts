@@ -1,4 +1,4 @@
-import { marked } from "marked";
+import { marked, type Token } from "marked";
 import markedKatex from "marked-katex-extension";
 import DOMPurify from "dompurify";
 
@@ -130,32 +130,34 @@ function createHighlightedRenderer() {
   <div class="flex items-center justify-between px-4 py-1.5 bg-muted/50 border-b border-border">
     <span class="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">${langLabel}</span>
     <button
+      type="button"
       class="text-[11px] text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
-      onclick="navigator.clipboard.writeText(document.getElementById('${id}')?.textContent ?? '')"
+      data-code-id="${id}"
     >复制</button>
   </div>
   <pre class="!bg-[#1e1e2e] !text-[#cdd6f4] !p-4 !m-0 !overflow-x-auto !text-sm !leading-relaxed"><code id="${id}" class="language-${langLabel}">${escaped}</code></pre>
 </div>`;
   };
 
-  // 表格增强：包裹在响应式容器中
+  // 表格增强：包裹在响应式容器中（单元格用 parseInline 渲染行内格式）
   renderer.table = function ({ header, rows }: { header: any[]; rows: any[][] }) {
-    const thead = `<thead><tr>${header.map((h: any) => `<th>${h.text}</th>`).join("")}</tr></thead>`;
+    const thead = `<thead><tr>${header.map((h: any) => `<th>${renderer.parser.parseInline(h.tokens ?? [])}</th>`).join("")}</tr></thead>`;
     const tbody = `<tbody>${rows
-      .map((row: any[]) => `<tr>${row.map((cell: any) => `<td>${cell.text}</td>`).join("")}</tr>`)
+      .map((row: any[]) => `<tr>${row.map((cell: any) => `<td>${renderer.parser.parseInline(cell.tokens ?? [])}</td>`).join("")}</tr>`)
       .join("")}</tbody>`;
     return `<div class="table-wrapper overflow-x-auto my-4 rounded-lg border border-border"><table class="min-w-full">${thead}${tbody}</table></div>`;
   };
 
-  // 标题添加锚点 id（供 TOC 跳转）
-  renderer.heading = function ({ text, depth }: { text: string; depth: number }) {
+  // 标题添加锚点 id（供 TOC 跳转），正文用 parseInline 渲染行内格式
+  renderer.heading = function ({ text, tokens, depth }: { text: string; tokens: Token[]; depth: number }) {
     const id = text
       .replace(/<[^>]*>/g, "")
       .replace(/[^\w一-鿿\s-]/g, "")
       .trim()
       .toLowerCase()
       .replace(/\s+/g, "-");
-    return `<h${depth} id="${id}" class="scroll-mt-20">${text}</h${depth}>`;
+    const inner = renderer.parser.parseInline(tokens ?? []);
+    return `<h${depth} id="${id}" class="scroll-mt-20">${inner}</h${depth}>`;
   };
 
   return renderer;
@@ -163,6 +165,16 @@ function createHighlightedRenderer() {
 
 /** 带语法高亮的渲染器实例（同步部分） */
 const paperRenderer = createHighlightedRenderer();
+
+/**
+ * DOMPurify 安全配置：启用 MathML 配置（保留 KaTeX 的 MathML 无障碍输出），
+ * 并补充 KaTeX 输出集中默认未列入白名单的标签。
+ * 注意：USE_PROFILES 一旦设置会重置白名单，须显式保留 html/svg 配置以免误伤正文。
+ */
+const SANITIZE_CONFIG = {
+  USE_PROFILES: { html: true, svg: true, svgFilters: true, mathMl: true },
+  ADD_TAGS: ["semantics", "annotation", "annotation-xml"],
+};
 
 /**
  * 异步渲染 Markdown → HTML，支持代码语法高亮。
@@ -177,7 +189,7 @@ export async function renderMarkdownAsync(text: string): Promise<string> {
 
   // 先用 marked 解析（此时代码块还是纯文本）
   const raw = marked.parse(text, { renderer: paperRenderer }) as string;
-  const sanitized = DOMPurify.sanitize(raw);
+  const sanitized = DOMPurify.sanitize(raw, SANITIZE_CONFIG);
 
   cacheSet(key, sanitized);
   return sanitized;
@@ -194,7 +206,7 @@ export function renderMarkdown(text: string): string {
   if (cached !== undefined) return cached;
 
   const raw = marked.parse(text) as string;
-  const sanitized = DOMPurify.sanitize(raw);
+  const sanitized = DOMPurify.sanitize(raw, SANITIZE_CONFIG);
 
   cacheSet(key, sanitized);
   return sanitized;

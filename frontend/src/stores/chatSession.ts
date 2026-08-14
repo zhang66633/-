@@ -144,6 +144,24 @@ export const useChatSessionStore = defineStore(
       }
     }
 
+    /** 每个模式最多持久化的会话数，超出淘汰最旧（按 updatedAt）。 */
+    const MAX_SESSIONS_PER_MODE = 60;
+
+    function trimSessions(mode: SessionMode) {
+      const list = getSessions(mode).value;
+      if (list.length <= MAX_SESSIONS_PER_MODE) return;
+      // 按 updatedAt 降序，保留最新 N 条，就地淘汰最旧会话
+      const keepIds = new Set(
+        [...list]
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .slice(0, MAX_SESSIONS_PER_MODE)
+          .map((s) => s.id),
+      );
+      for (let i = list.length - 1; i >= 0; i--) {
+        if (!keepIds.has(list[i].id)) list.splice(i, 1);
+      }
+    }
+
     function createSession(mode: SessionMode): string {
       const id = genId();
       const titleMap: Record<SessionMode, string> = {
@@ -163,6 +181,7 @@ export const useChatSessionStore = defineStore(
       };
       getSessions(mode).value.push(session);
       setActiveId(mode, id);
+      trimSessions(mode);
       return id;
     }
 

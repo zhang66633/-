@@ -11,6 +11,7 @@ const KATEX_CSS = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
 const KATEX_JS = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js";
 const KATEX_AUTO = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js";
 const MARKED_JS = "https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js";
+const DOMPURIFY_JS = "https://cdn.jsdelivr.net/npm/dompurify@3.4.12/dist/purify.min.js";
 
 function escapeHtml(s: string): string {
   return s
@@ -19,6 +20,11 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/** 将字符串序列化为可安全嵌入 <script> 的 JSON：转义 `<` 为 \u003c，杜绝 </script> 逃逸。 */
+function jsonForScript(value: string): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 const PRINT_HTML_TEMPLATE = (title: string, markdown: string) => `<!DOCTYPE html>
@@ -129,15 +135,25 @@ const PRINT_HTML_TEMPLATE = (title: string, markdown: string) => `<!DOCTYPE html
   <script src="${MARKED_JS}"></script>
   <script src="${KATEX_JS}"></script>
   <script src="${KATEX_AUTO}"></script>
+  <script src="${DOMPURIFY_JS}"></script>
+
+  <!-- markdown 原文：以 JSON 数据块承载，避免内联 <script> 被 </script> 逃逸注入 -->
+  <script type="application/json" id="raw-md">${jsonForScript(markdown)}</script>
   <script>
-    const RAW_MD = ${JSON.stringify(markdown)};
-    const TITLE = ${JSON.stringify(title)};
+    const RAW_MD = JSON.parse(document.getElementById("raw-md").textContent);
+    const TITLE = ${jsonForScript(title)};
 
     // 配置 marked: 启用 GFM + 不在跨行 \$ 上炸错
     marked.setOptions({ gfm: true, breaks: false });
 
     function render() {
-      const html = marked.parse(RAW_MD);
+      const rawHtml = marked.parse(RAW_MD);
+      // 渲染前用 DOMPurify 消毒（保留 MathML 供 KaTeX 无障碍输出）
+      const html = DOMPurify.sanitize(rawHtml, {
+        USE_PROFILES: { html: true, svg: true, svgFilters: true, mathMl: true },
+        ADD_TAGS: ["semantics", "annotation", "annotation-xml"],
+        ADD_ATTR: ["xmlns"],
+      });
       const content = document.getElementById("content");
       content.innerHTML =
         '<div class="doc-header">' +
@@ -184,6 +200,10 @@ export function exportPaperAsPDF(opts: { title: string; markdown: string }): voi
     alert("浏览器拦截了新窗口，请在地址栏允许弹窗后重试。");
     return;
   }
+  // 阻断子窗口对父窗口的引用（防跨窗口窃取 localStorage），部分浏览器可能抛错，忽略
+  try {
+    w.opener = null;
+  } catch { /* ignore */ }
   w.document.open();
   w.document.write(PRINT_HTML_TEMPLATE(opts.title, opts.markdown));
   w.document.close();

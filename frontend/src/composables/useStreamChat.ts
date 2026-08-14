@@ -2,9 +2,9 @@
  *
  * 负责：会话创建/复用、用户消息与 agent 占位消息写入、
  * 调 SSE 接口并流式就地累加、工具调用可视化、运行态管理、最新会话恢复、
- * SSE 断连自动重试（指数退避，最多 3 次）。
+ * 按会话记录 AbortController，卸载/失活时中止进行中的流。
  */
-import { ref } from "vue";
+import { onUnmounted, onDeactivated } from "vue";
 import { useChatSessionStore, type SessionMode } from "@/stores/chatSession";
 import { streamChat, type ChatHistoryMessage, type ChatFileRef } from "@/apis/chatApi";
 import type { Message } from "@/types/response";
@@ -15,16 +15,28 @@ function generateId() {
 
 export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "learning" | "qa" | "practice") {
   const chatSession = useChatSessionStore();
-  const abortController = ref<AbortController | null>(null);
+  // 每次发送独立 AbortController，按 (mode, sessionId) 键控，避免并发会话互串
+  const abortControllers = new Map<string, AbortController>();
+
+  function controllerKey(sessionId: string): string {
+    return `${sessionMode}:${sessionId}`;
+  }
+
+  /** 中止本模式所有进行中的流式请求。 */
+  function abortAllStreams() {
+    for (const controller of abortControllers.values()) controller.abort();
+    abortControllers.clear();
+    chatSession.setRunning(null);
+  }
 
   /** 取消当前正在进行的流式请求。 */
   function cancelStream() {
-    if (abortController.value) {
-      abortController.value.abort();
-      abortController.value = null;
-    }
-    chatSession.setRunning(null);
+    abortAllStreams();
   }
+
+  // 卸载或 keepAlive 失活时中止进行中的流，避免后台继续写入
+  onUnmounted(abortAllStreams);
+  onDeactivated(abortAllStreams);
 
   /** 当前会话消息 → 后端历史格式（仅 user/assistant，跳过流式中的空消息）。 */
   function buildHistory(): ChatHistoryMessage[] {
@@ -43,9 +55,9 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
       sessionId = chatSession.createSession(sessionMode);
     }
 
-    // 创建 AbortController 用于取消
+    // 创建 AbortController 用于取消，按会话记录
     const controller = new AbortController();
-    abortController.value = controller;
+    abortControllers.set(controllerKey(sessionId), controller);
 
     const userMsg: Message = {
       id: generateId(),
@@ -163,7 +175,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
         }
       },
       onDone(taskId?: string) {
-        abortController.value = null;
+        abortControllers.delete(controllerKey(sessionId));
         const id = ensureAgentMsg();
         const doneContent = acc || "（未收到回复内容）";
         chatSession.updateMessage(sessionMode, sessionId, id, {
@@ -183,7 +195,7 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
         }
       },
       onError(message) {
-        abortController.value = null;
+        abortControllers.delete(controllerKey(sessionId));
         const id = ensureAgentMsg();
         // 用户主动取消时不显示错误
         if (controller.signal.aborted) {
@@ -200,26 +212,6 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
         chatSession.setRunning(null);
       },
     });
-
-    // 返回后检查是否需要重试（SSE 断连自动重连）
-    return { retry: false };
-  }
-
-  /** SSE 断连自动重试（指数退避，最多 3 次） */
-  async function handleUserSendWithRetry(text: string, files?: ChatFileRef[], unitContext?: Record<string, unknown>) {
-    let retries = 0;
-    const maxRetries = 3;
-    while (retries <= maxRetries) {
-      try {
-        await handleUserSend(text, files, unitContext);
-        return;
-      } catch (e: any) {
-        if (retries >= maxRetries || e?.name === "AbortError") throw e;
-        retries++;
-        const delay = Math.min(1000 * 2 ** retries, 8000);
-        await new Promise((r) => setTimeout(r, delay));
-      }
-    }
   }
 
   /** 无激活会话时，切到最近一条会话（供 onMounted 调用）。 */
@@ -235,5 +227,5 @@ export function useStreamChat(sessionMode: SessionMode, chatMode: "chat" | "lear
     }
   }
 
-  return { handleUserSend, handleUserSendWithRetry, restoreLatestSession, cancelStream };
+  return { handleUserSend, restoreLatestSession, cancelStream };
 }

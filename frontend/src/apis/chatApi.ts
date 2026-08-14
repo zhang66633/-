@@ -147,13 +147,18 @@ export async function streamChat(
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
-      const frames = buffer.split("\n\n");
+      // 归一化 \r\n 后按空行切帧（SSE 事件以空行分隔）
+      const frames = buffer.replace(/\r\n/g, "\n").split("\n\n");
       buffer = frames.pop() ?? "";
 
       for (const frame of frames) {
-        const line = frame.trim();
-        if (!line.startsWith("data:")) continue;
-        const payload = line.slice(5).trim();
+        // 聚合同一事件内的多行 data: 字段（以 \n 拼接）
+        const dataLines: string[] = [];
+        for (const line of frame.split("\n")) {
+          if (line.startsWith("data:")) dataLines.push(line.slice(5).replace(/^ /, ""));
+        }
+        if (dataLines.length === 0) continue;
+        const payload = dataLines.join("\n");
 
         if (payload === "[DONE]") {
           onDone?.(finalTaskId);
@@ -187,8 +192,8 @@ export async function streamChat(
           if (obj.thinking) {
             onThinking?.(obj.thinking);
           }
-        } catch {
-          // 非 JSON 帧，忽略
+        } catch (e) {
+          console.warn("SSE 帧 JSON 解析失败:", payload, e);
         }
       }
     }

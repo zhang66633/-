@@ -77,6 +77,17 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") emit("close");
 }
 
+// 代码块复制：事件委托处理 data-code-id 按钮（onclick 会被 DOMPurify 剥离，故改用委托）
+async function onContentClick(e: MouseEvent) {
+  const btn = (e.target as Element | null)?.closest<HTMLElement>("[data-code-id]");
+  if (!btn) return;
+  const codeId = btn.dataset.codeId;
+  if (!codeId) return;
+  try {
+    await navigator.clipboard.writeText(document.getElementById(codeId)?.textContent ?? "");
+  } catch { /* 剪贴板不可用则忽略 */ }
+}
+
 onMounted(() => {
   document.addEventListener("keydown", onKeydown);
   document.body.style.overflow = "hidden";
@@ -118,6 +129,7 @@ onBeforeUnmount(() => {
                 fontSize === 'sm' ? 'prose-sm' : fontSize === 'lg' ? 'prose-lg' : '',
               ]"
               v-html="renderedHtml"
+              @click="onContentClick"
             />
           </div>
         </div>

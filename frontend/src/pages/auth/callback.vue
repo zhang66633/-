@@ -34,9 +34,8 @@ const error = ref("");
 
 onMounted(async () => {
   const code = route.query.code as string;
+  const state = route.query.state as string;
   const err = route.query.error as string;
-
-  console.log("[OAuth Callback] query:", route.query);
 
   if (err) {
     error.value = `GitHub 授权被拒绝: ${err}`;
@@ -44,13 +43,13 @@ onMounted(async () => {
     return;
   }
 
-  if (!code) {
-    error.value = "缺少授权码，请确认 GitHub OAuth App 的回调地址配置正确";
+  if (!code || !state) {
+    error.value = "缺少授权参数，请重新登录";
     loading.value = false;
     return;
   }
 
-  const ok = await auth.handleCallback(code);
+  const ok = await auth.handleCallback(code, state);
   if (ok) {
     router.replace("/");
   } else {
