@@ -78,7 +78,6 @@
           :input-placeholder="`向${agentName}提问...`"
           :prefill-text="prefillText"
           :session-title="chatSession.activeLearningSession?.title"
-          :quick-actions="quickActions"
           cancellable @send="handleSend" @cancel="cancelStream"
           @clear="chatSession.clearSession('learning')"
           @new-session="chatSession.newSession('learning')" />
@@ -190,23 +189,6 @@ const unitContext = computed(() => {
 function handleSend(text: string) {
   handleUserSend(text, undefined, unitContext.value);
 }
-
-// ── 上下文感知快捷提问(随当前滚动到的章节动态变化) ──
-const quickActions = computed(() => {
-  const h = headings.value.find((x) => x.id === activeHeading.value);
-  const section = h?.text || unit.value?.title || "这一部分";
-  const base = `关于「${section}」`;
-  return [
-    { label: "解释这一段", text: `${base},请解释一下核心内容。` },
-    { label: "举一个例子", text: `${base},请举一个具体的例子。` },
-    { label: "用更简单的话解释", text: `${base},请用更简单的话解释。` },
-    {
-      label: "检查我的理解",
-      text: `${base},我来说说我的理解,你帮我检查是否正确。`,
-    },
-    { label: "生成一道练习题", text: `${base},请给我出一道练习题并批改。` },
-  ];
-});
 
 function onQuizComplete(p: { correct: number; total: number }) {
   toast(

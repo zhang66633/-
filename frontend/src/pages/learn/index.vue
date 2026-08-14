@@ -22,6 +22,9 @@ const chatSession = useChatSessionStore();
 const onboardingStore = useOnboardingStore();
 const profileStore = useProfileStore();
 const wizard = ref<InstanceType<typeof OnboardingWizard>>();
+const hubChatPanel = ref<InstanceType<typeof ChatPanel>>();
+// 聊天面板开合(组件实例暴露的 open 是响应式的),收起时显示空白区水印
+const hubChatOpen = computed(() => hubChatPanel.value?.open ?? false);
 const { handleUserSend, restoreLatestSession, cancelStream } = useStreamChat(
   "learning",
   "learning",
@@ -113,6 +116,7 @@ const hubQuickActions = [
       <!-- 主内容区: 技能树 + AI 对话(面板化,返回时默认隐藏) -->
       <div class="flex-1 min-h-0">
         <ChatPanel
+          ref="hubChatPanel"
           storage-key="hub-chat"
           :default-width="380"
           button-label="💬 助手"
@@ -120,30 +124,46 @@ const hubQuickActions = [
           class="h-full"
         >
           <template #main>
-            <!-- 左侧技能树(可折叠,折叠按钮两态固定在底部) -->
-            <div
-              class="h-full shrink-0 border-r flex flex-col transition-all duration-200"
-              :class="treeOpen ? 'w-64' : 'w-10'"
-            >
-              <div v-if="treeOpen" class="flex-1 overflow-y-auto p-4 min-h-0">
-                <SkillGraph
-                  :categories="store.skillTree"
-                  :title="`${roleLabel}技能树`"
-                  :loading="store.loading"
-                  :error="store.error"
-                  @select="handleUnitSelect"
-                />
-              </div>
-              <!-- 收起态占位,保证按钮不跳到顶部 -->
-              <div v-else class="flex-1" />
-              <button
-                class="flex shrink-0 items-center justify-center border-t py-2 transition-colors hover:bg-accent/50"
-                :title="treeOpen ? '折叠技能树' : '展开技能树'"
-                @click="treeOpen = !treeOpen"
+            <div class="h-full flex min-w-0">
+              <!-- 左侧技能树(可折叠,折叠按钮两态固定在底部) -->
+              <div
+                class="h-full shrink-0 border-r flex flex-col transition-all duration-200"
+                :class="treeOpen ? 'w-72' : 'w-10'"
               >
-                <PanelLeftOpen v-if="treeOpen" class="h-3.5 w-3.5 text-muted-foreground" />
-                <PanelLeft v-else class="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
+                <div v-if="treeOpen" class="flex-1 overflow-y-auto p-4 min-h-0">
+                  <SkillGraph
+                    :categories="store.skillTree"
+                    :title="`${roleLabel}技能树`"
+                    :loading="store.loading"
+                    :error="store.error"
+                    @select="handleUnitSelect"
+                  />
+                </div>
+                <!-- 收起态占位,保证按钮不跳到顶部 -->
+                <div v-else class="flex-1" />
+                <button
+                  class="flex shrink-0 items-center justify-center border-t py-2 transition-colors hover:bg-accent/50"
+                  :title="treeOpen ? '折叠技能树' : '展开技能树'"
+                  @click="treeOpen = !treeOpen"
+                >
+                  <PanelLeftOpen v-if="treeOpen" class="h-3.5 w-3.5 text-muted-foreground" />
+                  <PanelLeft v-else class="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </div>
+
+              <!-- 聊天收起时的空白区水印 -->
+              <div
+                v-if="!hubChatOpen"
+                class="flex-1 flex flex-col items-center justify-center gap-3 select-none pointer-events-none"
+              >
+                <span class="text-4xl opacity-30">🧭</span>
+                <p class="font-display text-xl text-muted-foreground/50">学习工位</p>
+                <p class="text-xs leading-relaxed text-muted-foreground/35 text-center">
+                  从左侧技能树选择一个知识点开始学习<br />
+                  点进资料后,AI 助手会在右侧为你答疑<br />
+                  点右下角「💬 助手」随时召唤
+                </p>
+              </div>
             </div>
           </template>
 
