@@ -15,6 +15,11 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5174,
+      // 开发期强制不缓存: 部分浏览器(360/搜狗/Edge 增强缓存)会忽略 no-cache
+      // 导致「框架是旧的、资料空白」类问题,no-store 从根上禁止复用缓存
+      headers: {
+        "Cache-Control": "no-store",
+      },
       proxy: {
         "/api": {
           target: `http://127.0.0.1:${backendPort}`,
