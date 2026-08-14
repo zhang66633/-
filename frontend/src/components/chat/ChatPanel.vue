@@ -89,9 +89,10 @@ function startResize(e: MouseEvent) {
   const startWidth = width.value;
 
   moveHandler = (ev: MouseEvent) => {
+    // 右面板: 拖左(分隔条左移)变大, 拖右变小
     const next = Math.min(
       props.max,
-      Math.max(props.min, startWidth + (ev.clientX - startX)),
+      Math.max(props.min, startWidth + (startX - ev.clientX)),
     );
     width.value = next;
   };

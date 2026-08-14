@@ -2,7 +2,6 @@
 import ClarifyCard from "@/components/ClarifyCard.vue";
 import type { ClarifyMessage, Message } from "@/types/response";
 import { computed } from "vue";
-import BubbleAvatar from "./BubbleAvatar.vue";
 
 const props = defineProps<{
   message: Message;
@@ -33,7 +32,10 @@ const timestamp = computed(() => {
 <template>
   <div class="flex gap-3 w-full my-2 animate-in fade-in slide-in-from-bottom-2">
     <div class="flex shrink-0 flex-col items-center self-start pt-0.5">
-      <BubbleAvatar :message="message" />
+      <!-- 轻量提示图标: 弱化边框与颜色, 不抢占视觉 -->
+      <div class="flex h-8 w-8 items-center justify-center rounded-full border border-muted/60 bg-muted/30 text-xs text-muted-foreground">
+        ?
+      </div>
     </div>
     <div class="flex-1 min-w-0">
       <div class="flex flex-col items-start">

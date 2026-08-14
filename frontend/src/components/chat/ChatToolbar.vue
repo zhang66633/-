@@ -8,7 +8,7 @@
     </span>
     <div class="flex shrink-0 items-center gap-1">
       <button
-        v-if="messagesCount > 0"
+        v-if="(messagesCount ?? 0) > 0"
         class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         title="清空当前会话"
         @click="$emit('clear')"

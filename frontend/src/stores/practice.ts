@@ -228,6 +228,7 @@ export const usePracticeStore = defineStore("practice", () => {
     session,
     sessionIndex,
     answers,
+    sessionStartAt,
     sessionDone,
     roundId,
     mistakes,

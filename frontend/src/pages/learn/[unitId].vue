@@ -149,7 +149,7 @@ const prefillText = ref("");
 // ── 问AI ───────────────────────────────────────────
 
 function handleAskAI(text: string, section: string) {
-  chatOpen.value = true;
+  chatPanel.value?.expand();
   prefillText.value = `关于「${section || unit.value?.title || ""}」中的这段话：\n\n> ${text}\n\n请帮我解释一下。`;
 }
 

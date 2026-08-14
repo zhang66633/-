@@ -430,6 +430,7 @@ const inSession = computed(
 const sessionDone = computed(() => store.sessionDone);
 const currentQuestion = computed(() => store.currentQuestion);
 const statusCounts = computed(() => store.statusCounts);
+const bankTotal = computed(() => store.bankTotal);
 const filteredBank = computed(() => store.filteredBank);
 const optionItems = computed(() =>
   (currentQuestion.value?.options ?? []).map((label) => ({ label })),
