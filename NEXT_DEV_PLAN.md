@@ -1,0 +1,168 @@
+# 后续开发计划与双人分工（NEXT_DEV_PLAN）
+
+> 版本 v1.0 · 2026-08-14 · 基线 commit `29707f0`
+> 用途：代码审查修复收尾后的完成度评估 + 后续方向 + **双人开发代码分区（互不重叠）**。
+> 权威依据：`RULES.md`（硬约束）、`PLAN.md`、`RESOURCES_AND_ROADMAP.md`、`.mstar/plans/audit-2026-08-14/README.md`（本次审计结论）。
+
+---
+
+## 一、完成度评估
+
+### 1.1 已交付且已修复（✅ 稳定）
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| 论文工作台（chat/teach/solution/knowledge/apikeys/settings） | ✅ | SSE 对话、多智能体流水线、知识库 CRUD、OAuth 登录 |
+| 学习中心（learn/learn:unitId/practice/qa/progress） | ✅ | 三栏学习单元、训练场、答疑室、成长档案 |
+| 7 智能体 + persona | ✅ | 名字/emoji/教学风格 |
+| 学习内容（61 单元 / 62 条 CONTENT_LIBRARY） | ✅ | 7 大方法类别 |
+| 知识库混合检索（向量+BM25+RRF+MMR+LLM精排） | ✅ | 排序数学已抽 `knowledge/ranking.py` 并修双重反转 |
+| 贝叶斯知识追踪 + 艾宾浩斯遗忘 | ✅ | 衰减已幂等化（`peak_mastery` 派生） |
+| 沙箱代码执行 | ✅ | Docker 默认硬隔离 + 无 Docker 回退告警 |
+| 数据文件预计算 + 附件提取 | ✅ | parquet 秒级加载 |
+| Web 搜索 / 澄清交互 | ✅ | DuckDuckGo / ask_user 选项卡片 |
+| GitHub OAuth + JWT | ✅ | 已加 state 防 CSRF、会话按用户隔离 |
+| 测试基线 + CI + lint | ✅ | 9 套件 33 用例、GitHub Actions、vue-tsc/biome 接线 |
+| 安全加固 | ✅ | 路径穿越/SSRF/XSS/沙箱/暴露面全修复（见审计索引） |
+
+### 1.2 半成品（⚠️ 代码在但未接线 / 未验证）
+
+| 模块 | 现状 | 缺口 |
+|------|------|------|
+| docker 全栈部署 | compose/nginx/Dockerfile 断点已修 | **未真机验证**（`docker compose up` 未跑通） |
+| 成就系统 | `achievement_service.py` 已实现 | 纯内存、重启清零，未接 SQLite 与 `/progress` 展示 |
+| 论文质检 | `scripts/paper_quality_check.py`（12 项评分） | 未接入 API/前端，仅手工脚本 |
+| DDA 动态难度 | README 声称、`mastery_tracker` 有部分支撑 | 需核验是否完整实现难度自适应 |
+
+### 1.3 未实现（❌ 待立项）
+
+| 方向 | 依据 | 优先级建议 |
+|------|------|-----------|
+| 导师模式（教师查看学生进度） | ARCHITECTURE 明示二期 | P2 |
+| 智能体插话协作 | ARCHITECTURE Phase 4 | P3 |
+| LaTeX 论文导出 | `export_routes.py` 已有 DOCX 管线，相邻可能 | P1 |
+| 对话导出 / 论文模板选择 / 多模型对比 | RESOURCES 5.2 功能缺口 | P3-P4 |
+
+### 1.4 技术债遗留（非缺陷，低优先）
+
+- `noExplicitAny` 107 处（warn 级，需专门类型化轮）
+- `poetry.lock`（在装 poetry 的环境执行 `poetry lock` 入库）
+- 真机验证 4 项：`pnpm build`、`docker compose config`、OAuth 登录、curl 路径穿越 400
+
+---
+
+## 二、后续开发方向（按优先级）
+
+| # | 方向 | 落点 | 工作量 | 依赖 |
+|---|------|------|--------|------|
+| 1 | docker 部署真机验证补全 | 后端/部署 | S | 无 |
+| 2 | 论文质检闭环（接入 `/solution` 完成反馈） | 跨层 | M | 无 |
+| 3 | LaTeX 论文导出 | 后端 API | S | 无 |
+| 4 | 成就系统持久化 + `/progress` 展示 | 跨层 | M | 无 |
+| 5 | 导师模式 | 跨层 | L | 4 |
+| 6 | DDA 核验与补全 | 后端学习 | S | 无 |
+| 7 | noExplicitAny 类型化清理 | 前端 | M | 无 |
+| 8 | 智能体插话 / 对话导出 / 多模型对比 | 跨层 | L | 视需 |
+
+---
+
+## 三、双人开发分工（代码分区，互不重叠）
+
+> 核心原则：**按目录垂直切分**，每人只改自己名下的目录/文件；跨层功能通过「接口契约先行」协作，谁都不进对方目录。
+
+### 3.1 开发者 A —— 后端 + 部署 + 接口契约
+
+**独占目录（B 不得改动）**：
+
+```
+backend/app/**            # 全部后端（api/core/knowledge/learning/sandbox/tools/services/auth）
+backend/tests/**
+backend/scripts/**
+backend/knowledge_base/** # 知识库 YAML 源数据
+backend/pyproject.toml
+backend/pytest.ini
+docker-compose.yml
+nginx.conf
+backend/Dockerfile*
+```
+
+**A 负责的方向**：#1 docker 部署、#2 论文质检后端 API、#3 LaTeX 导出、#4 成就持久化后端、#5 导师模式后端、#6 DDA。
+
+### 3.2 开发者 B —— 前端 + UI/UX
+
+**独占目录（A 不得改动）**：
+
+```
+frontend/src/**           # 全部前端（pages/components/stores/composables/apis/utils/config）
+frontend/package.json
+frontend/pnpm-lock.yaml
+frontend/biome.json
+frontend/tailwind.config.js
+frontend/vite.config.ts
+frontend/tsconfig*.json
+```
+
+**B 负责的方向**：#2 论文质检前端展示、#4 成就 `/progress` 展示、#5 导师模式前端、#7 noExplicitAny 清理、#8 智能体插话/对话导出前端。
+
+### 3.3 共享文件（改动须对方知会，禁止静默改）
+
+| 文件 | 规则 |
+|------|------|
+| `RULES.md` / `AGENTS.md` / `.gitignore` | 只能由提议方改动并同步告知对方 |
+| `NEXT_DEV_PLAN.md`（本文档） | 每次分工/状态变更由双方共同更新 |
+| 根文档（README/PLAN/RESOURCES_AND_ROADMAP） | A 改后端相关、B 改前端相关，冲突时沟通 |
+
+### 3.4 跨层功能的协作协议（避免「代码重复」）
+
+对于同时涉及前后端的功能（质检、成就、导师模式），按此顺序：
+
+1. **A 先定义接口契约**：在 `backend/app/api/` 实现路由的同时，把请求/响应 JSON 结构写进本文档「接口契约」小节（或 `docs/api/`），并给出可 `curl` 的 mock 响应示例。
+2. **B 照契约并行开发前端**：不等待 A 完成，用契约里的 JSON 结构写 `frontend/src/apis/` 调用层 + 页面，先用本地 mock 数据联调。
+3. **合流**：双方各自提交，联调只发生在「接口路径 + 字段名」这个契约层，不产生代码重叠。
+
+**铁律**：同一功能的前后端代码分属两人目录，天然不重复；唯一共享的「契约文本」由 A 负责起草、B 负责引用，不作为可执行代码重复实现。
+
+---
+
+## 四、接口契约（本轮优先落定）
+
+> 方向 #2 论文质检 与 #3 LaTeX 导出的契约，A 先按此定稿，B 据此并行。
+
+### 4.1 论文质检
+
+```
+POST /api/export/quality-check        # 或复用 /api/tasks/{task_id}/quality
+请求: { "markdown": "论文全文 markdown" }
+响应: {
+  "total": 100,
+  "scores": { "问题重述": 16, "模型假设": 12, ... },   // 12 项，按 paper_quality_check.py
+  "suggestions": ["建议1", "建议2"]
+}
+```
+
+### 4.2 LaTeX 导出
+
+```
+POST /api/export/latex
+请求: { "markdown": "论文全文", "title": "标题" }
+响应: { "latex": "\\documentclass...", "download_url": "/api/export/latex/{id}.tex" }
+```
+
+### 4.3 成就
+
+```
+GET  /api/profile/achievements        # 用户已解锁成就 + 进度
+响应: { "achievements": [ {"id":"first_solve","name":"首次求解","unlocked":true,"progress":1} ] }
+```
+
+> 以上契约为草案，A 落地时若有调整，**先在本文档更新**再改后端，B 以文档为准。
+
+---
+
+## 五、协作纪律（沿用 RULES）
+
+- 直接推 `main`，**先 `git pull` 再 `git push`**；冲突本地 merge 解决，禁止 force-push / rebase。
+- 提交格式 `type: 中文描述`（feat/fix/chore/docs/refactor）。
+- 不改对方目录；共享文件改动必须先沟通。
+- 后端改动跑 `cd backend && python -m pytest`；前端改动跑 `cd frontend && pnpm typecheck && pnpm lint`。
+- 每个方向功能完成后，双方在本文档「完成度评估」对应行打勾并更新 `RESOURCES_AND_ROADMAP.md`。
