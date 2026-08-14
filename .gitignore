@@ -64,3 +64,7 @@ backend/_start.bat
 # pnpm store 娈嬬暀
 .pnpm-store/
 
+
+# 项目虚拟环境
+.venv/
+
