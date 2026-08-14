@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import threading
-import re as _re
-from collections import defaultdict
 from pathlib import Path
-from typing import ClassVar, List, Optional, Sequence
+from typing import ClassVar
 
 import numpy as np
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
@@ -36,8 +34,8 @@ class HybridRetriever(BaseRetriever):
     # BaseRetriever 是 pydantic 模型，字段必须先声明才能赋值
     embedder: KBEmbedder
     loader: KnowledgeBaseLoader
-    _vector_store: Optional[object] = None
-    _bm25: Optional[BM25Okapi] = None
+    _vector_store: object | None = None
+    _bm25: BM25Okapi | None = None
     _bm25_docs: list[Document] = []
     _bm25_tokens: list[list[str]] = []
 
@@ -66,8 +64,8 @@ class HybridRetriever(BaseRetriever):
         self,
         query: str,
         k: int = 5,
-        metadata_filter: Optional[dict] = None,
-    ) -> List[tuple[Document, float]]:
+        metadata_filter: dict | None = None,
+    ) -> list[tuple[Document, float]]:
         """Vector similarity search returning (document, distance_score) tuples.
 
         Lower distance = more relevant.  Scores are L2 distances from ChromaDB.
@@ -76,20 +74,16 @@ class HybridRetriever(BaseRetriever):
         if metadata_filter:
             search_kwargs["filter"] = metadata_filter
 
-        return self.vector_store.similarity_search_with_score(
-            query, k=k, filter=metadata_filter
-        )
+        return self.vector_store.similarity_search_with_score(query, k=k, filter=metadata_filter)
 
     def similarity_search(
         self,
         query: str,
         k: int = 5,
-        metadata_filter: Optional[dict] = None,
-    ) -> List[Document]:
+        metadata_filter: dict | None = None,
+    ) -> list[Document]:
         """Vector similarity search without scores."""
-        return self.vector_store.similarity_search(
-            query, k=k, filter=metadata_filter
-        )
+        return self.vector_store.similarity_search(query, k=k, filter=metadata_filter)
 
     # ── BaseRetriever override ─────────────────────────────────────────
 
@@ -97,9 +91,9 @@ class HybridRetriever(BaseRetriever):
         self,
         query: str,
         *,
-        run_manager: Optional[CallbackManagerForRetrieverRun] = None,
+        run_manager: CallbackManagerForRetrieverRun | None = None,
         **kwargs,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Multi-path retrieval: (vector + BM25 + query variants) → RRF → MMR → LLM rerank → time decay.
 
         Keyword Args:
@@ -125,8 +119,9 @@ class HybridRetriever(BaseRetriever):
         queries = [query]
         if use_query_expansion:
             try:
-                from .query_expander import QueryExpander
                 from ..core.llm.factory import get_llm
+                from .query_expander import QueryExpander
+
                 expander = QueryExpander(get_llm("analysis"))
                 variants = expander.expand(query)
                 if variants:
@@ -183,7 +178,6 @@ class HybridRetriever(BaseRetriever):
                 top_n=fetch_k,
             )
 
-
         # Tag results: prepend (highest confidence), deduplicate
         final_docs: list[Document] = []
         for doc in tag_docs:
@@ -216,8 +210,9 @@ class HybridRetriever(BaseRetriever):
         # ── 4. LLM precision rerank ───────────────────────────────────────
         if use_reranker and len(docs) > 1:
             try:
-                from .reranker import create_reranker
                 from ..core.llm.factory import get_llm
+                from .reranker import create_reranker
+
                 reranker = create_reranker(llm=get_llm("analysis"), batch_size=10)
                 docs = reranker.rerank(query, docs, top_k=k)
             except Exception:
@@ -233,10 +228,10 @@ class HybridRetriever(BaseRetriever):
     def _mmr_rerank(
         self,
         query: str,
-        scored_docs: List[tuple[Document, float]],
+        scored_docs: list[tuple[Document, float]],
         k: int = 5,
         lam: float = 0.5,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Maximum Marginal Relevance reranking（委托 knowledge/ranking.mmr_rerank）。
 
         lam=1.0 → pure relevance;  lam=0.0 → pure diversity。
@@ -253,7 +248,7 @@ class HybridRetriever(BaseRetriever):
             query_embedding=self._embed_query(query),
         )
 
-    def _fetch_doc_embeddings(self, docs: List[Document]) -> Optional[np.ndarray]:
+    def _fetch_doc_embeddings(self, docs: list[Document]) -> np.ndarray | None:
         """从 vector store 取文档向量（N×d）；不可用或缺失返回 None。"""
         try:
             vs = self.vector_store
@@ -268,7 +263,7 @@ class HybridRetriever(BaseRetriever):
         except Exception:
             return None
 
-    def _embed_query(self, query: str) -> Optional[np.ndarray]:
+    def _embed_query(self, query: str) -> np.ndarray | None:
         """用 vector store 的 embedding function 嵌入 query；不可用返回 None。"""
         try:
             if not query:
@@ -288,14 +283,12 @@ class HybridRetriever(BaseRetriever):
 
     # ── tag filtering ──────────────────────────────────────────────────
 
-    def _filter_by_tags(
-        self, problem_type: Optional[str], k: int
-    ) -> List[Document]:
+    def _filter_by_tags(self, problem_type: str | None, k: int) -> list[Document]:
         """Exact-match tag filtering: returns complete documents with scores."""
         if not problem_type:
             return []
 
-        results: List[Document] = []
+        results: list[Document] = []
 
         # Method cards
         cards = self.loader.get_methods_by_category(problem_type)
@@ -329,7 +322,7 @@ class HybridRetriever(BaseRetriever):
 
     # ── keyword fallback (no embeddings required) ─────────────────────
 
-    def _keyword_search(self, query: str, k: int) -> List[Document]:
+    def _keyword_search(self, query: str, k: int) -> list[Document]:
         """关键词子串匹配兜底：向量索引不可用（未构建/无 Key）时保证基础可检索。"""
         q = query.strip().lower()
         if not q:
@@ -346,54 +339,72 @@ class HybridRetriever(BaseRetriever):
                 s += 0.5
             return s
 
-        candidates: List[tuple[Document, float]] = []
+        candidates: list[tuple[Document, float]] = []
 
         for card in self.loader.load_all_methods():
-            text = " ".join([
-                card.name, card.principle or "",
-                " ".join(card.category or []),
-                " ".join(card.applicable_when or []),
-                " ".join(card.typical_scenarios or []),
-            ])
+            text = " ".join(
+                [
+                    card.name,
+                    card.principle or "",
+                    " ".join(card.category or []),
+                    " ".join(card.applicable_when or []),
+                    " ".join(card.typical_scenarios or []),
+                ]
+            )
             s = score(text)
             if s > 0:
                 candidates.append((self._card_to_document(card), s))
 
         for paper in self.loader.load_all_papers():
-            text = " ".join([
-                paper.title or "", str(paper.year),
-                paper.competition or "",
-                (paper.analysis.get("problem_summary") or "" if isinstance(paper.analysis, dict)
-                 else getattr(paper.analysis, "problem_summary", "") if paper.analysis else ""),
-                " ".join(paper.tags.get("problem_type", []) or []),
-                " ".join(paper.tags.get("core_models", []) or []),
-            ])
+            text = " ".join(
+                [
+                    paper.title or "",
+                    str(paper.year),
+                    paper.competition or "",
+                    (
+                        paper.analysis.get("problem_summary") or ""
+                        if isinstance(paper.analysis, dict)
+                        else getattr(paper.analysis, "problem_summary", "")
+                        if paper.analysis
+                        else ""
+                    ),
+                    " ".join(paper.tags.get("problem_type", []) or []),
+                    " ".join(paper.tags.get("core_models", []) or []),
+                ]
+            )
             s = score(text)
             if s > 0:
                 candidates.append((self._paper_to_document(paper), s))
 
         for tpl in self.loader.load_all_templates():
-            text = " ".join([
-                tpl.name, " ".join(tpl.applicable_to or []),
-                " ".join(step.name for step in (tpl.steps or [])),
-            ])
+            text = " ".join(
+                [
+                    tpl.name,
+                    " ".join(tpl.applicable_to or []),
+                    " ".join(step.name for step in (tpl.steps or [])),
+                ]
+            )
             s = score(text)
             if s > 0:
                 candidates.append((self._template_to_document(tpl), s))
 
         for prob in self.loader.load_all_problems():
-            text = " ".join([
-                prob.title, str(prob.year), prob.competition or "",
-                prob.background or "",
-                " ".join(prob.objectives or []),
-                " ".join(prob.tags.get("problem_type", []) or []),
-            ])
+            text = " ".join(
+                [
+                    prob.title,
+                    str(prob.year),
+                    prob.competition or "",
+                    prob.background or "",
+                    " ".join(prob.objectives or []),
+                    " ".join(prob.tags.get("problem_type", []) or []),
+                ]
+            )
             s = score(text)
             if s > 0:
                 candidates.append((self._problem_to_document(prob), s))
 
         candidates.sort(key=lambda x: x[1], reverse=True)
-        out: List[Document] = []
+        out: list[Document] = []
         for doc, s in candidates[:k]:
             # 关键词匹配置信度低于 tag(0.85) 与向量，但保证可用
             doc.metadata["score"] = min(0.5 + 0.3 * s, 0.9)
@@ -410,9 +421,9 @@ class HybridRetriever(BaseRetriever):
         tokens.extend(words)
         # For Chinese text without spaces: use character bigrams
         for word in words:
-            if len(word) > 2 and all('一' <= c <= '鿿' for c in word):
+            if len(word) > 2 and all("一" <= c <= "鿿" for c in word):
                 for i in range(len(word) - 1):
-                    tokens.append(word[i:i+2])
+                    tokens.append(word[i : i + 2])
         if not tokens:
             tokens = [text.lower()[:100]]
         return tokens
@@ -484,7 +495,7 @@ class HybridRetriever(BaseRetriever):
     def _rrf_fusion(
         ranked_lists: list[list[Document]],
         k_constant: int = RRF_K,
-        top_n: Optional[int] = None,
+        top_n: int | None = None,
     ) -> list[Document]:
         """Reciprocal Rank Fusion（委托 knowledge/ranking.rrf_fusion）。"""
         return rrf_fusion(ranked_lists, k_constant=k_constant, top_n=top_n)
@@ -499,6 +510,7 @@ class HybridRetriever(BaseRetriever):
         Only applies to documents with a 'year' in metadata.
         """
         from datetime import datetime
+
         current_year = datetime.now().year
 
         for doc in docs:
@@ -507,7 +519,7 @@ class HybridRetriever(BaseRetriever):
             if year and doc_type in ("paper", "problem"):
                 age = max(0, current_year - int(year))
                 current_score = doc.metadata.get("score", 1.0)
-                doc.metadata["score"] = current_score * (decay ** age)
+                doc.metadata["score"] = current_score * (decay**age)
 
         # Re-sort by adjusted score
         docs.sort(key=lambda d: d.metadata.get("score", 0.0), reverse=True)
@@ -526,10 +538,12 @@ class HybridRetriever(BaseRetriever):
     def _card_to_document(card: MethodCard) -> Document:
         parts = [card.principle]
         if card.formulas:
-            parts.append("公式: " + "; ".join(
-                f.latex if hasattr(f, 'latex') and f.latex else str(f)
-                for f in card.formulas
-            ))
+            parts.append(
+                "公式: "
+                + "; ".join(
+                    f.latex if hasattr(f, "latex") and f.latex else str(f) for f in card.formulas
+                )
+            )
         if card.typical_scenarios:
             parts.append("适用场景: " + "; ".join(card.typical_scenarios))
         if card.applicable_when:
@@ -540,16 +554,14 @@ class HybridRetriever(BaseRetriever):
             parts.append(
                 "常见误用: "
                 + "; ".join(
-                    HybridRetriever._fmt_str_or_obj(m, "mistake")
-                    for m in card.common_mistakes
+                    HybridRetriever._fmt_str_or_obj(m, "mistake") for m in card.common_mistakes
                 )
             )
         if card.code_snippets:
             parts.append(
                 "代码示例: "
                 + "\n---\n".join(
-                    cs if isinstance(cs, str)
-                    else f"```{cs.language}\n{cs.code}\n```"
+                    cs if isinstance(cs, str) else f"```{cs.language}\n{cs.code}\n```"
                     for cs in card.code_snippets
                 )
             )
@@ -706,17 +718,17 @@ class HybridRetriever(BaseRetriever):
 
     @staticmethod
     def _merge_results(
-        tag_docs: List[Document],
-        vector_docs: List[Document],
+        tag_docs: list[Document],
+        vector_docs: list[Document],
         k: int,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Merge tag and vector results, deduplicating by ID.
 
         Tag results come first (deterministic, high-confidence matches),
         then vector results fill remaining slots.
         """
         seen_ids: set[str] = set()
-        merged: List[Document] = []
+        merged: list[Document] = []
 
         for doc in tag_docs + vector_docs:
             doc_id = doc.metadata.get("id")
@@ -734,7 +746,7 @@ class HybridRetriever(BaseRetriever):
 
     def as_langchain_retriever(
         self,
-        search_kwargs: Optional[dict] = None,
+        search_kwargs: dict | None = None,
     ):
         """Return self as a LangChain-compatible retriever (already is one).
 
@@ -755,11 +767,11 @@ class HybridRetriever(BaseRetriever):
 
 # ── 共享单例（跨 pipeline / search / chat 复用，避免每请求重建 BM25 + 重载 Chroma）──
 
-_shared_retriever: Optional["HybridRetriever"] = None
+_shared_retriever: HybridRetriever | None = None
 _shared_retriever_lock = threading.Lock()
 
 
-def get_shared_retriever() -> "HybridRetriever":
+def get_shared_retriever() -> HybridRetriever:
     """返回进程级共享的 HybridRetriever 单例（懒加载，BM25/Chroma 只建一次）。"""
     global _shared_retriever
     if _shared_retriever is None:

@@ -173,29 +173,35 @@ import numpy as np
 from scipy.optimize import linprog
 
 # 例题 1:运输问题(x11..x14, x21..x24, x31..x34 按行展开)
-c = [3, 11, 3, 10,  1, 9, 2, 8,  7, 4, 10, 5]
+c = [3, 11, 3, 10, 1, 9, 2, 8, 7, 4, 10, 5]
 A_eq, b_eq = [], []
-for i in range(3):                          # 3 个产地:发量约束
-    row = np.zeros(12); row[i*4:(i+1)*4] = 1
-    A_eq.append(row); b_eq.append([7, 4, 9][i])
-for j in range(4):                          # 4 个销地:收量约束
-    row = np.zeros(12); row[j::4] = 1
-    A_eq.append(row); b_eq.append([3, 6, 5, 6][j])
+for i in range(3):  # 3 个产地:发量约束
+    row = np.zeros(12)
+    row[i * 4 : (i + 1) * 4] = 1
+    A_eq.append(row)
+    b_eq.append([7, 4, 9][i])
+for j in range(4):  # 4 个销地:收量约束
+    row = np.zeros(12)
+    row[j::4] = 1
+    A_eq.append(row)
+    b_eq.append([3, 6, 5, 6][j])
 res = linprog(c, A_eq=A_eq, b_eq=b_eq, method="highs")
-print(res.fun)                    # 85.0
+print(res.fun)  # 85.0
 print(np.round(res.x.reshape(3, 4), 2))
 # [[0. 0. 5. 2.]
 #  [3. 0. 0. 1.]
 #  [0. 6. 0. 3.]]
 
 # 例题 2:灵敏度(影子价格 + 端点重解验证)
-c2 = [-3, -5]; A_ub = [[1, 0], [0, 2], [3, 2]]; b_ub = [4, 12, 18]
+c2 = [-3, -5]
+A_ub = [[1, 0], [0, 2], [3, 2]]
+b_ub = [4, 12, 18]
 r = linprog(c2, A_ub=A_ub, b_ub=b_ub, method="highs")
-print(r.x, -r.fun)               # [2. 6.] 36.0
+print(r.x, -r.fun)  # [2. 6.] 36.0
 # marginals 是 min 问题目标对 b 的导数(为负),影子价格取负号:
-print(-r.ineqlin.marginals)      # [0. 1.5 1.]
+print(-r.ineqlin.marginals)  # [0. 1.5 1.]
 r18 = linprog(c2, A_ub=A_ub, b_ub=[4, 18, 18], method="highs")
-print(-r18.fun)                  # 45.0 = 36 + 1.5*6,验证 b2 允许上限
+print(-r18.fun)  # 45.0 = 36 + 1.5*6,验证 b2 允许上限
 ```
 
 > `ineqlin.marginals` 需要 `method="highs"`;若用 pulp/ortools,对偶值直接取 `.pi` 属性,注意同样按「max 原问题」折算符号。

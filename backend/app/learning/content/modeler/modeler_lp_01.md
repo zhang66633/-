@@ -202,12 +202,12 @@ from scipy.optimize import linprog
 
 # 例 2: min -3x1 -5x2 (等价于 max 3x1 + 5x2)
 c = [-3, -5]
-A_ub = [[1, 0], [0, 2], [3, 2]]   # ≤ 约束系数
+A_ub = [[1, 0], [0, 2], [3, 2]]  # ≤ 约束系数
 b_ub = [4, 12, 18]
 
 res = linprog(c, A_ub=A_ub, b_ub=b_ub, method="highs")
-print("最优解:", res.x)          # [2. 6.]
-print("最优值:", -res.fun)        # 36.0  (转回 max 的符号)
+print("最优解:", res.x)  # [2. 6.]
+print("最优值:", -res.fun)  # 36.0  (转回 max 的符号)
 print("是否成功:", res.success)
 ```
 

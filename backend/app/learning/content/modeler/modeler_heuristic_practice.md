@@ -160,20 +160,30 @@ D. 忽略约束,最后在可行解中挑一个
 
 ```python
 import numpy as np
+
 rng = np.random.default_rng(2026)
-D, POP, BUDGET, RUNS = 10, 50, 50000, 10   # 统一预算,统一运行次数
+D, POP, BUDGET, RUNS = 10, 50, 50000, 10  # 统一预算,统一运行次数
+
 
 def ackley(x):
     d = len(x)
-    return (-20 * np.exp(-0.2 * np.sqrt(np.sum(x * x) / d))
-            - np.exp(np.sum(np.cos(2 * np.pi * x)) / d) + 20 + np.e)
+    return (
+        -20 * np.exp(-0.2 * np.sqrt(np.sum(x * x) / d))
+        - np.exp(np.sum(np.cos(2 * np.pi * x)) / d)
+        + 20
+        + np.e
+    )
+
 
 def pso_once():
     lo, hi = -32.768, 32.768
-    x = rng.uniform(lo, hi, (POP, D)); v = np.zeros((POP, D))
+    x = rng.uniform(lo, hi, (POP, D))
+    v = np.zeros((POP, D))
     fx = np.array([ackley(xi) for xi in x])
     pbest, pbv = x.copy(), fx.copy()
-    g = int(np.argmin(pbv)); gbv = pbv[g]; evals = POP
+    g = int(np.argmin(pbv))
+    gbv = pbv[g]
+    evals = POP
     while evals < BUDGET:
         w = 0.9 - 0.5 * evals / BUDGET
         r1, r2 = rng.random((POP, D)), rng.random((POP, D))
@@ -183,13 +193,16 @@ def pso_once():
         fx = np.array([ackley(xi) for xi in x])
         bt = fx < pbv
         pbest[bt], pbv[bt] = x[bt], fx[bt]
-        g = int(np.argmin(pbv)); gbv = min(gbv, pbv[g])
+        g = int(np.argmin(pbv))
+        gbv = min(gbv, pbv[g])
         evals += POP
     return gbv
 
+
 def sa_once():
     x = rng.uniform(-32.768, 32.768, D)
-    fx = ackley(x); best = fx
+    fx = ackley(x)
+    best = fx
     T, alpha, evals = 50.0, 0.995, 1
     while evals < BUDGET:
         xp = np.clip(x + rng.normal(0, 2.0, D), -32.768, 32.768)
@@ -197,10 +210,12 @@ def sa_once():
         if fp < fx or rng.random() < np.exp((fx - fp) / T):
             x, fx = xp, fp
         best = min(best, fp)
-        evals += 1; T *= alpha
+        evals += 1
+        T *= alpha
     return best
 
-p = [pso_once() for _ in range(RUNS)]       # 各 10 次独立运行
+
+p = [pso_once() for _ in range(RUNS)]  # 各 10 次独立运行
 s = [sa_once() for _ in range(RUNS)]
 print("PSO  mean=%.4f std=%.4f" % (np.mean(p), np.std(p)))
 print("SA   mean=%.4f std=%.4f" % (np.mean(s), np.std(s)))

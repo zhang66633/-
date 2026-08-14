@@ -1,4 +1,5 @@
 """成就服务测试(阶段 2): 进度/目标/解锁/持久化/未读。"""
+
 import sys
 from pathlib import Path
 
@@ -8,7 +9,8 @@ import app.services.achievement_service as ach_mod  # noqa: E402
 import app.services.learning_store as ls_mod  # noqa: E402
 import app.services.practice_store as ps_mod  # noqa: E402
 from app.services.achievement_service import (  # noqa: E402
-    ACHIEVEMENT_DEFS, get_achievement_service,
+    ACHIEVEMENT_DEFS,
+    get_achievement_service,
 )
 from app.services.learning_store import LearningStore  # noqa: E402
 from app.services.practice_store import PracticeStore  # noqa: E402
@@ -89,7 +91,11 @@ def test_streak_from_dates(tmp_path):
     # 连续 3 天有练习
     for d in ("2026-08-14", "2026-08-13", "2026-08-12"):
         ps.record_answer(
-            f"q_{d}", 0, True, round_id="s1", created_at=f"{d}T10:00:00+00:00",
+            f"q_{d}",
+            0,
+            True,
+            round_id="s1",
+            created_at=f"{d}T10:00:00+00:00",
         )
     results = {r["id"]: r for r in svc.check_all("default")}
     assert results["streak_7"]["progress"] >= 3

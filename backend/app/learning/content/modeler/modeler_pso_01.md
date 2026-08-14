@@ -164,12 +164,19 @@ D. 2.05
 
 ```python
 import numpy as np
+
 rng = np.random.default_rng(42)
+
 
 def ackley(x):
     d = len(x)
-    return (-20 * np.exp(-0.2 * np.sqrt(np.sum(x * x) / d))
-            - np.exp(np.sum(np.cos(2 * np.pi * x)) / d) + 20 + np.e)
+    return (
+        -20 * np.exp(-0.2 * np.sqrt(np.sum(x * x) / d))
+        - np.exp(np.sum(np.cos(2 * np.pi * x)) / d)
+        + 20
+        + np.e
+    )
+
 
 D, POP, BUDGET, LO, HI = 10, 50, 50000, -32.768, 32.768
 x = rng.uniform(LO, HI, (POP, D))
@@ -181,13 +188,13 @@ g = int(np.argmin(pbv))
 gbest, gbv = pbest[g].copy(), pbv[g]
 evals = POP
 while evals < BUDGET:
-    w = 0.9 - 0.5 * evals / BUDGET                     # 惯性权重线性递减
+    w = 0.9 - 0.5 * evals / BUDGET  # 惯性权重线性递减
     r1, r2 = rng.random((POP, D)), rng.random((POP, D))
     v = w * v + 1.4945 * r1 * (pbest - x) + 1.4945 * r2 * (gbest - x)
     v = np.clip(v, -0.5 * (HI - LO), 0.5 * (HI - LO))  # 速度钳制
-    x = np.clip(x + v, LO, HI)                         # 边界截断
+    x = np.clip(x + v, LO, HI)  # 边界截断
     fx = np.array([ackley(xi) for xi in x])
-    better = fx < pbv                                 # 最小化:更小才更新
+    better = fx < pbv  # 最小化:更小才更新
     pbest[better], pbv[better] = x[better], fx[better]
     g = int(np.argmin(pbv))
     if pbv[g] < gbv:

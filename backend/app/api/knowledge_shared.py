@@ -1,24 +1,12 @@
 """知识库路由共享层 — Pydantic 模型 + 检索/文件辅助函数（god-files 拆分 #31）。"""
 
-"""Knowledge base management API — browse, search, reindex, upload, and CRUD."""
-
 import re
-import uuid
+from pathlib import Path
 
 import yaml
-from pathlib import Path
-from typing import Optional
-
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from ..config import get_settings
-from ..auth.dependencies import require_contributor
-from ..auth.schemas import GitHubUser
-
-
-
-
 
 # ── response models ────────────────────────────────────────────────────
 
@@ -134,7 +122,7 @@ class SearchResult(BaseModel):
     name: str = ""
     title: str = ""
     snippet: str
-    score: Optional[float] = None
+    score: float | None = None
 
 
 class SearchResponse(BaseModel):
@@ -161,8 +149,8 @@ class KnowledgeCrudResponse(BaseModel):
 class KnowledgeUploadJob(BaseModel):
     job_id: str
     status: str  # "processing" | "completed" | "error"
-    result: Optional[dict] = None
-    error: Optional[str] = None
+    result: dict | None = None
+    error: str | None = None
 
 
 # ── in-memory job store (upload extraction) ────────────────────────
@@ -197,16 +185,20 @@ def _get_embedder():
     )
 
 
-def _find_yaml_file(kb_type: str, entry_id: str) -> Optional[Path]:
+def _find_yaml_file(kb_type: str, entry_id: str) -> Path | None:
     """Scan knowledge_base/{subdir}/**/*.yaml for the file with matching id."""
     settings = get_settings()
     subdir_map = {
-        "method": "methods", "paper": "papers",
-        "template": "templates", "problem": "problems",
+        "method": "methods",
+        "paper": "papers",
+        "template": "templates",
+        "problem": "problems",
     }
     key_map = {
-        "method": "method_card", "paper": "paper",
-        "template": "template", "problem": "problem",
+        "method": "method_card",
+        "paper": "paper",
+        "template": "template",
+        "problem": "problem",
     }
     subdir = subdir_map.get(kb_type, kb_type)
     top_key = key_map.get(kb_type, "")
@@ -228,12 +220,16 @@ def _next_id(kb_type: str) -> str:
     """Auto-generate the next sequential ID."""
     settings = get_settings()
     subdir_map = {
-        "method": "methods", "paper": "papers",
-        "template": "templates", "problem": "problems",
+        "method": "methods",
+        "paper": "papers",
+        "template": "templates",
+        "problem": "problems",
     }
     prefix_map = {
-        "method": "mc_", "paper": "paper_",
-        "template": "tpl_", "problem": "prob_",
+        "method": "mc_",
+        "paper": "paper_",
+        "template": "tpl_",
+        "problem": "prob_",
     }
     subdir = subdir_map.get(kb_type, kb_type)
     prefix = prefix_map.get(kb_type, "id_")
@@ -246,8 +242,10 @@ def _next_id(kb_type: str) -> str:
                 if not data:
                     continue
                 key_map = {
-                    "method": "method_card", "paper": "paper",
-                    "template": "template", "problem": "problem",
+                    "method": "method_card",
+                    "paper": "paper",
+                    "template": "template",
+                    "problem": "problem",
                 }
                 top_key = key_map.get(kb_type, "")
                 if top_key in data and isinstance(data[top_key], dict):
@@ -262,4 +260,3 @@ def _next_id(kb_type: str) -> str:
 
 
 # ── stats ───────────────────────────────────────────────────────────────
-

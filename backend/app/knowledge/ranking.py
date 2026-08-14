@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 from langchain_core.documents import Document
 
@@ -18,7 +16,7 @@ RRF_K = 60
 def rrf_fusion(
     ranked_lists: list[list[Document]],
     k_constant: int = RRF_K,
-    top_n: Optional[int] = None,
+    top_n: int | None = None,
 ) -> list[Document]:
     """Reciprocal Rank Fusion: merge multiple ranked lists.
 
@@ -62,7 +60,7 @@ def rrf_fusion(
 def char_bigrams(text: str) -> set[str]:
     """字符 bigram 集合（中文无空格时比词级 Jaccard 更有效）。"""
     text = (text or "").lower()
-    return {text[i:i + 2] for i in range(len(text) - 1)}
+    return {text[i : i + 2] for i in range(len(text) - 1)}
 
 
 def char_bigram_similarity_matrix(docs: list[Document]) -> np.ndarray:
@@ -84,8 +82,8 @@ def mmr_rerank(
     scored_docs: list[tuple[Document, float]],
     k: int = 5,
     lam: float = 0.5,
-    doc_embeddings: Optional[np.ndarray] = None,
-    query_embedding: Optional[np.ndarray] = None,
+    doc_embeddings: np.ndarray | None = None,
+    query_embedding: np.ndarray | None = None,
 ) -> list[Document]:
     """Maximum Marginal Relevance reranking（纯函数版）。
 

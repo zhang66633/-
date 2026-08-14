@@ -232,41 +232,46 @@ lam, mu = 20.0, 25.0
 rho = lam / mu
 assert rho < 1, "系统不稳定!"
 p0 = 1 - rho
-L = rho / (1 - rho); Lq = rho**2 / (1 - rho)
+L = rho / (1 - rho)
+Lq = rho**2 / (1 - rho)
 W, Wq = 1 / (mu - lam), rho / (mu - lam)
-print(f"rho={rho:.2f} p0={p0:.2f} L={L:.2f} Lq={Lq:.2f} "
-      f"W={W*60:.1f}min Wq={Wq*60:.1f}min P(N>=5)={rho**5:.4f}")
+print(
+    f"rho={rho:.2f} p0={p0:.2f} L={L:.2f} Lq={Lq:.2f} "
+    f"W={W * 60:.1f}min Wq={Wq * 60:.1f}min P(N>=5)={rho**5:.4f}"
+)
+
 
 # ---- M/M/c: Erlang C ----
 def mmc(lam, mu, c):
     a = lam / mu
     rho = a / c
     assert rho < 1, "请增加服务台数"
-    p0 = 1 / (sum(a**n / factorial(n) for n in range(c))
-              + a**c / (factorial(c) * (1 - rho)))
+    p0 = 1 / (sum(a**n / factorial(n) for n in range(c)) + a**c / (factorial(c) * (1 - rho)))
     Pwait = a**c / factorial(c) * p0 / (1 - rho)
     Lq = Pwait * rho / (1 - rho)
     L = Lq + a
     return p0, Pwait, L, L / lam, Lq / lam
 
+
 for c in [3, 4, 5]:
     p0, Pw, L, W, Wq = mmc(60, 25, c)
-    print(f"c={c}: p0={p0:.4f} P(等待)={Pw:.3f} L={L:.2f} "
-          f"W={W*60:.1f}min 总成本={5*c + 10*L:.1f}元/h")
+    print(
+        f"c={c}: p0={p0:.4f} P(等待)={Pw:.3f} L={L:.2f} "
+        f"W={W * 60:.1f}min 总成本={5 * c + 10 * L:.1f}元/h"
+    )
 
 # ---- 事件仿真验证 Little 公式: L = λW ----
 rng = np.random.default_rng(42)
 n = 20000
-arr = np.cumsum(rng.exponential(1/lam, n))
-svc = rng.exponential(1/mu, n)
+arr = np.cumsum(rng.exponential(1 / lam, n))
+svc = rng.exponential(1 / mu, n)
 dep, free = np.empty(n), 0.0
 for i in range(n):
     free = max(arr[i], free) + svc[i]
     dep[i] = free
 W_sim = np.mean(dep - arr)
 L_sim = np.sum(dep - arr) / dep[-1]
-print(f"仿真: W={W_sim*60:.2f}min, L={L_sim:.3f}; "
-      f"公式: W={W*60:.1f}min, L={L:.2f}")
+print(f"仿真: W={W_sim * 60:.2f}min, L={L_sim:.3f}; 公式: W={W * 60:.1f}min, L={L:.2f}")
 print("Little 验证 |λW - L| =", abs(lam * W_sim - L_sim))
 ```
 

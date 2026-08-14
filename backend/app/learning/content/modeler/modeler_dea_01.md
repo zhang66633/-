@@ -186,28 +186,38 @@ D. 两者结果恒相同,实际建模只需跑其中一个
 import numpy as np
 from scipy.optimize import linprog
 
-X = np.array([[2., 3., 4., 5.]])      # 1 种投入 × 4 个 DMU
-Y = np.array([[2., 4., 7., 8.]])      # 1 种产出 × 4 个 DMU
+X = np.array([[2.0, 3.0, 4.0, 5.0]])  # 1 种投入 × 4 个 DMU
+Y = np.array([[2.0, 4.0, 7.0, 8.0]])  # 1 种产出 × 4 个 DMU
 m, n = X.shape
+
 
 def dea(k, rts="crs"):
     """投入导向径向 DEA。rts: 'crs'=CCR, 'vrs'=BCC, 'nirs'=NIRS"""
-    c = np.zeros(n + 1); c[0] = 1.0                    # min θ
+    c = np.zeros(n + 1)
+    c[0] = 1.0  # min θ
     A_ub, b_ub = [], []
-    for i in range(m):                                 # Xλ ≤ θ·x_k
-        row = np.zeros(n + 1); row[0], row[1:] = -X[i, k], X[i, :]
-        A_ub.append(row); b_ub.append(0.0)
-    for r in range(Y.shape[0]):                        # Yλ ≥ y_k
-        row = np.zeros(n + 1); row[1:] = -Y[r, :]
-        A_ub.append(row); b_ub.append(-Y[r, k])
-    if rts == "vrs":                                   # BCC: Σλ = 1
-        A_ub.append([0] + [1.0] * n); b_ub.append(1.0)
-        A_ub.append([0] + [-1.0] * n); b_ub.append(-1.0)
-    elif rts == "nirs":                                # NIRS: Σλ ≤ 1
-        A_ub.append([0] + [1.0] * n); b_ub.append(1.0)
+    for i in range(m):  # Xλ ≤ θ·x_k
+        row = np.zeros(n + 1)
+        row[0], row[1:] = -X[i, k], X[i, :]
+        A_ub.append(row)
+        b_ub.append(0.0)
+    for r in range(Y.shape[0]):  # Yλ ≥ y_k
+        row = np.zeros(n + 1)
+        row[1:] = -Y[r, :]
+        A_ub.append(row)
+        b_ub.append(-Y[r, k])
+    if rts == "vrs":  # BCC: Σλ = 1
+        A_ub.append([0] + [1.0] * n)
+        b_ub.append(1.0)
+        A_ub.append([0] + [-1.0] * n)
+        b_ub.append(-1.0)
+    elif rts == "nirs":  # NIRS: Σλ ≤ 1
+        A_ub.append([0] + [1.0] * n)
+        b_ub.append(1.0)
     bounds = [(None, None)] + [(0, None)] * n
     res = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method="highs")
     return res.fun
+
 
 for rts in ["crs", "vrs", "nirs"]:
     print(rts.upper(), ":", np.round([dea(k, rts) for k in range(n)], 4))

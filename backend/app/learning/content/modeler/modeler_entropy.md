@@ -198,31 +198,30 @@ D. 不准确。因为熵权法仍然需要专家给出指标间的重要性打�
 ```python
 import numpy as np
 
-X = np.array([[8, 6, 9],
-              [6, 7, 8],
-              [5, 9, 7],
-              [9, 5, 6]], dtype=float)
+X = np.array([[8, 6, 9], [6, 7, 8], [5, 9, 7], [9, 5, 6]], dtype=float)
+
 
 def entropy_weight(X):
     """熵权法:X 已同向化、标准化为非负值"""
     m, n = X.shape
-    p = X / X.sum(axis=0)                    # 比重
+    p = X / X.sum(axis=0)  # 比重
     # 约定 0*ln0 = 0
     with np.errstate(divide="ignore", invalid="ignore"):
         plnp = np.where(p > 0, p * np.log(p), 0.0)
-    e = -plnp.sum(axis=0) / np.log(m)        # 信息熵
-    d = 1 - e                                # 差异系数
-    return e, d / d.sum()                    # 归一化权重
+    e = -plnp.sum(axis=0) / np.log(m)  # 信息熵
+    d = 1 - e  # 差异系数
+    return e, d / d.sum()  # 归一化权重
+
 
 e, w = entropy_weight(X)
-print("信息熵:", np.round(e, 4))     # [0.9814 0.983  0.9919]
-print("权重  :", np.round(w, 4))     # [0.4263 0.3891 0.1846]
+print("信息熵:", np.round(e, 4))  # [0.9814 0.983  0.9919]
+print("权重  :", np.round(w, 4))  # [0.4263 0.3891 0.1846]
 
 # 组合赋权:与 AHP 主观权重加法合成
 w_subj = np.array([0.5, 0.3, 0.2])
 alpha = 0.5
 w_comb = alpha * w_subj + (1 - alpha) * w
-print("组合权重:", np.round(w_comb, 4))   # [0.4632 0.3446 0.1923]
+print("组合权重:", np.round(w_comb, 4))  # [0.4632 0.3446 0.1923]
 ```
 
 ## 📚 延伸阅读

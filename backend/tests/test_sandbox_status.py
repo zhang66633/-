@@ -3,6 +3,7 @@
 运行: 在 backend/ 目录下 `python -m pytest tests/test_sandbox_status.py -q`
       或直接 `python tests/test_sandbox_status.py`。
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -31,8 +32,9 @@ def test_docker_binary_missing():
 
 def test_daemon_down():
     _reset_probe()
-    with patch.object(executor.subprocess, "run",
-                      return_value=_Proc(1, "Cannot connect to the Docker daemon")):
+    with patch.object(
+        executor.subprocess, "run", return_value=_Proc(1, "Cannot connect to the Docker daemon")
+    ):
         assert executor.docker_daemon_up() is False
 
 

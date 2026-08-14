@@ -9,12 +9,9 @@ P(掌握) = 先验 + 练习证据 - 时间衰减
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional
 
 from .schemas import LearningEvent, SkillMastery
-
 
 # ── 艾宾浩斯遗忘参数 ──────────────────────────────────
 
@@ -41,6 +38,7 @@ def ebbinghaus_retention(days_since_last_practice: float) -> float:
 
 # ── 贝叶斯掌握度 ──────────────────────────────────────
 
+
 class MasteryTracker:
     """贝叶斯知识追踪 (BKT 简化版) + 艾宾浩斯遗忘."""
 
@@ -48,8 +46,9 @@ class MasteryTracker:
         self.skills: dict[str, dict[str, SkillMastery]] = {}
         # key: user_id → {skill_id → SkillMastery}
 
-    def get_or_create_skill(self, user_id: str, skill_id: str,
-                            name: str = "", prior: float = 0.2) -> SkillMastery:
+    def get_or_create_skill(
+        self, user_id: str, skill_id: str, name: str = "", prior: float = 0.2
+    ) -> SkillMastery:
         """获取或创建用户某个技能的掌握度记录."""
         if user_id not in self.skills:
             self.skills[user_id] = {}
@@ -108,7 +107,7 @@ class MasteryTracker:
 
             self.skills[user_id][skill_id] = skill
 
-    def apply_decay(self, user_id: str, now: Optional[datetime] = None) -> dict[str, float]:
+    def apply_decay(self, user_id: str, now: datetime | None = None) -> dict[str, float]:
         """幂等地计算所有技能的衰减后掌握度, 返回低于阈值的技能列表.
 
         掌握度改为派生展示值：峰值掌握度 × 艾宾浩斯保留率，
@@ -147,8 +146,7 @@ class MasteryTracker:
 
         return needs_review
 
-    def get_role_overall(self, user_id: str,
-                          skill_ids: list[str]) -> float:
+    def get_role_overall(self, user_id: str, skill_ids: list[str]) -> float:
         """计算某角色(某组技能)的综合掌握度."""
         if user_id not in self.skills or not skill_ids:
             return 0.0
@@ -172,7 +170,7 @@ class MasteryTracker:
         )
         return sorted_skills[:top_n]
 
-    def get_next_review_date(self, skill_id: str, user_id: str) -> Optional[datetime]:
+    def get_next_review_date(self, skill_id: str, user_id: str) -> datetime | None:
         """根据当前掌握度计算下次应复习的日期."""
         if user_id not in self.skills:
             return None
@@ -189,7 +187,7 @@ class MasteryTracker:
 
 # ── 全局单例 ──────────────────────────────────────────
 
-_tracker: Optional[MasteryTracker] = None
+_tracker: MasteryTracker | None = None
 
 
 def get_mastery_tracker() -> MasteryTracker:

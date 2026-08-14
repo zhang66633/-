@@ -3,6 +3,7 @@
 覆盖 plan 005 §1：验证 FAIL 只回退一次，建模节点消费回退标志后走
 solving→verification，PASS 永不回退，重试耗尽后正常收尾、不再死循环。
 """
+
 import sys
 from pathlib import Path
 
@@ -10,7 +11,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.router import after_agent_router
-
 
 PLAN = ["analysis", "modeling", "solving", "verification", "writing"]
 
@@ -31,8 +31,9 @@ def _state(**overrides) -> dict:
 
 def test_fail_rolls_back_to_modeling():
     # 验证节点 FAIL 后：rollback_target="modeling"、retry_count=1 → 回退到建模
-    state = _state(current_step_index=3, rollback_target="modeling",
-                   retry_count=1, verification_passed=False)
+    state = _state(
+        current_step_index=3, rollback_target="modeling", retry_count=1, verification_passed=False
+    )
     assert after_agent_router(state) == "modeling_agent"
 
 
@@ -73,8 +74,9 @@ def test_last_step_goes_to_format_response():
 def test_full_fail_cycle():
     # 完整回退周期：FAIL → modeling → solving → verification
     # 第一次 FAIL
-    s = _state(current_step_index=3, rollback_target="modeling",
-               retry_count=1, verification_passed=False)
+    s = _state(
+        current_step_index=3, rollback_target="modeling", retry_count=1, verification_passed=False
+    )
     assert after_agent_router(s) == "modeling_agent"
     # 建模消费标志（指针拨回建模位置 1）
     s = _state(current_step_index=1, rollback_target=None)
@@ -86,8 +88,7 @@ def test_full_fail_cycle():
 
 if __name__ == "__main__":
     # 简单脚本运行器：逐个执行以 test_ 开头的函数，兼容无 pytest 环境
-    fns = [(n, f) for n, f in sorted(globals().items())
-           if n.startswith("test_") and callable(f)]
+    fns = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0
     for name, fn in fns:
         try:

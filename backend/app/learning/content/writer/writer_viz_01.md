@@ -170,12 +170,14 @@ D. 灰度可辨
 import matplotlib.pyplot as plt
 
 # 坏习惯:默认配色、无单位、无图例区分、字号过小
-plt.plot(x, y1); plt.plot(x, y2)
-plt.title("result"); plt.savefig("fig.png", dpi=72)
+plt.plot(x, y1)
+plt.plot(x, y2)
+plt.title("result")
+plt.savefig("fig.png", dpi=72)
 
 # 论文级:线型+标记双重区分、完整标注、矢量输出
-plt.rcParams["font.sans-serif"] = ["SimHei"]   # 中文字体
-plt.rcParams["axes.unicode_minus"] = False      # 负号正常显示
+plt.rcParams["font.sans-serif"] = ["SimHei"]  # 中文字体
+plt.rcParams["axes.unicode_minus"] = False  # 负号正常显示
 
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(x, y1, "-o", color="k", markersize=4, label="v=70 cm/min")
@@ -186,7 +188,7 @@ ax.set_title("不同传送带速度下的炉温曲线", fontsize=11)
 ax.legend(fontsize=9, frameon=False)
 ax.tick_params(labelsize=9)
 fig.tight_layout()
-fig.savefig("fig3.pdf", dpi=300)   # 矢量 PDF,缩放不糊
+fig.savefig("fig3.pdf", dpi=300)  # 矢量 PDF,缩放不糊
 ```
 
 **要点**:①中文字体设置(SimHei)与负号修复;②线型+标记双重区分,颜色同用黑色保证灰度打印效果;③坐标轴单位、字号 ≥ 9 磅;④输出 PDF 矢量图,插入 LaTeX 不模糊。三线表代码见本单元例题 2。

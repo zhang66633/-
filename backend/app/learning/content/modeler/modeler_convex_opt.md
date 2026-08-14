@@ -202,10 +202,10 @@ constraints = [x[0] + x[1] >= 1, x[1] <= 2]
 prob = cp.Problem(objective, constraints)
 prob.solve()
 
-print("最优解:", x.value)          # [0.5 0.5]
-print("最优值:", prob.value)        # 0.5
+print("最优解:", x.value)  # [0.5 0.5]
+print("最优值:", prob.value)  # 0.5
 print("约束1对偶(影子价):", constraints[0].dual_value)  # 1.0
-print("约束2对偶:", constraints[1].dual_value)          # 0.0 (松约束)
+print("约束2对偶:", constraints[1].dual_value)  # 0.0 (松约束)
 ```
 
 > `dual_value` 就是 KKT 乘子——例题 1 里手算的 $\lambda_1 = 1, \lambda_2 = 0$ 在这里原样出现,手算与求解器互相印证。

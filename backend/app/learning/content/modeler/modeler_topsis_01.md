@@ -199,34 +199,31 @@ D. 两种方式都判定 B 更优
 ```python
 import numpy as np
 
-X = np.array([[95, 12, 8, 5],
-              [88, 15, 10, 6],
-              [90, 10, 7, 4],
-              [92, 18, 12, 8]], dtype=float)
+X = np.array([[95, 12, 8, 5], [88, 15, 10, 6], [90, 10, 7, 4], [92, 18, 12, 8]], dtype=float)
 w = np.array([0.3, 0.2, 0.2, 0.3])
-cost = np.array([False, False, False, True])   # 第 4 列是成本型
+cost = np.array([False, False, False, True])  # 第 4 列是成本型
+
 
 def topsis(X, w, cost):
     # 向量规范化 + 加权
-    Z = X / np.sqrt((X ** 2).sum(axis=0))
+    Z = X / np.sqrt((X**2).sum(axis=0))
     V = Z * w
     # 正/负理想解:成本型取反方向
-    Vp = np.array([V[:, j].min() if cost[j] else V[:, j].max()
-                   for j in range(X.shape[1])])
-    Vn = np.array([V[:, j].max() if cost[j] else V[:, j].min()
-                   for j in range(X.shape[1])])
+    Vp = np.array([V[:, j].min() if cost[j] else V[:, j].max() for j in range(X.shape[1])])
+    Vn = np.array([V[:, j].max() if cost[j] else V[:, j].min() for j in range(X.shape[1])])
     # 距离与贴近度
     Dp = np.sqrt(((V - Vp) ** 2).sum(axis=1))
     Dn = np.sqrt(((V - Vn) ** 2).sum(axis=1))
     return Dn / (Dp + Dn)
 
+
 C = topsis(X, w, cost)
-print("贴近度:", np.round(C, 4))          # [0.547  0.5369 0.5643 0.4351]
-print("排序  :", np.argsort(-C) + 1)      # [3 1 2 4]
+print("贴近度:", np.round(C, 4))  # [0.547  0.5369 0.5643 0.4351]
+print("排序  :", np.argsort(-C) + 1)  # [3 1 2 4]
 
 # 敏感性分析:等权
 C_eq = topsis(X, np.ones(4) / 4, cost)
-print("等权贴近度:", np.round(C_eq, 4))   # [0.4643 0.5603 0.4641 0.5355]
+print("等权贴近度:", np.round(C_eq, 4))  # [0.4643 0.5603 0.4641 0.5355]
 ```
 
 ## 📚 延伸阅读

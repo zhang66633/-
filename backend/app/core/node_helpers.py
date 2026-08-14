@@ -12,15 +12,15 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from app.config import get_settings
 from app.services.redis_pubsub import get_publisher
 
 from .state import AgentState
 
-
 logger = logging.getLogger(__name__)
+
+
 class TaskCancelledError(Exception):
     """任务被取消时的哨兵异常 — 用于在节点内提前终止编排器。"""
 
@@ -40,6 +40,7 @@ def _is_cancelled(task_id: str) -> bool:
     """Check if the task has been cancelled."""
     try:
         from app.services.session import get_session_manager
+
         event = get_session_manager().get_cancel_event(task_id)
         return event.is_set()
     except Exception:
@@ -60,13 +61,16 @@ def _save_working_memory(session_id: str, stage: str, output: str, extra: dict |
     """
     try:
         from app.services.working_memory import WorkingMemory
+
         wm = WorkingMemory(session_id)
         wm.save_checkpoint(stage, output, extra)
     except Exception as e:  # noqa: BLE001
         # 工作记忆不阻塞主流程，但记录失败便于排查
         logger.warning(
             "工作记忆检查点保存失败 (session=%s, stage=%s): %s",
-            session_id, stage, e,
+            session_id,
+            stage,
+            e,
         )
         return
 
@@ -78,12 +82,15 @@ def _save_working_memory(session_id: str, stage: str, output: str, extra: dict |
     except RuntimeError:
         logger.warning(
             "当前线程无运行事件循环，跳过问题文档异步重写 (session=%s, stage=%s)",
-            session_id, stage,
+            session_id,
+            stage,
         )
     except Exception as e:  # noqa: BLE001
         logger.warning(
             "问题文档异步重写失败 (session=%s, stage=%s): %s",
-            session_id, stage, e,
+            session_id,
+            stage,
+            e,
         )
 
 
@@ -117,8 +124,6 @@ def _persist_task_files(
 
     返回持久化后的各类 URL 列表。
     """
-    import shutil
-    import tempfile
     from app.services.session import get_session_manager
 
     settings = get_settings()
@@ -143,12 +148,15 @@ def _persist_task_files(
                 if not dst.exists():
                     shutil.copy2(src, dst)
                 durable_url = f"/api/task_files/{task_id}/{filename}"
-                session_mgr.add_artifact(task_id, {
-                    "type": file_type,
-                    "name": filename,
-                    "url": durable_url,
-                    "size": dst.stat().st_size,
-                })
+                session_mgr.add_artifact(
+                    task_id,
+                    {
+                        "type": file_type,
+                        "name": filename,
+                        "url": durable_url,
+                        "size": dst.stat().st_size,
+                    },
+                )
                 durable.append(durable_url)
             except Exception:  # noqa: BLE001
                 continue
@@ -173,6 +181,7 @@ def _persist_task_images(task_id: str, image_urls: list[str]) -> list[str]:
 def _extract_code_block(text: str) -> str:
     """从 LLM 输出中提取 Python 代码块。"""
     import re
+
     match = re.search(r"```(?:python)?\s*\n(.*?)```", text, re.DOTALL)
     if match:
         return match.group(1).strip()
@@ -223,12 +232,42 @@ def _log_usage(task_id: str, node: str, response) -> None:
         if usage:
             logger.info(
                 "LLM 用量 [%s/%s]: in=%s out=%s total=%s",
-                task_id, node,
-                usage.get("input_tokens"), usage.get("output_tokens"),
+                task_id,
+                node,
+                usage.get("input_tokens"),
+                usage.get("output_tokens"),
                 usage.get("total_tokens"),
             )
     except Exception:
         pass  # 用量缺失不影响主流程
+
+
+def invoke_with_retry(llm, messages, task_id: str = "", node: str = "", retries: int = 2):
+    """LLM 调用统一重试（指数退避 1s/2s）：抗 API 抖动、429、超时等瞬时故障。
+
+    确定性错误（如 API Key 无效）重试后仍会抛出，错误照常上浮。
+    """
+    import time as _time
+
+    last_exc: Exception | None = None
+    for attempt in range(retries + 1):
+        try:
+            return llm.invoke(messages)
+        except Exception as e:  # noqa: BLE001
+            last_exc = e
+            if attempt >= retries:
+                break
+            delay = 2**attempt  # 1s, 2s
+            logger.warning(
+                "LLM 调用失败 [%s/%s] 第 %d 次，%.0fs 后重试: %s",
+                task_id,
+                node or "llm",
+                attempt + 1,
+                delay,
+                str(e)[:200],
+            )
+            _time.sleep(delay)
+    raise last_exc  # type: ignore[misc]
 
 
 def _extract_verdict_json(text: str) -> dict:
@@ -257,9 +296,8 @@ def _extract_verdict_json(text: str) -> dict:
             depth -= 1
             if depth == 0:
                 try:
-                    obj = json.loads(text[brace:i + 1])
+                    obj = json.loads(text[brace : i + 1])
                     return obj if isinstance(obj, dict) else {}
                 except json.JSONDecodeError:
                     return {}
     return {}
-

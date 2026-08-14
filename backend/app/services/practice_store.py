@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS practice_records (
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS mistake_book (
 
 
 def _utcnow() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class PracticeStore:
@@ -113,8 +113,14 @@ class PracticeStore:
                     "INSERT INTO practice_records"
                     "(user_id, question_id, choice, is_correct, round_id, created_at)"
                     " VALUES (?, ?, ?, ?, ?, ?)",
-                    (user_id, question_id, choice, int(is_correct), round_id,
-                     created_at or _utcnow()),
+                    (
+                        user_id,
+                        question_id,
+                        choice,
+                        int(is_correct),
+                        round_id,
+                        created_at or _utcnow(),
+                    ),
                 )
                 row_id = int(cur.lastrowid)
                 # 错题本状态转移: 答错入本, 答对出本(自动掌握)
@@ -203,7 +209,9 @@ class PracticeStore:
             ).fetchall()
         return {r["question_id"] for r in rows}
 
-    def get_mistake_detail(self, question_id: str, user_id: str = "default") -> Optional[dict[str, Any]]:
+    def get_mistake_detail(
+        self, question_id: str, user_id: str = "default"
+    ) -> dict[str, Any] | None:
         """某题的错题详情(最后一次错误作答)。"""
         with self._get_conn() as conn:
             row = conn.execute(
@@ -336,8 +344,7 @@ class PracticeStore:
                 (user_id,),
             ).fetchone()["n"]
             correct = conn.execute(
-                "SELECT COUNT(*) AS n FROM practice_records"
-                " WHERE user_id = ? AND is_correct = 1",
+                "SELECT COUNT(*) AS n FROM practice_records WHERE user_id = ? AND is_correct = 1",
                 (user_id,),
             ).fetchone()["n"]
         wrong_ids = self.get_wrong_question_ids(user_id)
@@ -356,7 +363,7 @@ class PracticeStore:
         }
 
 
-_store: Optional[PracticeStore] = None
+_store: PracticeStore | None = None
 
 
 def get_practice_store() -> PracticeStore:

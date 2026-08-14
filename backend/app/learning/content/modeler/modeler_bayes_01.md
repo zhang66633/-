@@ -192,29 +192,33 @@ from scipy.stats import beta, norm
 
 # 1. 疾病检测 (例题 1)
 p = 0.99 * 0.01 / (0.99 * 0.01 + 0.05 * 0.99)
-print(f"患病率 1% 时 P(D|T+) = {p:.4f}")                       # 0.1667 = 1/6
+print(f"患病率 1% 时 P(D|T+) = {p:.4f}")  # 0.1667 = 1/6
 p2 = 0.99 * 0.001 / (0.99 * 0.001 + 0.05 * 0.999)
-print(f"患病率 0.1% 时 P(D|T+) = {p2:.4f}")                    # 0.0194
+print(f"患病率 0.1% 时 P(D|T+) = {p2:.4f}")  # 0.0194
 
 # 2. Beta-二项后验 (例题 2): 先验 Beta(2,2), 10 次 7 正
-a, b = 2 + 7, 2 + 3                                            # 后验 Beta(9,5)
-print(f"后验均值 = {a/(a+b):.4f}")                             # 0.6429
+a, b = 2 + 7, 2 + 3  # 后验 Beta(9,5)
+print(f"后验均值 = {a / (a + b):.4f}")  # 0.6429
 lo, hi = beta.ppf(0.025, a, b), beta.ppf(0.975, a, b)
-print(f"95% 等尾可信区间 = [{lo:.4f}, {hi:.4f}]")              # [0.3857, 0.8614]
+print(f"95% 等尾可信区间 = [{lo:.4f}, {hi:.4f}]")  # [0.3857, 0.8614]
 
 # 3. 正态-正态后验 (例题 3)
 mu0, tau2, sig2, n, xbar = 0.0, 4.0, 1.0, 10, 0.6
-prec = 1/tau2 + n/sig2
-post_mean = (mu0/tau2 + n*xbar/sig2) / prec
+prec = 1 / tau2 + n / sig2
+post_mean = (mu0 / tau2 + n * xbar / sig2) / prec
 post_var = 1 / prec
 print(f"后验均值 = {post_mean:.4f}, 后验方差 = {post_var:.4f}")
-print(f"95% 区间 = [{post_mean-1.96*np.sqrt(post_var):.3f}, {post_mean+1.96*np.sqrt(post_var):.3f}]")
+print(
+    f"95% 区间 = [{post_mean - 1.96 * np.sqrt(post_var):.3f}, {post_mean + 1.96 * np.sqrt(post_var):.3f}]"
+)
 
 # 4. MH 采样: 估计 Beta(9,5) 后验均值 (仅需对数核, 无需归一化常数)
 rng = np.random.default_rng(42)
 
-def logp(x):                        # Beta(9,5) 的对数核: 8 ln x + 4 ln(1-x)
-    return 8*np.log(x) + 4*np.log(1-x)
+
+def logp(x):  # Beta(9,5) 的对数核: 8 ln x + 4 ln(1-x)
+    return 8 * np.log(x) + 4 * np.log(1 - x)
+
 
 n_iter, x, acc, chain = 20000, 0.5, 0, []
 for _ in range(n_iter):
@@ -222,8 +226,8 @@ for _ in range(n_iter):
     if 0 < y < 1 and np.log(rng.random()) < logp(y) - logp(x):
         x, acc = y, acc + 1
     chain.append(x)
-chain = np.array(chain)[2000:]      # 丢弃 burn-in 段
-print(f"MH 接受率 = {acc/n_iter:.3f}")                        # 约 0.58
+chain = np.array(chain)[2000:]  # 丢弃 burn-in 段
+print(f"MH 接受率 = {acc / n_iter:.3f}")  # 约 0.58
 print(f"MH 后验均值 = {chain.mean():.4f} (解析值 9/14 = 0.6429)")
 ```
 

@@ -200,7 +200,7 @@ from sklearn.preprocessing import StandardScaler
 rng = np.random.default_rng(42)
 n = 100
 x1 = rng.normal(0, 1, n)
-x2 = 0.9 * x1 + rng.normal(0, 0.2, n)      # x2 ≈ 0.9 x1
+x2 = 0.9 * x1 + rng.normal(0, 0.2, n)  # x2 ≈ 0.9 x1
 y = 3 + 2 * x1 - 1 * x2 + rng.normal(0, 0.5, n)
 X = pd.DataFrame({"x1": x1, "x2": x2})
 
@@ -209,11 +209,11 @@ vif = pd.DataFrame(
     {"VIF": [variance_inflation_factor(X.values, j) for j in range(X.shape[1])]},
     index=X.columns,
 )
-print(vif)   # x1、x2 的 VIF 都会很大 → 共线性实锤
+print(vif)  # x1、x2 的 VIF 都会很大 → 共线性实锤
 
 # 2) 全模型 OLS
 m = sm.OLS(y, sm.add_constant(X)).fit()
-print(m.summary())   # 可能出现系数符号异常、单个 p 值不显著
+print(m.summary())  # 可能出现系数符号异常、单个 p 值不显著
 
 # 3) LASSO 自动选变量(必须先标准化)
 X_s = StandardScaler().fit_transform(X)

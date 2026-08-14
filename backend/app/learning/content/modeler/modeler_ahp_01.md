@@ -231,29 +231,28 @@ D. $CI = 0.0667$,$CR = 0.0741$,但不通过,因为 $\lambda_{\max} = 4.20 > 4$ �
 ```python
 import numpy as np
 
+
 def ahp_weights(A):
     """特征值法求权重,并做一致性检验"""
     A = np.array(A, dtype=float)
     n = A.shape[0]
     eigvals, eigvecs = np.linalg.eig(A)
-    lam_max = eigvals.real.max()                      # 最大特征值
-    w = eigvecs[:, eigvals.real.argmax()].real        # 对应特征向量
-    w = w / w.sum()                                   # 归一化为权重
+    lam_max = eigvals.real.max()  # 最大特征值
+    w = eigvecs[:, eigvals.real.argmax()].real  # 对应特征向量
+    w = w / w.sum()  # 归一化为权重
     CI = (lam_max - n) / (n - 1)
-    RI = {1: 0, 2: 0, 3: 0.58, 4: 0.90, 5: 1.12,
-          6: 1.24, 7: 1.32, 8: 1.41, 9: 1.45, 10: 1.49}
+    RI = {1: 0, 2: 0, 3: 0.58, 4: 0.90, 5: 1.12, 6: 1.24, 7: 1.32, 8: 1.41, 9: 1.45, 10: 1.49}
     CR = CI / RI[n]
     return w, lam_max, CI, CR
 
+
 # 例题 1 的准则层成对比较矩阵
-A = [[1, 1/2, 2],
-     [2, 1, 3],
-     [1/2, 1/3, 1]]
+A = [[1, 1 / 2, 2], [2, 1, 3], [1 / 2, 1 / 3, 1]]
 
 w, lam, CI, CR = ahp_weights(A)
-print("权重    :", np.round(w, 4))      # [0.2973 0.539  0.1638]
-print("lambda  :", round(lam, 4))       # 3.0092
-print("CR      :", round(CR, 4))        # 0.0079
+print("权重    :", np.round(w, 4))  # [0.2973 0.539  0.1638]
+print("lambda  :", round(lam, 4))  # 3.0092
+print("CR      :", round(CR, 4))  # 0.0079
 print("是否通过:", "通过" if CR < 0.1 else "不通过")
 ```
 

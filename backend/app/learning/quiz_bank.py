@@ -18,8 +18,15 @@ _QUERYABLE_FIELDS = ("category", "difficulty", "role", "unit_id")
 # 稳定排序键: 角色 → 类别 → 难度 → id(保证每题永久题号不随加载顺序漂移)
 _ROLE_ORDER = {"modeler": 0, "programmer": 1, "writer": 2}
 _CATEGORY_ORDER = {
-    "优化": 0, "预测": 1, "评价": 2, "统计": 3, "图论": 4,
-    "微分方程": 5, "综合": 6, "编程": 7, "论文写作": 8,
+    "优化": 0,
+    "预测": 1,
+    "评价": 2,
+    "统计": 3,
+    "图论": 4,
+    "微分方程": 5,
+    "综合": 6,
+    "编程": 7,
+    "论文写作": 8,
 }
 _DIFF_ORDER = {"beginner": 0, "intermediate": 1, "advanced": 2}
 
@@ -56,8 +63,17 @@ def _load_all() -> list[dict]:
 
 
 def _validate_question(q: dict, source: str) -> None:
-    required = ("id", "unit_id", "role", "category", "difficulty",
-                "question", "options", "answer_index", "explanation")
+    required = (
+        "id",
+        "unit_id",
+        "role",
+        "category",
+        "difficulty",
+        "question",
+        "options",
+        "answer_index",
+        "explanation",
+    )
     missing = [k for k in required if k not in q]
     if missing:
         raise ValueError(f"{source} 题目 {q.get('id')} 缺少字段: {missing}")
@@ -65,7 +81,9 @@ def _validate_question(q: dict, source: str) -> None:
         raise ValueError(f"{source} 题目 {q['id']} 选项数必须为 4")
     if not all(isinstance(o, str) for o in q["options"]):
         # YAML 常见坑: 选项含「冒号+空格」未加引号被解析成 dict
-        raise ValueError(f"{source} 题目 {q['id']} 选项必须全部为字符串(检查含冒号的值是否未加引号)")
+        raise ValueError(
+            f"{source} 题目 {q['id']} 选项必须全部为字符串(检查含冒号的值是否未加引号)"
+        )
     if not (0 <= q["answer_index"] < 4):
         raise ValueError(f"{source} 题目 {q['id']} answer_index 越界")
     if q["role"] not in ("modeler", "programmer", "writer"):

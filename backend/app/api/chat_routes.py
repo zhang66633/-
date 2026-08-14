@@ -25,14 +25,14 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
-from .schemas.request import ChatRequest
+from ..auth import GitHubUser, get_current_user
 from ..core.llm.factory import LLMFactory
 from ..core.prompts._shared import MARKDOWN_RULES, TEACH_SHARED_RULES
+from ..tools.interaction_tools import create_interaction_tools
 from ..tools.kb_tools import create_kb_tools
 from ..tools.math_tools import create_math_tools
-from ..tools.interaction_tools import create_interaction_tools
 from ..tools.web_search_tools import create_web_search_tools
-from ..auth import GitHubUser, get_current_user
+from .schemas.request import ChatRequest
 
 logger = logging.getLogger(__name__)
 
@@ -46,18 +46,21 @@ MAX_TOOL_ITERATIONS = 3
 # ── Retriever 缓存（避免每请求重建 BM25 索引）──────────────────────
 _cached_retriever = None
 
+
 def _get_retriever():
     """懒加载 + 缓存 HybridRetriever 实例（BM25 索引只建一次）。"""
     global _cached_retriever
     if _cached_retriever is None:
-        from ..knowledge.retriever import HybridRetriever
         from ..config import get_settings
+        from ..knowledge.retriever import HybridRetriever
+
         settings = get_settings()
         _cached_retriever = HybridRetriever(
             kb_root=settings.kb_root,
             persist_dir=settings.chroma_dir,
         )
     return _cached_retriever
+
 
 CHAT_SYSTEM_PROMPT = f"""# 数学建模助手
 
@@ -201,6 +204,7 @@ def _result_preview(content: str, max_chars: int = 200) -> str:
 def _sse(d: dict) -> str:
     return f"data: {json.dumps(d, ensure_ascii=False)}\n\n"
 
+
 async def _stream_solution(req: ChatRequest, api_key_config: dict | None = None):
     """方案模式 — 走全流程 LangGraph 管道，SSE 推送进度 + 最终输出。"""
     user_msgs = [m.content for m in req.messages if m.role == "user"]
@@ -211,14 +215,13 @@ async def _stream_solution(req: ChatRequest, api_key_config: dict | None = None)
         return
 
     import uuid
+
     task_id = str(uuid.uuid4())[:8]
 
     from ..core.state import create_initial_state
     from ..core.workflow import get_orchestrator
 
-    state = create_initial_state(
-        problem_raw=problem, mode="execute", session_id=task_id
-    )
+    state = create_initial_state(problem_raw=problem, mode="execute", session_id=task_id)
     if api_key_config:
         state["api_key_config"] = api_key_config
 
@@ -233,22 +236,28 @@ async def _stream_solution(req: ChatRequest, api_key_config: dict | None = None)
         yield "data: [DONE]\n\n"
         return
 
-    final = result.get("final_response", "") or result.get("writing_output", "") or "（未生成内容，请重试）"
+    final = (
+        result.get("final_response", "")
+        or result.get("writing_output", "")
+        or "（未生成内容，请重试）"
+    )
     writing = result.get("writing_output", "")
     model_output = result.get("model_output", "")
 
     # 拆分各部分供前端展示
-    yield _sse({
-        "event": "pipeline_done",
-        "task_id": task_id,
-        "has_paper": bool(writing),
-        "summary": f"分析: {len(result.get('analysis_output',''))}字 / 建模: {len(model_output)}字 / 求解: {len(result.get('solving_output',''))}字 / 论文: {len(writing)}字",
-    })
+    yield _sse(
+        {
+            "event": "pipeline_done",
+            "task_id": task_id,
+            "has_paper": bool(writing),
+            "summary": f"分析: {len(result.get('analysis_output', ''))}字 / 建模: {len(model_output)}字 / 求解: {len(result.get('solving_output', ''))}字 / 论文: {len(writing)}字",
+        }
+    )
 
     # Stream final output as delta chunks
     chunk_size = 150
     for i in range(0, len(final), chunk_size):
-        yield _sse({"delta": final[i:i + chunk_size]})
+        yield _sse({"delta": final[i : i + chunk_size]})
         await asyncio.sleep(0.03)
 
     yield _sse({"done": True, "task_id": task_id, "mode": "solution"})
@@ -266,11 +275,16 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
     try:
         llm = LLMFactory.create("chat", api_key_config=api_key_config)
         # 合并所有工具: KB 检索 + 数学计算 + 交互（ask_user / run_code）+ Web 搜索
-        tools = create_kb_tools() + create_math_tools() + create_interaction_tools() + create_web_search_tools()
+        tools = (
+            create_kb_tools()
+            + create_math_tools()
+            + create_interaction_tools()
+            + create_web_search_tools()
+        )
         tool_map = {t.name: t for t in tools}
         llm_with_tools = llm.bind_tools(tools)
 
-        messages = _to_lc_messages(req, unit_context=getattr(req, 'unit_context', None))
+        messages = _to_lc_messages(req, unit_context=getattr(req, "unit_context", None))
 
         # ── RAG 预检索：如果用户开启了 use_rag，先查知识库并注入上下文 ──
         if req.use_rag:
@@ -367,26 +381,38 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                 tool = tool_map.get(tool_name)
                 t0 = time.monotonic()
                 if tool is None:
-                    return {"ok": False, "error": f"未知工具: {tool_name}",
-                            "duration_ms": 0, "text": f"未知工具: {tool_name}"}
+                    return {
+                        "ok": False,
+                        "error": f"未知工具: {tool_name}",
+                        "duration_ms": 0,
+                        "text": f"未知工具: {tool_name}",
+                    }
                 try:
                     text = await asyncio.wait_for(
                         asyncio.to_thread(tool.invoke, tool_args),
                         timeout=_tool_timeout(tool_name),
                     )
-                    return {"ok": True,
-                            "duration_ms": int((time.monotonic() - t0) * 1000),
-                            "text": str(text)}
-                except asyncio.TimeoutError:
+                    return {
+                        "ok": True,
+                        "duration_ms": int((time.monotonic() - t0) * 1000),
+                        "text": str(text),
+                    }
+                except TimeoutError:
                     logger.warning("tool %s 超时（%ss）", tool_name, _tool_timeout(tool_name))
-                    return {"ok": False, "error": f"工具执行超时（{_tool_timeout(tool_name):.0f}s）",
-                            "duration_ms": int((time.monotonic() - t0) * 1000),
-                            "text": f"工具执行超时（{_tool_timeout(tool_name):.0f}s）"}
+                    return {
+                        "ok": False,
+                        "error": f"工具执行超时（{_tool_timeout(tool_name):.0f}s）",
+                        "duration_ms": int((time.monotonic() - t0) * 1000),
+                        "text": f"工具执行超时（{_tool_timeout(tool_name):.0f}s）",
+                    }
                 except Exception as e:  # noqa: BLE001
                     logger.exception("tool %s failed", tool_name)
-                    return {"ok": False, "error": str(e)[:200],
-                            "duration_ms": int((time.monotonic() - t0) * 1000),
-                            "text": f"工具执行失败: {e}"}
+                    return {
+                        "ok": False,
+                        "error": str(e)[:200],
+                        "duration_ms": int((time.monotonic() - t0) * 1000),
+                        "text": f"工具执行失败: {e}",
+                    }
 
             # run_code 先发 running 事件（保证前端立刻进入执行态）
             for tc in tool_calls_final:
@@ -396,7 +422,7 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
             results = await asyncio.gather(*[_execute_one(tc) for tc in tool_calls_final])
 
             # 按 LLM 原始顺序回灌消息 + 推送结果事件
-            for tc, r in zip(tool_calls_final, results):
+            for tc, r in zip(tool_calls_final, results, strict=False):
                 tool_name = tc.get("name")
                 if tool_name == "run_code":
                     code_data = _parse_code_result(r["text"])
@@ -454,17 +480,22 @@ def _parse_code_result(result_text: str) -> dict:
 @chat_router.post("/chat")
 async def chat(req: ChatRequest, user: GitHubUser | None = Depends(get_current_user)):
     """自由问答 SSE 流式接口（支持 LLM 工具调用）。"""
-    from .apikeys import get_active_api_key, _resolve_user_id
+    from .apikeys import _resolve_user_id, get_active_api_key
+
     uid = _resolve_user_id(user=user)
     active_key = get_active_api_key(uid)
     if not active_key:
+
         async def no_key():
             yield f"data: {json.dumps({'error': '请先在首页配置你的 API Key 后再发送消息。'}, ensure_ascii=False)}\n\n"
+
         return StreamingResponse(no_key(), media_type="text/event-stream")
 
     if not req.messages:
+
         async def empty():
             yield f"data: {json.dumps({'error': '消息不能为空'}, ensure_ascii=False)}\n\n"
+
         return StreamingResponse(empty(), media_type="text/event-stream")
 
     return StreamingResponse(

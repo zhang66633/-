@@ -199,28 +199,31 @@ rng = np.random.default_rng(42)
 N = 1_000_000
 x, y = rng.random(N), rng.random(N)
 pi_hat = 4 * ((x**2 + y**2) <= 1).mean()
-se = 4 * np.sqrt((np.pi/4) * (1 - np.pi/4) / N)          # 理论标准误
-print(f"pi_hat = {pi_hat:.6f} (真值 3.141593), SE = {se:.6f}")   # 3.142436
+se = 4 * np.sqrt((np.pi / 4) * (1 - np.pi / 4) / N)  # 理论标准误
+print(f"pi_hat = {pi_hat:.6f} (真值 3.141593), SE = {se:.6f}")  # 3.142436
 
 # 2. 定积分 ∫x^2: 朴素 vs 对偶变量 (例题 2)
 rng = np.random.default_rng(42)
 u = rng.random(100_000)
 plain = u**2
-anti = (u**2 + (1 - u)**2) / 2
+anti = (u**2 + (1 - u) ** 2) / 2
 print(f"朴素 = {plain.mean():.6f}, 对偶 = {anti.mean():.6f} (真值 0.333333)")
 print(f"方差比 = {plain.var(ddof=1) / anti.var(ddof=1):.1f} (理论 16)")
 
 # 3. 桥式网络可靠性 (例题 3): 5 条边, 每条以 p=0.9 独立正常工作
 p = 0.9
-edges = [(0, 1), (0, 2), (1, 2), (1, 3), (2, 3)]         # 0=s, 1=a, 2=b, 3=t
+edges = [(0, 1), (0, 2), (1, 2), (1, 3), (2, 3)]  # 0=s, 1=a, 2=b, 3=t
+
 
 def connected(alive):
     parent = list(range(4))
+
     def find(x):
         while parent[x] != x:
             parent[x] = parent[parent[x]]
             x = parent[x]
         return x
+
     for i, (a, b) in enumerate(edges):
         if alive[i]:
             ra, rb = find(a), find(b)
@@ -228,10 +231,11 @@ def connected(alive):
                 parent[ra] = rb
     return find(0) == find(3)
 
+
 rng = np.random.default_rng(42)
 M = 10_000
 hits = sum(connected([rng.random() < p for _ in range(5)]) for _ in range(M))
-print(f"可靠性 MC = {hits/M:.5f} (精确值 0.97848)")
+print(f"可靠性 MC = {hits / M:.5f} (精确值 0.97848)")
 ```
 
 > 运行结果与例题一致:$\hat{\pi} = 3.142436$;积分朴素 0.333869、对偶 0.333244,方差比约 16;可靠性 0.97900 对 0.97848。把 `N`、`M` 调大,估计会更靠近真值,但波动符合 $\pm 3\mathrm{SE}$ 规律。

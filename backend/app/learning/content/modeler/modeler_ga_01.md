@@ -172,30 +172,32 @@ D. $[1,2,6,4,5,3]$
 
 ```python
 import numpy as np
+
 rng = np.random.default_rng(42)
+
 
 def decode(bits):
     """5 位二进制串 → 整数"""
     return int(sum(b << (4 - i) for i, b in enumerate(bits)))
 
+
 POP, BITS, PC, PM, GEN = 20, 5, 0.9, 0.05, 30
-pop = rng.integers(0, 2, (POP, BITS))            # 初始种群
+pop = rng.integers(0, 2, (POP, BITS))  # 初始种群
 
 for gen in range(GEN):
     fit = np.array([decode(ind) ** 2 for ind in pop], dtype=float)
-    p = fit / fit.sum()                          # 轮盘赌概率
+    p = fit / fit.sum()  # 轮盘赌概率
     parents = pop[rng.choice(POP, POP, p=p)]
     off = parents.copy()
-    for i in range(0, POP, 2):                   # 单点交叉
+    for i in range(0, POP, 2):  # 单点交叉
         if rng.random() < PC:
             k = int(rng.integers(1, BITS))
-            off[i, k:], off[i+1, k:] = parents[i+1, k:].copy(), parents[i, k:].copy()
-    mask = rng.random((POP, BITS)) < PM          # 变异
+            off[i, k:], off[i + 1, k:] = parents[i + 1, k:].copy(), parents[i, k:].copy()
+    mask = rng.random((POP, BITS)) < PM  # 变异
     off = off ^ mask
     pop = off
 
-print("最优个体:", max(decode(ind) for ind in pop),
-      "适应度:", max(decode(ind) ** 2 for ind in pop))
+print("最优个体:", max(decode(ind) for ind in pop), "适应度:", max(decode(ind) ** 2 for ind in pop))
 # 典型输出:最优个体 31,适应度 961(31^2 即全局最优)
 ```
 

@@ -43,14 +43,14 @@
 ```python
 import numpy as np
 
-a = np.array([1.0, 2.0, 3.0])            # 从 list 创建
-b = np.linspace(0, 1, 5)                 # 均匀采样 5 个点
-c = np.zeros((2, 3))                     # 2×3 全零矩阵
-rng = np.random.default_rng(42)          # 现代随机数生成器
-d = rng.normal(0, 1, 1000)               # 1000 个标准正态样本
+a = np.array([1.0, 2.0, 3.0])  # 从 list 创建
+b = np.linspace(0, 1, 5)  # 均匀采样 5 个点
+c = np.zeros((2, 3))  # 2×3 全零矩阵
+rng = np.random.default_rng(42)  # 现代随机数生成器
+d = rng.normal(0, 1, 1000)  # 1000 个标准正态样本
 
-print(a + 10)        # 向量化:每个元素 +10
-print(a * a)         # 逐元素相乘(不是矩阵乘法!)
+print(a + 10)  # 向量化:每个元素 +10
+print(a * a)  # 逐元素相乘(不是矩阵乘法!)
 print(f"样本均值 {d.mean():.3f}, 标准差 {d.std():.3f}")
 ```
 
@@ -91,17 +91,17 @@ SciPy 建立在 NumPy 之上,按子模块组织:
 ```python
 import numpy as np
 
-rng = np.random.default_rng(2024)          # 固定种子,结果可复现
-scores = rng.normal(75, 12, 500)           # 500 个正态样本
-scores = np.clip(np.round(scores), 0, 100) # 取整并截断到 [0,100]
+rng = np.random.default_rng(2024)  # 固定种子,结果可复现
+scores = rng.normal(75, 12, 500)  # 500 个正态样本
+scores = np.clip(np.round(scores), 0, 100)  # 取整并截断到 [0,100]
 
 mean = scores.mean()
 std = scores.std()
-pass_rate = (scores >= 60).mean()          # 布尔数组求均值 = 及格比例
+pass_rate = (scores >= 60).mean()  # 布尔数组求均值 = 及格比例
 best = scores.max()
 
-z = (scores - mean) / std                  # 标准化:Z 分数
-top3 = np.argsort(-z)[:3]                  # 降序排列取前三的下标
+z = (scores - mean) / std  # 标准化:Z 分数
+top3 = np.argsort(-z)[:3]  # 降序排列取前三的下标
 
 print(f"平均分: {mean:.2f}, 标准差: {std:.2f}")
 print(f"及格率: {pass_rate:.1%}, 最高分: {best:.0f}")
@@ -169,8 +169,10 @@ from scipy.optimize import curve_fit
 t = np.arange(10)
 cases = np.array([2, 5, 9, 18, 35, 62, 98, 145, 189, 223])
 
+
 def logistic(t, K, r, t0):
     return K / (1 + np.exp(-r * (t - t0)))
+
 
 popt, pcov = curve_fit(logistic, t, cases, p0=[400, 0.6, 5])
 K, r, t0 = popt
@@ -217,6 +219,7 @@ D. Matplotlib —— 数据可视化
 
 ```python
 import numpy as np
+
 a = np.array([1, 2, 3])
 b = np.array([1, 2, 3])
 print(a * b)
@@ -236,6 +239,7 @@ D. [1 4 9] 和 14
 
 ```python
 import numpy as np
+
 rng = np.random.default_rng(2024)
 scores = rng.normal(75, 12, 500)
 print(f"{(scores >= 60).mean():.2f}")
@@ -275,9 +279,11 @@ rng = np.random.default_rng(0)
 x = np.linspace(0, 10, 30)
 y = 2.5 * x + 1.2 + rng.normal(0, 1.5, x.size)
 
+
 # 2. 最小二乘直线拟合
 def line(x, k, b):
     return k * x + b
+
 
 (k, b), cov = curve_fit(line, x, y)
 print(f"y = {k:.3f} x + {b:.3f}")
@@ -286,8 +292,10 @@ print(f"y = {k:.3f} x + {b:.3f}")
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.scatter(x, y, s=25, label="观测数据", zorder=3)
 ax.plot(x, k * x + b, "r-", lw=2, label=f"拟合直线 (k={k:.2f})")
-ax.set_xlabel("x"); ax.set_ylabel("y")
-ax.legend(); ax.grid(alpha=0.3)
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.legend()
+ax.grid(alpha=0.3)
 fig.savefig("fit_demo.png", dpi=200)
 print("图片已保存到 fit_demo.png")
 ```

@@ -230,3 +230,16 @@ GET /api/sandbox/status
 \\\
 
 面板可在设置/首页展示当前沙箱模式（docker 硬隔离 vs subprocess 回退）。
+
+### 4.6 前端体验改进清单（A 给 B 的竞赛演示优化点）
+
+基于工具事件协议 v2（§4.4）与当前痛点，B 侧可落地的体验项：
+
+1. **工具状态徽标**：利用 tool_result 的 ok/duration_ms/error 渲染成功/失败/耗时徽标（ToolStatusBadge 已有雏形），失败红色 + 错误摘要，演示时「智能体在干活」的观感强很多。
+2. **执行态进度**：code_exec running → 骨架屏/脉冲动画；写作节点 node_progress 事件（stage: outline/section/abstract/red_team）→ 顶部进度条展示 6 阶段。
+3. **首字延迟**：发送后立即渲染「正在思考…」占位（已有 thinking 事件可驱动）；RAG 预检索期间发 pending 状态。
+4. **错误恢复**：SSE error 帧显示「重试」按钮（复用删除掉的 handleUserSendWithRetry 思路，但要加幂等守卫）。
+5. **沙箱模式徽章**：调用 §4.5 GET /api/sandbox/status，在设置页/首页显示「沙箱: Docker 硬隔离」或「subprocess 回退」。
+6. **写作加速提示**：写作阶段并发后，node_progress 的 section 事件会在全部完成后批量到达，建议展示「并行生成 6 章节…」而非逐节等待。
+
+后端已就绪（A 侧完成），B 照此实现即可。

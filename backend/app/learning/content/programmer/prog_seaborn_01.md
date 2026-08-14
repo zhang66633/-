@@ -23,11 +23,12 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-sns.set_theme(style="whitegrid", context="paper")   # 全局风格
+sns.set_theme(style="whitegrid", context="paper")  # 全局风格
 data = np.random.default_rng(0).normal(size=1000)
 fig, ax = plt.subplots(figsize=(7, 4.5))
-sns.histplot(x=data, ax=ax)        # seaborn 画,ax 仍是 matplotlib 对象
-ax.set_xlabel("数值"); ax.set_title("分布直方图")
+sns.histplot(x=data, ax=ax)  # seaborn 画,ax 仍是 matplotlib 对象
+ax.set_xlabel("数值")
+ax.set_title("分布直方图")
 fig.savefig("hist.png", dpi=200)
 ```
 
@@ -87,18 +88,26 @@ plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]
 plt.rcParams["axes.unicode_minus"] = False
 
 rng = np.random.default_rng(42)
-cov = [[1.0, 0.8, -0.6, 0.1],
-       [0.8, 1.0, -0.5, 0.0],
-       [-0.6, -0.5, 1.0, 0.3],
-       [0.1, 0.0, 0.3, 1.0]]
-df = pd.DataFrame(rng.multivariate_normal([0, 0, 0, 0], cov, size=200),
-                  columns=["GDP增速", "投资", "失业率", "出口"])
+cov = [[1.0, 0.8, -0.6, 0.1], [0.8, 1.0, -0.5, 0.0], [-0.6, -0.5, 1.0, 0.3], [0.1, 0.0, 0.3, 1.0]]
+df = pd.DataFrame(
+    rng.multivariate_normal([0, 0, 0, 0], cov, size=200),
+    columns=["GDP增速", "投资", "失业率", "出口"],
+)
 corr = df.corr()
 
 fig, ax = plt.subplots(figsize=(7, 5.5))
-sns.heatmap(corr, annot=True, fmt=".2f", cmap="RdBu_r",
-            vmin=-1, vmax=1, center=0, square=True,
-            cbar_kws={"shrink": 0.8}, ax=ax)
+sns.heatmap(
+    corr,
+    annot=True,
+    fmt=".2f",
+    cmap="RdBu_r",
+    vmin=-1,
+    vmax=1,
+    center=0,
+    square=True,
+    cbar_kws={"shrink": 0.8},
+    ax=ax,
+)
 ax.set_title("指标相关系数矩阵")
 fig.savefig("corr.png", dpi=200)
 print(corr.round(2))
@@ -129,13 +138,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.datasets import make_classification
 
-X, y = make_classification(n_samples=300, n_features=4,
-                           n_informative=3, n_redundant=0, random_state=0)
-df = pd.DataFrame(X, columns=[f"x{i+1}" for i in range(4)])
+X, y = make_classification(
+    n_samples=300, n_features=4, n_informative=3, n_redundant=0, random_state=0
+)
+df = pd.DataFrame(X, columns=[f"x{i + 1}" for i in range(4)])
 df["类别"] = y.astype(str)
 
-g = sns.pairplot(df, hue="类别", diag_kind="kde",
-                 palette=["#4C78A8", "#F58518"])
+g = sns.pairplot(df, hue="类别", diag_kind="kde", palette=["#4C78A8", "#F58518"])
 g.savefig("pair.png", dpi=200)
 print("各类别样本数:", df["类别"].value_counts().to_dict())
 ```
@@ -165,18 +174,23 @@ plt.rcParams["axes.unicode_minus"] = False
 
 rng = np.random.default_rng(0)
 n = 80
-df = pd.DataFrame({
-    "方法": np.repeat(["方法A", "方法B", "方法C", "方法D"], n),
-    "得分": np.concatenate([
-        rng.normal(72, 6, n), rng.normal(78, 8, n),
-        rng.normal(65, 10, n), rng.normal(80, 5, n)]),
-})
+df = pd.DataFrame(
+    {
+        "方法": np.repeat(["方法A", "方法B", "方法C", "方法D"], n),
+        "得分": np.concatenate(
+            [
+                rng.normal(72, 6, n),
+                rng.normal(78, 8, n),
+                rng.normal(65, 10, n),
+                rng.normal(80, 5, n),
+            ]
+        ),
+    }
+)
 
 fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
-sns.boxplot(data=df, x="方法", y="得分", hue="方法", palette="pastel",
-            legend=False, ax=axes[0])
-sns.violinplot(data=df, x="方法", y="得分", hue="方法", palette="muted",
-               legend=False, ax=axes[1])
+sns.boxplot(data=df, x="方法", y="得分", hue="方法", palette="pastel", legend=False, ax=axes[0])
+sns.violinplot(data=df, x="方法", y="得分", hue="方法", palette="muted", legend=False, ax=axes[1])
 axes[0].set_title("箱线图")
 axes[1].set_title("小提琴图")
 fig.tight_layout()
@@ -266,8 +280,9 @@ df["组别"] = rng.choice(["G1", "G2", "G3"], 150)
 
 # ① 相关系数热力图
 fig, ax = plt.subplots(figsize=(6, 5))
-sns.heatmap(df[list("abcd")].corr(), annot=True, fmt=".2f",
-            cmap="RdBu_r", vmin=-1, vmax=1, center=0, ax=ax)
+sns.heatmap(
+    df[list("abcd")].corr(), annot=True, fmt=".2f", cmap="RdBu_r", vmin=-1, vmax=1, center=0, ax=ax
+)
 ax.set_title("相关系数矩阵")
 fig.savefig("corr.png", dpi=200)
 

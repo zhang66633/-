@@ -204,25 +204,28 @@ from scipy.optimize import minimize
 
 # 1. 伯努利 MLE: 10 次抛掷 7 次正面
 k, n = 7, 10
-print("伯努利 p_hat =", k / n)                      # 0.7
+print("伯努利 p_hat =", k / n)  # 0.7
 
 # 2. 正态 MLE(闭式): 样本 (2, 4, 6)
 x = np.array([2.0, 4.0, 6.0])
 mu_hat = x.mean()
 sigma2_hat = ((x - mu_hat) ** 2).mean()
-print(f"正态 mu_hat = {mu_hat}, sigma2_hat = {sigma2_hat:.4f}")   # 4, 2.6667
+print(f"正态 mu_hat = {mu_hat}, sigma2_hat = {sigma2_hat:.4f}")  # 4, 2.6667
 
 # 3. 指数 MLE: 寿命样本 0.5, 1.0, 1.5
 lifetimes = np.array([0.5, 1.0, 1.5])
-print("指数 lambda_hat =", 1 / lifetimes.mean())    # 1.0
+print("指数 lambda_hat =", 1 / lifetimes.mean())  # 1.0
 
 # 4. 无解析解时: 数值最小化负对数似然 (Gamma 分布)
 from scipy.stats import gamma
+
 data = np.random.default_rng(42).gamma(shape=2.0, scale=1.5, size=200)  # 真值 (2, 1.5)
+
 
 def neg_ll(theta):
     a, s = theta
     return -np.sum(gamma.logpdf(data, a=a, scale=s))
+
 
 res = minimize(neg_ll, x0=[1.0, 1.0], bounds=[(1e-6, None), (1e-6, None)])
 print(f"Gamma 数值 MLE: shape = {res.x[0]:.3f}, scale = {res.x[1]:.3f}")  # 约 (2.14, 1.46),接近真值
@@ -231,14 +234,16 @@ print(f"Gamma 数值 MLE: shape = {res.x[0]:.3f}, scale = {res.x[1]:.3f}")  # �
 rng = np.random.default_rng(42)
 data = np.concatenate([rng.normal(-1.5, 0.6, 600), rng.normal(2.0, 1.0, 400)])
 rng.shuffle(data)
-pi, mu1, mu2, s1, s2 = 0.5, -0.5, 0.5, 1.0, 1.0          # 任意初始化
+pi, mu1, mu2, s1, s2 = 0.5, -0.5, 0.5, 1.0, 1.0  # 任意初始化
 for _ in range(200):
-    p1 = pi * np.exp(-(data - mu1)**2 / (2*s1)) / np.sqrt(2*np.pi*s1)
-    p2 = (1 - pi) * np.exp(-(data - mu2)**2 / (2*s2)) / np.sqrt(2*np.pi*s2)
-    g1 = p1 / (p1 + p2 + 1e-300)                          # E 步: 样本属于第 1 类的责任度
-    pi = g1.mean()                                        # M 步: 更新混合比例
-    mu1 = (g1*data).sum() / g1.sum();  mu2 = ((1-g1)*data).sum() / (1-g1).sum()
-    s1 = (g1*(data-mu1)**2).sum() / g1.sum(); s2 = ((1-g1)*(data-mu2)**2).sum() / (1-g1).sum()
+    p1 = pi * np.exp(-((data - mu1) ** 2) / (2 * s1)) / np.sqrt(2 * np.pi * s1)
+    p2 = (1 - pi) * np.exp(-((data - mu2) ** 2) / (2 * s2)) / np.sqrt(2 * np.pi * s2)
+    g1 = p1 / (p1 + p2 + 1e-300)  # E 步: 样本属于第 1 类的责任度
+    pi = g1.mean()  # M 步: 更新混合比例
+    mu1 = (g1 * data).sum() / g1.sum()
+    mu2 = ((1 - g1) * data).sum() / (1 - g1).sum()
+    s1 = (g1 * (data - mu1) ** 2).sum() / g1.sum()
+    s2 = ((1 - g1) * (data - mu2) ** 2).sum() / (1 - g1).sum()
 print(f"EM 结果: pi = {pi:.2f} (真 0.6), mu = ({mu1:.2f}, {mu2:.2f}) (真 -1.5, 2.0)")
 print(f"        sigma = ({np.sqrt(s1):.2f}, {np.sqrt(s2):.2f}) (真 0.6, 1.0)")
 ```

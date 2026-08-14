@@ -3,6 +3,7 @@
 运行: 在 backend/ 目录下 `python -m pytest tests/test_apikeys_ssrf.py -q`
       或直接 `python tests/test_apikeys_ssrf.py`。
 """
+
 import sys
 from pathlib import Path
 
@@ -35,9 +36,14 @@ def test_private_and_loopback_rejected():
 
 
 def test_public_https_accepted():
-    assert _validate_custom_base_url("https://api.deepseek.com").rstrip("/") == "https://api.deepseek.com"
-    assert _validate_custom_base_url("https://dashscope.aliyuncs.com/compatible-mode") == \
-        "https://dashscope.aliyuncs.com/compatible-mode"
+    assert (
+        _validate_custom_base_url("https://api.deepseek.com").rstrip("/")
+        == "https://api.deepseek.com"
+    )
+    assert (
+        _validate_custom_base_url("https://dashscope.aliyuncs.com/compatible-mode")
+        == "https://dashscope.aliyuncs.com/compatible-mode"
+    )
 
 
 def test_empty_accepted():

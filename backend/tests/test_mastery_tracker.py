@@ -3,6 +3,7 @@
 覆盖 plan 006：apply_decay 幂等、峰值抬升、掌握度随天数单调衰减，
 以及 REVIEW_THRESHOLD 语义保持不变。
 """
+
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -11,12 +12,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.learning.mastery_tracker import (
+    REVIEW_THRESHOLD,
     MasteryTracker,
     ebbinghaus_retention,
-    REVIEW_THRESHOLD,
 )
 from app.learning.schemas import LearningEvent
-
 
 T0 = datetime(2026, 1, 1, 12, 0, 0)
 
@@ -99,8 +99,7 @@ def test_legacy_skill_without_peak():
 
 if __name__ == "__main__":
     # 简单脚本运行器：逐个执行以 test_ 开头的函数，兼容无 pytest 环境
-    fns = [(n, f) for n, f in sorted(globals().items())
-           if n.startswith("test_") and callable(f)]
+    fns = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0
     for name, fn in fns:
         try:

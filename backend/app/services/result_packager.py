@@ -5,15 +5,10 @@
   - build_zip_package(): 打包论文 + 数据 + 图表 + 代码为 zip
 """
 
-import io
-import json
 import logging
 import re
-import shutil
-import tempfile
 import zipfile
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +26,7 @@ class ResultPackager:
     def build_summary_xlsx(
         self,
         solving_output: str = "",
-        task_files_dir: Optional[Path] = None,
+        task_files_dir: Path | None = None,
     ) -> Path:
         """从求解报告中解析数据表，生成汇总 xlsx。
 
@@ -180,20 +175,28 @@ class ResultPackager:
 
                     # 注册到 session manager
                     from app.services.session import get_session_manager
-                    get_session_manager().add_artifact(self.task_id, {
-                        "type": f.suffix.lstrip("."),
-                        "name": f.name,
-                        "url": f"/api/task_files/{self.task_id}/{f.name}",
-                        "size": f.stat().st_size,
-                    })
+
+                    get_session_manager().add_artifact(
+                        self.task_id,
+                        {
+                            "type": f.suffix.lstrip("."),
+                            "name": f.name,
+                            "url": f"/api/task_files/{self.task_id}/{f.name}",
+                            "size": f.stat().st_size,
+                        },
+                    )
 
         # 注册 zip 到 session manager
         from app.services.session import get_session_manager
-        get_session_manager().add_artifact(self.task_id, {
-            "type": "zip",
-            "name": f"{self.task_id}_results.zip",
-            "url": f"/api/task_files/{self.task_id}/{self.task_id}_results.zip",
-            "size": output_path.stat().st_size,
-        })
+
+        get_session_manager().add_artifact(
+            self.task_id,
+            {
+                "type": "zip",
+                "name": f"{self.task_id}_results.zip",
+                "url": f"/api/task_files/{self.task_id}/{self.task_id}_results.zip",
+                "size": output_path.stat().st_size,
+            },
+        )
 
         return output_path

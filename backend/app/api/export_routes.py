@@ -168,7 +168,6 @@ async def export_docx(req: ExportDocxRequest):
     """将 Markdown 文本转为 .docx 文件下载。"""
     try:
         from docx import Document
-        from docx.shared import Pt
         from docx.enum.text import WD_ALIGN_PARAGRAPH
     except ImportError:
         raise HTTPException(status_code=500, detail="python-docx 未安装")

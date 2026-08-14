@@ -201,34 +201,32 @@ D. $\rho$ 的取值不影响任何结论,论文中无需报告
 ```python
 import numpy as np
 
-x0 = np.array([10., 12., 9., 15.])
-X = np.array([[5., 8., 7., 12.],
-              [20., 22., 21., 28.],
-              [7., 7., 7., 7.]])
+x0 = np.array([10.0, 12.0, 9.0, 15.0])
+X = np.array([[5.0, 8.0, 7.0, 12.0], [20.0, 22.0, 21.0, 28.0], [7.0, 7.0, 7.0, 7.0]])
+
 
 def grey_rel(x0, X, rho=0.5):
     """邓氏关联度。x0: 参考序列;X: 比较序列矩阵(每行一个序列)"""
-    x0 = x0 / x0[0]                    # 初值化
+    x0 = x0 / x0[0]  # 初值化
     X = X / X[:, 0:1]
-    delta = np.abs(X - x0)             # 差序列
-    m, M = delta.min(), delta.max()    # 两级极差
-    xi = (m + rho * M) / (delta + rho * M)   # 关联系数
-    return xi, xi.mean(axis=1)         # 关联度
+    delta = np.abs(X - x0)  # 差序列
+    m, M = delta.min(), delta.max()  # 两级极差
+    xi = (m + rho * M) / (delta + rho * M)  # 关联系数
+    return xi, xi.mean(axis=1)  # 关联度
+
 
 xi, r = grey_rel(x0, X)
 print("关联系数:\n", np.round(xi, 4))
 # [[1.     0.5294 0.4737 0.3333]
 #  [1.     0.8182 0.75   0.8182]
 #  [1.     0.6923 0.8182 0.4737]]
-print("关联度:", np.round(r, 4))       # [0.5841 0.8466 0.746 ]
-print("排序  :", np.argsort(-r) + 1)   # [2 3 1]
+print("关联度:", np.round(r, 4))  # [0.5841 0.8466 0.746 ]
+print("排序  :", np.argsort(-r) + 1)  # [2 3 1]
 
 # 综合评价:理想序列法(例题 2)
-x0_ideal = np.array([8., 9., 9.])
-A = np.array([[8., 6., 7.],
-              [7., 9., 6.],
-              [6., 8., 9.]])
-_, score = grey_rel(x0_ideal, A)       # 指标已同量纲,仍用初值化不影响排序
+x0_ideal = np.array([8.0, 9.0, 9.0])
+A = np.array([[8.0, 6.0, 7.0], [7.0, 9.0, 6.0], [6.0, 8.0, 9.0]])
+_, score = grey_rel(x0_ideal, A)  # 指标已同量纲,仍用初值化不影响排序
 print("综合得分:", np.round(score, 4))  # [0.5873 0.6444 0.6762]
 ```
 

@@ -219,8 +219,10 @@ import matplotlib.pyplot as plt
 # ---- 1. Logistic: 数值解 vs 解析解 ----
 r, K, N0 = 0.5, 1000.0, 100.0
 
+
 def logistic(t, N):
     return r * N * (1 - N / K)
+
 
 sol = solve_ivp(logistic, [0, 15], [N0], dense_output=True)
 t = np.linspace(0, 15, 100)
@@ -229,14 +231,22 @@ print("t=15 数值解:", sol.sol(15)[0])
 print("t=15 解析解:", N_exact[-1])
 print("最大绝对误差:", np.max(np.abs(sol.sol(t)[0] - N_exact)))
 
+
 # ---- 2. SIR 模型 + 守恒量检查 ----
 def sir(t, y, beta, gamma):
     S, I, R = y
     return [-beta * S * I, beta * S * I - gamma * I, gamma * I]
 
+
 beta, gamma = 4e-4, 0.1
-sol2 = solve_ivp(sir, [0, 120], [999, 1, 0], args=(beta, gamma),
-                 dense_output=True, t_eval=np.linspace(0, 120, 500))
+sol2 = solve_ivp(
+    sir,
+    [0, 120],
+    [999, 1, 0],
+    args=(beta, gamma),
+    dense_output=True,
+    t_eval=np.linspace(0, 120, 500),
+)
 print("R0 =", beta * 999 / gamma)
 print("末期感染者 I(应为0):", sol2.y[1, -1])
 print("末期未感染者 S:", sol2.y[0, -1], "(理论值约20)")

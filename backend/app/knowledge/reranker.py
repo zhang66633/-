@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import re
-from typing import List, Optional, Sequence
 
 from langchain_core.documents import Document
 from langchain_core.language_models import BaseChatModel
@@ -64,9 +63,9 @@ class LLMReranker:
     def rerank(
         self,
         query: str,
-        documents: List[Document],
+        documents: list[Document],
         top_k: int = 5,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Score and rerank documents by relevance to the query.
 
         Returns the top_k most relevant documents, each with metadata["score"]
@@ -109,7 +108,7 @@ class LLMReranker:
     # ── internals ──────────────────────────────────────────────────
 
     def _score_batch(
-        self, query: str, batch: List[Document], offset: int = 0
+        self, query: str, batch: list[Document], offset: int = 0
     ) -> dict[int, tuple[float, str]]:
         """Ask the LLM to score one batch of documents."""
         doc_texts = []
@@ -118,8 +117,7 @@ class LLMReranker:
             if len(doc.page_content) > self.max_doc_chars:
                 content += "..."
             doc_texts.append(
-                f"文档 [{i + offset}]: {content}\n"
-                f"  类型: {doc.metadata.get('type', 'unknown')}"
+                f"文档 [{i + offset}]: {content}\n  类型: {doc.metadata.get('type', 'unknown')}"
             )
 
         human_msg = RERANK_HUMAN_TEMPLATE.format(
@@ -128,22 +126,19 @@ class LLMReranker:
         )
 
         try:
-            response = self.llm.invoke([
-                SystemMessage(content=RERANK_SYSTEM),
-                HumanMessage(content=human_msg),
-            ])
+            response = self.llm.invoke(
+                [
+                    SystemMessage(content=RERANK_SYSTEM),
+                    HumanMessage(content=human_msg),
+                ]
+            )
             return self._parse_scores(str(response.content), offset=offset)
         except Exception:
             # On failure, return neutral scores
-            return {
-                i + offset: (3.0, "评分失败")
-                for i in range(len(batch))
-            }
+            return {i + offset: (3.0, "评分失败") for i in range(len(batch))}
 
     @staticmethod
-    def _parse_scores(
-        text: str, offset: int = 0
-    ) -> dict[int, tuple[float, str]]:
+    def _parse_scores(text: str, offset: int = 0) -> dict[int, tuple[float, str]]:
         """Extract scoring JSON from LLM output (handles markdown fences)."""
         # Strip markdown code fences if present
         json_match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", text, re.DOTALL)

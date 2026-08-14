@@ -2,24 +2,22 @@
 
 """Knowledge base management API — browse, search, reindex, upload, and CRUD."""
 
-import re
-import uuid
 
 import yaml
-from pathlib import Path
-from typing import Optional
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+)
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
-from pydantic import BaseModel, Field
-
-from ..config import get_settings
 from ..auth.dependencies import require_contributor
 from ..auth.schemas import GitHubUser
-
-
+from ..config import get_settings
 from .knowledge_shared import *  # noqa: F403
 from .knowledge_shared import (  # noqa: F401
-    _get_embedder, _find_yaml_file, _next_id,
+    _find_yaml_file,
+    _get_embedder,
+    _next_id,
 )
 
 knowledge_router = APIRouter()
@@ -35,11 +33,15 @@ async def create_method(data: dict, user: GitHubUser = Depends(require_contribut
         entry_id = _next_id("method")
         data["id"] = entry_id
         from ..knowledge.schemas import MethodCard
+
         validated = MethodCard(**data)
 
         yaml_str = yaml.dump(
             {"method_card": validated.model_dump()},
-            allow_unicode=True, default_flow_style=False, sort_keys=False, indent=2,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
         )
         settings = get_settings()
         cat = (data.get("category") or ["other"])[0]
@@ -67,11 +69,15 @@ async def update_method(card_id: str, data: dict, user: GitHubUser = Depends(req
 
         data["id"] = card_id
         from ..knowledge.schemas import MethodCard
+
         validated = MethodCard(**data)
 
         yaml_str = yaml.dump(
             {"method_card": validated.model_dump()},
-            allow_unicode=True, default_flow_style=False, sort_keys=False, indent=2,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
         )
         yf.write_text(yaml_str, encoding="utf-8")
 
@@ -119,14 +125,18 @@ async def create_paper(data: dict, user: GitHubUser = Depends(require_contributo
         entry_id = _next_id("paper")
         data["id"] = entry_id
         from ..knowledge.schemas import Paper
+
         validated = Paper(**data)
 
         yaml_str = yaml.dump(
             {"paper": validated.model_dump()},
-            allow_unicode=True, default_flow_style=False, sort_keys=False, indent=2,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
         )
         settings = get_settings()
-        comp = (data.get("competition") or "other")
+        comp = data.get("competition") or "other"
         year = data.get("year", 2025)
         pid = data.get("problem_id", "X")
         safe_name = f"{year}{comp}{pid}"
@@ -153,11 +163,15 @@ async def update_paper(paper_id: str, data: dict, user: GitHubUser = Depends(req
 
         data["id"] = paper_id
         from ..knowledge.schemas import Paper
+
         validated = Paper(**data)
 
         yaml_str = yaml.dump(
             {"paper": validated.model_dump()},
-            allow_unicode=True, default_flow_style=False, sort_keys=False, indent=2,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
         )
         yf.write_text(yaml_str, encoding="utf-8")
 
@@ -204,11 +218,15 @@ async def create_template(data: dict, user: GitHubUser = Depends(require_contrib
         entry_id = _next_id("template")
         data["id"] = entry_id
         from ..knowledge.schemas import Template
+
         validated = Template(**data)
 
         yaml_str = yaml.dump(
             {"template": validated.model_dump()},
-            allow_unicode=True, default_flow_style=False, sort_keys=False, indent=2,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
         )
         settings = get_settings()
         safe_name = (data.get("name") or entry_id).replace(" ", "_")
@@ -235,11 +253,15 @@ async def update_template(tpl_id: str, data: dict, user: GitHubUser = Depends(re
 
         data["id"] = tpl_id
         from ..knowledge.schemas import Template
+
         validated = Template(**data)
 
         yaml_str = yaml.dump(
             {"template": validated.model_dump()},
-            allow_unicode=True, default_flow_style=False, sort_keys=False, indent=2,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
         )
         yf.write_text(yaml_str, encoding="utf-8")
 
@@ -286,14 +308,18 @@ async def create_problem(data: dict, user: GitHubUser = Depends(require_contribu
         entry_id = _next_id("problem")
         data["id"] = entry_id
         from ..knowledge.schemas import Problem
+
         validated = Problem(**data)
 
         yaml_str = yaml.dump(
             {"problem": validated.model_dump()},
-            allow_unicode=True, default_flow_style=False, sort_keys=False, indent=2,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
         )
         settings = get_settings()
-        comp = (data.get("competition") or "other")
+        comp = data.get("competition") or "other"
         year = data.get("year", 2025)
         pid = data.get("problem_id", "X")
         safe_name = f"{year}{pid}"
@@ -311,7 +337,9 @@ async def create_problem(data: dict, user: GitHubUser = Depends(require_contribu
 
 
 @knowledge_router.put("/problems/{problem_id}", response_model=KnowledgeCrudResponse)
-async def update_problem(problem_id: str, data: dict, user: GitHubUser = Depends(require_contributor)):
+async def update_problem(
+    problem_id: str, data: dict, user: GitHubUser = Depends(require_contributor)
+):
     """更新竞赛题目。"""
     try:
         yf = _find_yaml_file("problem", problem_id)
@@ -320,11 +348,15 @@ async def update_problem(problem_id: str, data: dict, user: GitHubUser = Depends
 
         data["id"] = problem_id
         from ..knowledge.schemas import Problem
+
         validated = Problem(**data)
 
         yaml_str = yaml.dump(
             {"problem": validated.model_dump()},
-            allow_unicode=True, default_flow_style=False, sort_keys=False, indent=2,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
         )
         yf.write_text(yaml_str, encoding="utf-8")
 
@@ -359,4 +391,3 @@ async def delete_problem(problem_id: str, user: GitHubUser = Depends(require_con
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除失败: {e}")
-

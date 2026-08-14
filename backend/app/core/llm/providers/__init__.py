@@ -7,8 +7,6 @@ API backend (DeepSeek, Anthropic, OpenAI).  The LLMFactory in
 
 from __future__ import annotations
 
-from typing import Optional
-
 from langchain_core.language_models import BaseChatModel
 
 
@@ -21,7 +19,7 @@ class BaseProvider:
         api_key: str,
         temperature: float = 0.3,
         max_tokens: int = 8192,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
     ) -> BaseChatModel:
         raise NotImplementedError
 
@@ -38,7 +36,7 @@ class OpenaiCompatibleProvider(BaseProvider):
         api_key: str,
         temperature: float = 0.3,
         max_tokens: int = 8192,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
     ) -> BaseChatModel:
         from langchain_openai import ChatOpenAI
 
@@ -73,7 +71,7 @@ class AnthropicProvider(BaseProvider):
         api_key: str,
         temperature: float = 0.3,
         max_tokens: int = 8192,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
     ) -> BaseChatModel:
         from langchain_anthropic import ChatAnthropic
 
@@ -92,6 +90,7 @@ class AnthropicProvider(BaseProvider):
 
 
 # ── provider resolver ──────────────────────────────────────────────
+
 
 def classify_provider(model: str) -> str:
     """按模型名归类供应商（单一真源，config.get_llm_config 复用）。

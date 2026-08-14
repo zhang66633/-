@@ -1,4 +1,5 @@
 """学习事件与成就持久化测试(阶段 0)。"""
+
 import sys
 from pathlib import Path
 
@@ -32,8 +33,8 @@ def test_active_dates(tmp_path):
 def test_achievement_unlock_and_ack(tmp_path):
     store = LearningStore(db_path=tmp_path / "learning.db")
 
-    assert store.unlock_achievement("quiz_10") is True     # 新解锁
-    assert store.unlock_achievement("quiz_10") is False    # 幂等
+    assert store.unlock_achievement("quiz_10") is True  # 新解锁
+    assert store.unlock_achievement("quiz_10") is False  # 幂等
     assert store.unlocked_ids()["quiz_10"]["acknowledged"] is False
 
     store.ack_all()
@@ -45,7 +46,11 @@ def test_achievement_unlock_and_ack(tmp_path):
 
 
 if __name__ == "__main__":
-    test_event_persistence(Path("data") / "test_learning.db")
-    test_active_dates(Path("data") / "test_learning2.db")
-    test_achievement_unlock_and_ack(Path("data") / "test_learning3.db")
+    # 每次运行用唯一库名，避免持久化状态泄漏（旧库文件留 data/ 目录，属 gitignored 运行时垃圾）
+    import uuid
+
+    rid = uuid.uuid4().hex[:6]
+    test_event_persistence(Path("data") / f"test_learning_{rid}.db")
+    test_active_dates(Path("data") / f"test_learning2_{rid}.db")
+    test_achievement_unlock_and_ack(Path("data") / f"test_learning3_{rid}.db")
     print("ALL TESTS PASSED")

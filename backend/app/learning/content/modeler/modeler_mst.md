@@ -198,14 +198,17 @@ D. 负权边对两者都有害,求 MST 也必须改用 Bellman-Ford
 import heapq, itertools
 import numpy as np
 
+
 # 1. Kruskal + 并查集 (例题 1: 0=A ... 5=F)
 def kruskal(n, edges):
     parent = list(range(n))
+
     def find(x):
         while parent[x] != x:
-            parent[x] = parent[parent[x]]   # 路径压缩
+            parent[x] = parent[parent[x]]  # 路径压缩
             x = parent[x]
         return x
+
     mst, total = [], 0
     for w, u, v in sorted(edges):
         ru, rv = find(u), find(v)
@@ -215,27 +218,42 @@ def kruskal(n, edges):
             total += w
     return total, mst
 
-E = [(4,0,1),(2,0,2),(1,1,2),(5,1,3),(8,2,3),(10,2,4),(2,3,4),(6,3,5),(3,4,5)]
-print("MST 总权:", kruskal(6, E)[0])        # 13
-print("MST 边:", kruskal(6, E)[1])          # [(1,2,1),(0,2,2),(3,4,2),(4,5,3),(1,3,5)]
+
+E = [
+    (4, 0, 1),
+    (2, 0, 2),
+    (1, 1, 2),
+    (5, 1, 3),
+    (8, 2, 3),
+    (10, 2, 4),
+    (2, 3, 4),
+    (6, 3, 5),
+    (3, 4, 5),
+]
+print("MST 总权:", kruskal(6, E)[0])  # 13
+print("MST 边:", kruskal(6, E)[1])  # [(1,2,1),(0,2,2),(3,4,2),(4,5,3),(1,3,5)]
+
 
 # 2. Held-Karp: TSP 精确解 (例题 2)
 def held_karp(D):
     n = len(D)
     memo = {}
-    def dp(S, i):                            # 访问集合 S (位掩码) 后停在 i
+
+    def dp(S, i):  # 访问集合 S (位掩码) 后停在 i
         if S == 0:
             return D[0][i]
         if (S, i) in memo:
             return memo[(S, i)]
-        best = min(dp(S ^ (1 << (j-1)), j) + D[j][i]
-                   for j in range(1, n) if S >> (j-1) & 1)
+        best = min(dp(S ^ (1 << (j - 1)), j) + D[j][i] for j in range(1, n) if S >> (j - 1) & 1)
         memo[(S, i)] = best
         return best
-    return dp((1 << (n-1)) - 1, 0)
 
-D = [[0,10,15,20],[10,0,35,25],[15,35,0,30],[20,25,30,0]]
-print("Held-Karp 最优:", held_karp(D))       # 80
+    return dp((1 << (n - 1)) - 1, 0)
+
+
+D = [[0, 10, 15, 20], [10, 0, 35, 25], [15, 35, 0, 30], [20, 25, 30, 0]]
+print("Held-Karp 最优:", held_karp(D))  # 80
+
 
 # 3. 最近邻 + 2-opt
 def nn_tsp(D, start=0):
@@ -243,25 +261,30 @@ def nn_tsp(D, start=0):
     path, L = [start], 0
     while unvis:
         nxt = min(unvis, key=lambda j: D[cur][j])
-        L += D[cur][nxt]; path.append(nxt); unvis.remove(nxt); cur = nxt
+        L += D[cur][nxt]
+        path.append(nxt)
+        unvis.remove(nxt)
+        cur = nxt
     return path + [start], L + D[cur][start]
+
 
 def two_opt(path, D):
     n = len(path) - 1
     improved = True
     while improved:
         improved = False
-        for i in range(1, n-1):
-            for j in range(i+1, n):
-                old = D[path[i-1]][path[i]] + D[path[j]][path[j+1]]
-                new = D[path[i-1]][path[j]] + D[path[i]][path[j+1]]
-                if new < old - 1e-9:         # 翻转子段更优
-                    path[i:j+1] = reversed(path[i:j+1])
+        for i in range(1, n - 1):
+            for j in range(i + 1, n):
+                old = D[path[i - 1]][path[i]] + D[path[j]][path[j + 1]]
+                new = D[path[i - 1]][path[j]] + D[path[i]][path[j + 1]]
+                if new < old - 1e-9:  # 翻转子段更优
+                    path[i : j + 1] = reversed(path[i : j + 1])
                     improved = True
-    return path, sum(D[path[i]][path[i+1]] for i in range(n))
+    return path, sum(D[path[i]][path[i + 1]] for i in range(n))
 
-print("最近邻:", nn_tsp(D))                  # ([0,1,3,2,0], 80)
-print("2-opt 改进 0-1-2-3-0:", two_opt([0,1,2,3,0], D))   # ([0,1,3,2,0], 80)
+
+print("最近邻:", nn_tsp(D))  # ([0,1,3,2,0], 80)
+print("2-opt 改进 0-1-2-3-0:", two_opt([0, 1, 2, 3, 0], D))  # ([0,1,3,2,0], 80)
 ```
 
 > 输出与例题一致:MST 总权 13;Held-Karp、最近邻、2-opt 均得 80。Held-Karp 的 `memo` 用字典显式记忆化,把状态数从 $O(2^n)$ 的重复计算压到 $O(n2^n)$。

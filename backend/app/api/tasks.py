@@ -1,15 +1,19 @@
 """任务与编排器路由 — create/get/cancel 任务 + 后台编排器。"""
 
-import asyncio, json, logging, uuid, shutil, re
-from pathlib import Path
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
+import asyncio
+import logging
+import re
+import uuid
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
-from .schemas.request import CreateTaskRequest
-from .schemas.response import TaskResponse, MessageResponse
-from ..config import get_settings
+
 from ..auth import GitHubUser, get_current_user, require_auth
+from ..config import get_settings
 from ..services.session import get_session_manager
-from .apikeys import get_active_api_key, _resolve_user_id
+from .apikeys import _resolve_user_id, get_active_api_key
+from .schemas.request import CreateTaskRequest
+from .schemas.response import MessageResponse, TaskResponse
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +41,16 @@ def _extract_attachment_text(file_id: str, filename: str) -> str:
 
         if suffix == ".pdf":
             from .knowledge_routes import _extract_pdf_text
+
             text = _extract_pdf_text(data)
         elif suffix == ".docx":
             from .knowledge_routes import _extract_docx_text
+
             text = _extract_docx_text(data)
         elif suffix in (".xlsx", ".xls", ".csv", ".tsv"):
-            import pandas as pd
             import io as _io
+
+            import pandas as pd
 
             def _df_to_text(df) -> str:
                 # 优先 Markdown 表格（需 tabulate），缺包时降级为 CSV 文本
@@ -98,6 +105,7 @@ def _build_problem_with_attachments(problem: str, files: list) -> str:
 
 # ── Tasks ────────────────────────────────────────────────────────
 
+
 @tasks_router.post("/tasks", response_model=TaskResponse)
 async def create_task(
     req: CreateTaskRequest,
@@ -111,8 +119,7 @@ async def create_task(
     if not active_key:
         raise HTTPException(
             status_code=400,
-            detail="请先在首页配置你的 API Key，"
-                   "然后再提交任务。",
+            detail="请先在首页配置你的 API Key，然后再提交任务。",
         )
 
     session_mgr = get_session_manager()
@@ -124,14 +131,18 @@ async def create_task(
 
     # 文件区：记录用户上传的附件（供前端文件区展示与下载）
     for f in req.files:
-        session_mgr.add_artifact(task_id, {
-            "type": "uploaded",
-            "name": f.filename,
-            "url": f"/api/files/{f.file_id}",
-        })
+        session_mgr.add_artifact(
+            task_id,
+            {
+                "type": "uploaded",
+                "name": f.filename,
+                "url": f"/api/files/{f.file_id}",
+            },
+        )
 
     # 初始化工作记忆（问题状态文档 + 检查点目录）
     from app.services.working_memory import WorkingMemory
+
     WorkingMemory(task_id).init_session(full_problem)
 
     # 在独立线程中运行编排器（节点含同步阻塞调用 llm.invoke / subprocess），
@@ -154,6 +165,7 @@ async def get_task_status(task_id: str, user: GitHubUser = Depends(require_auth)
       - is_active: 是否有未完成的任务
     """
     from app.services.working_memory import WorkingMemory
+
     wm = WorkingMemory(task_id)
     return {
         "task_id": task_id,
@@ -204,18 +216,21 @@ async def list_tasks():
 
 # ── Background orchestrator runner ────────────────────────────────
 
+
 def _run_orchestrator_sync(task_id: str, problem: str, mode: str, user_id: str = "guest"):
     """在线程池中运行的同步入口（节点含阻塞调用，必须脱离事件循环）。"""
     try:
         # 子线程中 asyncio.run() 默认不创建 ThreadPoolExecutor，
         # 导致 langgraph 内部的 run_in_executor 调用失败。
         import concurrent.futures
+
         loop = asyncio.new_event_loop()
         loop.set_default_executor(concurrent.futures.ThreadPoolExecutor(max_workers=4))
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_run_orchestrator(task_id, problem, mode, user_id))
     except Exception:
         import traceback
+
         with open("_orch_error.log", "a", encoding="utf-8") as f:
             f.write(f"\n=== {task_id} ===\n")
             traceback.print_exc(file=f)
@@ -224,16 +239,18 @@ def _run_orchestrator_sync(task_id: str, problem: str, mode: str, user_id: str =
 async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str = "guest"):
     """在后台运行 LangGraph 编排器。"""
     try:
+        from app.core.nodes import TaskCancelledError, _is_cancelled
         from app.core.state import create_initial_state
         from app.core.workflow import get_orchestrator
-        from app.core.nodes import _is_cancelled, TaskCancelledError
 
         # 获取该用户的活跃 API Key
         active_key = get_active_api_key(user_id)
 
         orchestrator = get_orchestrator()
         state = create_initial_state(
-            problem_raw=problem, mode=mode, session_id=task_id,
+            problem_raw=problem,
+            mode=mode,
+            session_id=task_id,
             api_key_config=active_key,
         )
 
@@ -242,6 +259,7 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
         publisher = None
         try:
             from app.services.redis_pubsub import get_publisher
+
             publisher = get_publisher()
         except Exception:
             publisher = None
@@ -285,7 +303,9 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
         messages = []
         final_state = state
 
-        async for chunk in orchestrator.astream(state, {"recursion_limit": 50}, stream_mode="updates"):
+        async for chunk in orchestrator.astream(
+            state, {"recursion_limit": 50}, stream_mode="updates"
+        ):
             # 取消检查：任务被取消则提前退出编排器（节点入口另有检查）
             if _is_cancelled(task_id):
                 raise TaskCancelledError(task_id)
@@ -329,12 +349,14 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
 
         # 追加 agent 的详细信息到进度消息后面
         for msg in result.get("messages", []):
-            messages.append({
-                "id": str(uuid.uuid4())[:8],
-                "msg_type": msg.__class__.__name__.replace("Message", "").lower(),
-                "content": str(msg.content)[:500] if msg.content else None,
-                "created_at": None,
-            })
+            messages.append(
+                {
+                    "id": str(uuid.uuid4())[:8],
+                    "msg_type": msg.__class__.__name__.replace("Message", "").lower(),
+                    "content": str(msg.content)[:500] if msg.content else None,
+                    "created_at": None,
+                }
+            )
 
         session_mgr = get_session_manager()
         session_mgr.update(
@@ -352,6 +374,7 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
         # 情景记忆：保存本次建模经验，供下次类似题召回
         try:
             from app.services.episodic_memory import EpisodicMemory
+
             em = EpisodicMemory()
             em.save(
                 session_id=task_id,
@@ -384,20 +407,24 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
         get_session_manager().cancel(task_id)
     except Exception as e:
         import traceback
+
         logger.error("Orchestrator failed for task %s:\n%s", task_id, traceback.format_exc())
         session_mgr = get_session_manager()
         session_mgr.update(
             task_id,
             status="error",
             final_response=f"错误: {str(e)}",
-            messages=[{
-                "id": "error",
-                "msg_type": "system",
-                "content": f"主智能体运行失败: {str(e)}",
-            }],
+            messages=[
+                {
+                    "id": "error",
+                    "msg_type": "system",
+                    "content": f"主智能体运行失败: {str(e)}",
+                }
+            ],
         )
         try:
             from app.services.redis_pubsub import get_publisher
+
             get_publisher().task_end(task_id, "orchestrator", "error", {"message": str(e)})
         except Exception:
             pass
@@ -409,6 +436,7 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
 # ── Document export ────────────────────────────────────────────────
 
 import io
+
 from fastapi import Query
 from fastapi.responses import Response, StreamingResponse
 
@@ -437,7 +465,7 @@ async def export_document(
 
     # 尝试从 final_response 提取各部分
     writing = task.get("writing_output") or ""
-    model_output = task.get("model_output") or ""
+    task.get("model_output") or ""
 
     if format == "latex":
         return _export_latex(final_response, writing)
@@ -491,8 +519,8 @@ def _export_latex(full_text: str, writing_output: str) -> Response:
 def _export_docx(content: str, title: str = "数学建模方案") -> StreamingResponse:
     """将 Markdown 转换为 Word .docx 并返回。"""
     from docx import Document
-    from docx.shared import Pt, Inches, Cm
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Pt
 
     doc = Document()
 
@@ -553,6 +581,7 @@ def _export_docx(content: str, title: str = "数学建模方案") -> StreamingRe
 def _export_xlsx(task_id: str) -> Response:
     """导出任务生成的 xlsx 结果文件。"""
     from pathlib import Path as _Path
+
     settings = get_settings()
     task_dir = _Path(settings.project_root) / "data" / "task_files" / task_id
 
@@ -572,6 +601,7 @@ def _export_xlsx(task_id: str) -> Response:
 def _export_csv(task_id: str) -> Response:
     """导出任务生成的 CSV 数据文件。"""
     from pathlib import Path as _Path
+
     settings = get_settings()
     task_dir = _Path(settings.project_root) / "data" / "task_files" / task_id
 
@@ -597,6 +627,7 @@ async def download_package(
 ):
     """下载完整结果包（zip：论文 + 数据 + 图表 + 代码）。"""
     from pathlib import Path as _Path
+
     settings = get_settings()
     task_dir = _Path(settings.project_root) / "data" / "task_files" / task_id
 
@@ -612,6 +643,7 @@ async def download_package(
     # 动态生成 zip
     try:
         from app.services.result_packager import ResultPackager
+
         packager = ResultPackager(task_id, settings.project_root)
         zip_path = packager.build_zip_package()
         if zip_path.exists():

@@ -185,27 +185,28 @@ D. 隶属度向量必须归一化,否则 $B$ 无意义
 import numpy as np
 
 # 例题 1:模糊关系矩阵(每行归一化)与权重
-R = np.array([[0.7, 0.2, 0.1, 0.0],
-              [0.6, 0.3, 0.1, 0.0],
-              [0.5, 0.3, 0.2, 0.0],
-              [0.4, 0.4, 0.2, 0.0]])
+R = np.array(
+    [[0.7, 0.2, 0.1, 0.0], [0.6, 0.3, 0.1, 0.0], [0.5, 0.3, 0.2, 0.0], [0.4, 0.4, 0.2, 0.0]]
+)
 A = np.array([0.3, 0.3, 0.2, 0.2])
-S = np.array([95, 85, 70, 50])      # 等级评分向量
+S = np.array([95, 85, 70, 50])  # 等级评分向量
 
 # M(·,+) 加权平均型
 B1 = A @ R
 score = B1 @ S
-print("M(·,+) B :", np.round(B1, 4))     # [0.57 0.29 0.14 0.  ]
-print("综合得分 :", round(score, 2))      # 88.6
+print("M(·,+) B :", np.round(B1, 4))  # [0.57 0.29 0.14 0.  ]
+print("综合得分 :", round(score, 2))  # 88.6
 
 # 最大隶属度原则 + 有效性检验
 beta = B1.max() / B1.sum()
-print("等级     :", "优秀" if B1.argmax() == 0 else B1.argmax() + 1,
-      "| 有效性 beta =", round(beta, 3))
+print(
+    "等级     :", "优秀" if B1.argmax() == 0 else B1.argmax() + 1, "| 有效性 beta =", round(beta, 3)
+)
 
 # M(∧,∨) 主因素决定型(对比:注意信息丢失)
 B2 = np.array([np.max(np.minimum(A, R[:, j])) for j in range(R.shape[1])])
-print("M(∧,∨) B :", np.round(B2, 4))     # [0.3 0.3 0.2 0. ]
+print("M(∧,∨) B :", np.round(B2, 4))  # [0.3 0.3 0.2 0. ]
+
 
 # 梯形隶属函数:空气质量 II 级(例题 2)
 def mu_II(x):
@@ -213,8 +214,9 @@ def mu_II(x):
         return 0.0
     return (x - 0.05) / 0.10 if x < 0.15 else (0.25 - x) / 0.10
 
-print("mu_II(0.12) =", mu_II(0.12))   # 0.7
-print("mu_II(0.20) =", mu_II(0.20))   # 0.5
+
+print("mu_II(0.12) =", mu_II(0.12))  # 0.7
+print("mu_II(0.20) =", mu_II(0.20))  # 0.5
 ```
 
 ## 📚 延伸阅读

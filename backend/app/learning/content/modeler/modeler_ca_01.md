@@ -196,22 +196,25 @@ import numpy as np
 from scipy.signal import convolve2d
 import matplotlib.pyplot as plt
 
+
 # ---- 生命游戏(同步更新 + Moore 邻域计数) ----
 def life_step(grid):
     n = convolve2d(grid, np.ones((3, 3)), mode="same") - grid
     return ((n == 3) | ((n == 2) & grid)).astype(int)
 
+
 grid = np.zeros((30, 30), dtype=int)
-grid[15:18, 15:18] = 1       # 3x3 方块(静物)
-grid[3, 3:6] = 1             # blinker(周期 2 振荡子)
+grid[15:18, 15:18] = 1  # 3x3 方块(静物)
+grid[3, 3:6] = 1  # blinker(周期 2 振荡子)
 grid[10:13, 10:12] = 1
-grid[12, 12] = 1             # glider 雏形
+grid[12, 12] = 1  # glider 雏形
 for t in range(4):
     plt.subplot(1, 4, t + 1)
     plt.imshow(grid, cmap="binary")
     plt.title(f"t={t}")
     grid = life_step(grid)
 plt.show()
+
 
 # ---- NaSch 交通流与基本图 ----
 def nasch_flow(L, N, vmax, p, warmup=300, avg=1000, seed=0):
@@ -220,15 +223,16 @@ def nasch_flow(L, N, vmax, p, warmup=300, avg=1000, seed=0):
     v = np.zeros(N, dtype=int)
     total = 0
     for t in range(warmup + avg):
-        gaps = (np.roll(pos, -1) - pos) % L - 1     # 前方空格数
-        v = np.minimum(v + 1, vmax)                 # 1. 加速
-        v = np.minimum(v, gaps)                     # 2. 减速
+        gaps = (np.roll(pos, -1) - pos) % L - 1  # 前方空格数
+        v = np.minimum(v + 1, vmax)  # 1. 加速
+        v = np.minimum(v, gaps)  # 2. 减速
         v = np.maximum(v - (rng.random(N) < p), 0)  # 3. 随机慢化
-        pos = (pos + v) % L                         # 4. 移动
+        pos = (pos + v) % L  # 4. 移动
         pos.sort()
         if t >= warmup:
             total += v.sum()
-    return total / (avg * L)                        # 流量 J = ρ·v̄
+    return total / (avg * L)  # 流量 J = ρ·v̄
+
 
 L, vmax, p = 200, 5, 0.3
 rhos = np.arange(0.02, 0.6, 0.04)
@@ -236,8 +240,10 @@ Js = [nasch_flow(L, int(rho * L), vmax, p) for rho in rhos]
 plt.figure()
 plt.plot(rhos, Js, "o-")
 plt.plot(rhos, np.minimum(vmax * rhos, 1 - rhos), "--", label="p=0 理论值")
-plt.xlabel("密度 ρ"); plt.ylabel("流量 J")
-plt.legend(); plt.title("NaSch 基本图 (p=0.3)")
+plt.xlabel("密度 ρ")
+plt.ylabel("流量 J")
+plt.legend()
+plt.title("NaSch 基本图 (p=0.3)")
 plt.show()
 ```
 

@@ -10,8 +10,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from ..learning.quiz_bank import get_question
 from ..learning.schemas import LearningEvent
@@ -19,53 +18,99 @@ from ..learning.schemas import LearningEvent
 ACHIEVEMENT_DEFS = [
     # ── 🥉 铜 ──────────────────────────────────────────
     {
-        "id": "first_practice", "name": "初出茅庐", "tier": "bronze",
-        "desc": "完成第一次练习", "icon": "🌱", "check": "first_practice",
+        "id": "first_practice",
+        "name": "初出茅庐",
+        "tier": "bronze",
+        "desc": "完成第一次练习",
+        "icon": "🌱",
+        "check": "first_practice",
     },
     {
-        "id": "quiz_10", "name": "小试牛刀", "tier": "bronze",
-        "desc": "累计刷满 10 道题", "icon": "🎯", "check": "quiz_count_10",
+        "id": "quiz_10",
+        "name": "小试牛刀",
+        "tier": "bronze",
+        "desc": "累计刷满 10 道题",
+        "icon": "🎯",
+        "check": "quiz_count_10",
     },
     {
-        "id": "fix_3", "name": "知错能改", "tier": "bronze",
-        "desc": "订正 3 道错题(重做答对)", "icon": "✏️", "check": "fix_3",
+        "id": "fix_3",
+        "name": "知错能改",
+        "tier": "bronze",
+        "desc": "订正 3 道错题(重做答对)",
+        "icon": "✏️",
+        "check": "fix_3",
     },
     # ── 🥈 银 ──────────────────────────────────────────
     {
-        "id": "quiz_100", "name": "刷题百斩", "tier": "silver",
-        "desc": "累计刷满 100 道题", "icon": "⚔️", "check": "quiz_count_100",
+        "id": "quiz_100",
+        "name": "刷题百斩",
+        "tier": "silver",
+        "desc": "累计刷满 100 道题",
+        "icon": "⚔️",
+        "check": "quiz_count_100",
     },
     {
-        "id": "streak_7", "name": "坚持不懈", "tier": "silver",
-        "desc": "连续学习 7 天", "icon": "🔥", "check": "streak_7",
+        "id": "streak_7",
+        "name": "坚持不懈",
+        "tier": "silver",
+        "desc": "连续学习 7 天",
+        "icon": "🔥",
+        "check": "streak_7",
     },
     {
-        "id": "categories_5", "name": "博采众长", "tier": "silver",
-        "desc": "在 5 个不同类别中答对过题目", "icon": "🧭", "check": "categories_5",
+        "id": "categories_5",
+        "name": "博采众长",
+        "tier": "silver",
+        "desc": "在 5 个不同类别中答对过题目",
+        "icon": "🧭",
+        "check": "categories_5",
     },
     # ── 🥇 金 ──────────────────────────────────────────
     {
-        "id": "quiz_300", "name": "题库战神", "tier": "gold",
-        "desc": "累计刷满 300 道题", "icon": "🏆", "check": "quiz_count_300",
+        "id": "quiz_300",
+        "name": "题库战神",
+        "tier": "gold",
+        "desc": "累计刷满 300 道题",
+        "icon": "🏆",
+        "check": "quiz_count_300",
     },
     {
-        "id": "streak_30", "name": "习惯养成", "tier": "gold",
-        "desc": "连续学习 30 天", "icon": "⛰️", "check": "streak_30",
+        "id": "streak_30",
+        "name": "习惯养成",
+        "tier": "gold",
+        "desc": "连续学习 30 天",
+        "icon": "⛰️",
+        "check": "streak_30",
     },
     {
-        "id": "all_rounder", "name": "全能选手", "tier": "gold",
-        "desc": "三个角色的题目都刷过", "icon": "🌟", "check": "all_rounder",
+        "id": "all_rounder",
+        "name": "全能选手",
+        "tier": "gold",
+        "desc": "三个角色的题目都刷过",
+        "icon": "🌟",
+        "check": "all_rounder",
     },
     {
-        "id": "perfect_10", "name": "十全十美", "tier": "gold",
-        "desc": "单轮练习连续答对 10 题", "icon": "💯", "check": "perfect_10",
+        "id": "perfect_10",
+        "name": "十全十美",
+        "tier": "gold",
+        "desc": "单轮练习连续答对 10 题",
+        "icon": "💯",
+        "check": "perfect_10",
     },
 ]
 
 _TARGETS = {
-    "quiz_count_10": 10, "quiz_count_100": 100, "quiz_count_300": 300,
-    "streak_7": 7, "streak_30": 30, "categories_5": 5,
-    "all_rounder": 3, "perfect_10": 10, "fix_3": 3,
+    "quiz_count_10": 10,
+    "quiz_count_100": 100,
+    "quiz_count_300": 300,
+    "streak_7": 7,
+    "streak_30": 30,
+    "categories_5": 5,
+    "all_rounder": 3,
+    "perfect_10": 10,
+    "fix_3": 3,
 }
 
 
@@ -82,15 +127,17 @@ class AchievementService:
         from .learning_store import get_learning_store
 
         for row in get_learning_store().list_events(user_id):
-            self._events.append(LearningEvent(
-                event_id=f"replay_{row['id']}",
-                user_id=row["user_id"],
-                unit_id=row["unit_id"],
-                skill_ids=[row["unit_id"]],
-                event_type=row["event_type"],
-                score=row["score"],
-                created_at=datetime.fromisoformat(row["created_at"]),
-            ))
+            self._events.append(
+                LearningEvent(
+                    event_id=f"replay_{row['id']}",
+                    user_id=row["user_id"],
+                    unit_id=row["unit_id"],
+                    skill_ids=[row["unit_id"]],
+                    event_type=row["event_type"],
+                    score=row["score"],
+                    created_at=datetime.fromisoformat(row["created_at"]),
+                )
+            )
 
     def add_event(self, event: LearningEvent) -> None:
         self._events.append(event)
@@ -118,9 +165,12 @@ class AchievementService:
 
         def progress_of(check: str) -> int:
             if check == "first_practice":
-                return 1 if any(
-                    r["event_type"] == "practice" for r in persisted
-                ) or pstats["total_answers"] > 0 else 0
+                return (
+                    1
+                    if any(r["event_type"] == "practice" for r in persisted)
+                    or pstats["total_answers"] > 0
+                    else 0
+                )
             if check in ("quiz_count_10", "quiz_count_100", "quiz_count_300"):
                 return pstats["total_answers"]
             if check in ("streak_7", "streak_30"):
@@ -149,18 +199,20 @@ class AchievementService:
                 meta = store.unlocked_ids(user_id).get(ach["id"], {})
             else:
                 meta = {}
-            results.append({
-                "id": ach["id"],
-                "name": ach["name"],
-                "desc": ach["desc"],
-                "icon": ach["icon"],
-                "tier": ach["tier"],
-                "progress": progress,
-                "target": target,
-                "unlocked": unlocked,
-                "unlocked_at": meta.get("unlocked_at") if unlocked else None,
-                "is_new": unlocked and not meta.get("acknowledged", True),
-            })
+            results.append(
+                {
+                    "id": ach["id"],
+                    "name": ach["name"],
+                    "desc": ach["desc"],
+                    "icon": ach["icon"],
+                    "tier": ach["tier"],
+                    "progress": progress,
+                    "target": target,
+                    "unlocked": unlocked,
+                    "unlocked_at": meta.get("unlocked_at") if unlocked else None,
+                    "is_new": unlocked and not meta.get("acknowledged", True),
+                }
+            )
         return results
 
     def ack_all(self, user_id: str = "default") -> None:
@@ -173,7 +225,7 @@ def _calc_streak_dates(dates: set[str]) -> int:
     """从日期集合(YYYY-MM-DD)计算连续天数: 从今天或最近一天往前数。"""
     if not dates:
         return 0
-    today = datetime.now(timezone.utc).date().isoformat()
+    datetime.now(UTC).date().isoformat()
     ordered = sorted(dates, reverse=True)
     # 最近活动日不是今天 → 从最近一天起算(允许断档)
     streak = 1
@@ -189,16 +241,13 @@ def _calc_streak_dates(dates: set[str]) -> int:
 
 def _calc_streak(events: list[LearningEvent]) -> int:
     """基于事件计算连续学习天数(保留,供兼容)。"""
-    dates = {
-        e.created_at.date().isoformat()
-        for e in events if e.created_at
-    }
+    dates = {e.created_at.date().isoformat() for e in events if e.created_at}
     return _calc_streak_dates(dates)
 
 
 # ── 全局单例 ──────────────────────────────────────────
 
-_service: Optional[AchievementService] = None
+_service: AchievementService | None = None
 
 
 def get_achievement_service() -> AchievementService:

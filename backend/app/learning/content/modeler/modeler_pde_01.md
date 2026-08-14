@@ -206,21 +206,23 @@ alpha, L, nx = 1.0, 1.0, 40
 dx = L / nx
 x = np.linspace(0, L, nx + 1)
 
+
 def heat_explicit(s, nsteps, label):
     dt = s * dx**2 / alpha
-    u = np.sin(np.pi * x)            # 初值(满足 Dirichlet 边界)
+    u = np.sin(np.pi * x)  # 初值(满足 Dirichlet 边界)
     for n in range(nsteps):
         un = u.copy()
-        un[1:-1] = s * u[:-2] + (1 - 2*s) * u[1:-1] + s * u[2:]
+        un[1:-1] = s * u[:-2] + (1 - 2 * s) * u[1:-1] + s * u[2:]
         u = un
     print(f"{label}: s={s}, dt={dt:.5f}, max|u|={np.abs(u).max():.4f}")
     return u
+
 
 # 稳定情形 s=0.25,与解析解对比
 nsteps = 500
 u_ok = heat_explicit(0.25, nsteps, "稳定")
 t_end = nsteps * 0.25 * dx**2 / alpha
-u_exact = np.exp(-np.pi**2 * t_end) * np.sin(np.pi * x)
+u_exact = np.exp(-(np.pi**2) * t_end) * np.sin(np.pi * x)
 print("与解析解的最大误差:", np.max(np.abs(u_ok - u_exact)))
 
 # 不稳定情形 s=0.6,解发散
@@ -228,7 +230,8 @@ u_bad = heat_explicit(0.6, 100, "不稳定(应发散)")
 
 plt.plot(x, u_ok, "o", label="s=0.25 数值解")
 plt.plot(x, u_exact, "-", label="解析解")
-plt.legend(); plt.title("一维热传导显式格式")
+plt.legend()
+plt.title("一维热传导显式格式")
 plt.show()
 ```
 

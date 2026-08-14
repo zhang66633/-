@@ -1,29 +1,41 @@
 """API Key 管理 — 存储、验证、CRUD。
 外部通过 from .apikeys import get_active_api_key, PROVIDER_PRESETS 使用。"""
 
-import json, uuid, ipaddress
+import ipaddress
+import json
+import uuid
 from pathlib import Path
 from urllib.parse import urlparse
+
 from fastapi import APIRouter, Depends, HTTPException, Request
+
+from ..auth import GitHubUser, get_current_user
+from ..config import get_settings
 from .schemas.request import ApiKeyCreate, ApiKeyQuickCreate
 from .schemas.response import ApiKeyResponse
-from ..config import get_settings
-from ..auth import GitHubUser, get_current_user
 
 apikeys_router = APIRouter()
 
-_api_keys_store: dict[str, dict] = {}  # user_id → {key_id: {name, key, provider, model_name, base_url, purpose, masked_key}}
+_api_keys_store: dict[
+    str, dict
+] = {}  # user_id → {key_id: {name, key, provider, model_name, base_url, purpose, masked_key}}
 _user_default_keys: dict[str, str] = {}  # user_id → default_key_id
 _api_keys_file = None
 
 # 服务商预设：base_url 为 OpenAI 兼容端点（不含路径），anthropic 为原生协议
 PROVIDER_PRESETS: dict[str, dict] = {
-    "deepseek":    {"base_url": "https://api.deepseek.com",                       "chat_model": "deepseek-chat"},
-    "qwen":        {"base_url": "https://dashscope.aliyuncs.com/compatible-mode", "chat_model": "qwen-plus"},
-    "glm":         {"base_url": "https://open.bigmodel.cn/api/paas",              "chat_model": "glm-4-flash"},
-    "siliconflow": {"base_url": "https://api.siliconflow.cn",                     "chat_model": "deepseek-ai/DeepSeek-V3"},
-    "openai":      {"base_url": "https://api.openai.com",                         "chat_model": "gpt-4o-mini"},
-    "anthropic":   {"base_url": "https://api.anthropic.com",                      "chat_model": "claude-sonnet-4-6"},
+    "deepseek": {"base_url": "https://api.deepseek.com", "chat_model": "deepseek-chat"},
+    "qwen": {
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode",
+        "chat_model": "qwen-plus",
+    },
+    "glm": {"base_url": "https://open.bigmodel.cn/api/paas", "chat_model": "glm-4-flash"},
+    "siliconflow": {
+        "base_url": "https://api.siliconflow.cn",
+        "chat_model": "deepseek-ai/DeepSeek-V3",
+    },
+    "openai": {"base_url": "https://api.openai.com", "chat_model": "gpt-4o-mini"},
+    "anthropic": {"base_url": "https://api.anthropic.com", "chat_model": "claude-sonnet-4-6"},
 }
 DEFAULT_EMBEDDING = {"provider": "siliconflow", "model": "BAAI/bge-large-zh-v1.5"}
 
@@ -82,9 +94,12 @@ def _load_api_keys():
             else:
                 _user_default_keys = {}
             # 兼容旧格式: {key_id: {...}} → 并入 guest 桶
-            if _api_keys_store and not any(isinstance(v, dict) and any(
-                isinstance(vv, dict) and "key" in vv for vv in v.values()
-            ) for v in _api_keys_store.values() if isinstance(v, dict)):
+            if _api_keys_store and not any(
+                isinstance(v, dict)
+                and any(isinstance(vv, dict) and "key" in vv for vv in v.values())
+                for v in _api_keys_store.values()
+                if isinstance(v, dict)
+            ):
                 _api_keys_store = {"guest": _api_keys_store}
                 if not isinstance(_user_default_keys.get("guest"), str):
                     legacy_default = next(iter(_api_keys_store["guest"].keys()), None)
@@ -160,8 +175,11 @@ async def get_my_api_key(user: GitHubUser | None = Depends(get_current_user)):
 
 
 async def _verify_api_key(
-    key: str, provider: str, model_name: str,
-    base_url: str = "", purpose: str = "chat",
+    key: str,
+    provider: str,
+    model_name: str,
+    base_url: str = "",
+    purpose: str = "chat",
 ) -> tuple[bool, str]:
     """验证 API Key 是否有效 — 发送一个最小请求测试连通性。"""
     import httpx
@@ -173,8 +191,11 @@ async def _verify_api_key(
         url = f"{resolved_url or 'https://api.anthropic.com'}/v1/messages"
         headers["x-api-key"] = key
         headers["anthropic-version"] = "2023-06-01"
-        body = {"model": model_name, "max_tokens": 1,
-                "messages": [{"role": "user", "content": "hi"}]}
+        body = {
+            "model": model_name,
+            "max_tokens": 1,
+            "messages": [{"role": "user", "content": "hi"}],
+        }
     elif purpose == "embedding":
         url = f"{resolved_url}/v1/embeddings"
         headers["Authorization"] = f"Bearer {key}"
@@ -182,8 +203,11 @@ async def _verify_api_key(
     else:
         url = f"{resolved_url}/v1/chat/completions"
         headers["Authorization"] = f"Bearer {key}"
-        body = {"model": model_name, "max_tokens": 1,
-                "messages": [{"role": "user", "content": "hi"}]}
+        body = {
+            "model": model_name,
+            "max_tokens": 1,
+            "messages": [{"role": "user", "content": "hi"}],
+        }
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -264,7 +288,9 @@ async def quick_add_api_key(
         "masked_key": masked,
         "provider": provider,
         "model_name": model_name,
-        "message": "API Key 验证通过，已激活！" if purpose == "chat" else "向量 Key 验证通过，已可用于知识库索引。",
+        "message": "API Key 验证通过，已激活！"
+        if purpose == "chat"
+        else "向量 Key 验证通过，已可用于知识库索引。",
     }
 
 
@@ -344,7 +370,9 @@ async def delete_api_key(key_id: str, user: GitHubUser | None = Depends(get_curr
         raise HTTPException(status_code=404, detail="API Key 不存在")
     del _api_keys_store[uid][key_id]
     if _user_default_keys.get(uid) == key_id:
-        _user_default_keys[uid] = next(iter(_api_keys_store[uid].keys()), None) if _api_keys_store[uid] else None
+        _user_default_keys[uid] = (
+            next(iter(_api_keys_store[uid].keys()), None) if _api_keys_store[uid] else None
+        )
     _save_api_keys()
     return {"success": True, "message": "API Key 已删除"}
 
@@ -359,4 +387,3 @@ async def set_default_api_key(key_id: str, user: GitHubUser | None = Depends(get
     _user_default_keys[uid] = key_id
     _save_api_keys()
     return {"success": True, "message": "已设为默认"}
-

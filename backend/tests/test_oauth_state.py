@@ -3,6 +3,7 @@
 运行: 在 backend/ 目录下 `python -m pytest tests/test_oauth_state.py -q`
       或直接 `python tests/test_oauth_state.py`。
 """
+
 import sys
 from pathlib import Path
 
@@ -10,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi import HTTPException  # noqa: E402
 
-from app.api.router import github_callback, OAUTH_STATE_COOKIE  # noqa: E402
+from app.api.router import OAUTH_STATE_COOKIE, github_callback  # noqa: E402
 
 
 class _FakeRequest:
@@ -29,10 +30,15 @@ class _FakeResponse:
 def _expect_400(code: str, state: str, cookies: dict):
     try:
         import asyncio
-        asyncio.run(github_callback(
-            code=code, state=state,
-            request=_FakeRequest(cookies), response=_FakeResponse(),
-        ))
+
+        asyncio.run(
+            github_callback(
+                code=code,
+                state=state,
+                request=_FakeRequest(cookies),
+                response=_FakeResponse(),
+            )
+        )
     except HTTPException as e:
         assert e.status_code == 400, f"期望 400，实际 {e.status_code}"
         return
@@ -58,10 +64,14 @@ def test_matched_state_deletes_cookie_and_proceeds():
 
     resp = _FakeResponse()
     try:
-        asyncio.run(github_callback(
-            code="abc", state="s1",
-            request=_FakeRequest({OAUTH_STATE_COOKIE: "s1"}), response=resp,
-        ))
+        asyncio.run(
+            github_callback(
+                code="abc",
+                state="s1",
+                request=_FakeRequest({OAUTH_STATE_COOKIE: "s1"}),
+                response=resp,
+            )
+        )
     except HTTPException as e:
         # 下游 GitHub 交换对伪造 code 也会 400（"无法获取 GitHub access token"），
         # 只要不是 state 相关的 400（"OAuth state 校验失败"）即视为通过 state 关。

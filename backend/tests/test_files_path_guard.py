@@ -3,7 +3,7 @@
 运行: 在 backend/ 目录下 `python -m pytest tests/test_files_path_guard.py -q`
       或直接 `python tests/test_files_path_guard.py`（无 pytest 时）。
 """
-import os
+
 import sys
 from pathlib import Path
 

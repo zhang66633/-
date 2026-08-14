@@ -31,6 +31,7 @@ def _doc(doc_id: str, content: str) -> Document:
 
 # ── 假 vector store：用于把 _mmr_rerank 逼入 fallback 或注入已知向量 ──
 
+
 class _RaisingStore:
     """`.get` 抛异常 → 强制走字符 bigram fallback。"""
 
@@ -124,7 +125,7 @@ def test_mmr_no_nan_negative_on_identical_docs():
         _doc("d2", "linear programming optimization"),
         _doc("d3", "linear programming optimization"),
     ]
-    scored = [(d, s) for d, s in zip(docs, [0.9, 0.8, 0.7])]
+    scored = [(d, s) for d, s in zip(docs, [0.9, 0.8, 0.7], strict=False)]
     out = r._mmr_rerank("optimization", scored, k=3, lam=0.5)
     assert len(out) == 3
     for d in out:
@@ -137,7 +138,7 @@ def test_mmr_no_nan_negative_on_identical_docs():
 def test_mmr_pure_relevance_keeps_order():
     r = _bare_retriever(_RaisingStore())
     docs = [_doc("d1", "aaa"), _doc("d2", "bbb"), _doc("d3", "ccc")]
-    scored = [(d, s) for d, s in zip(docs, [0.9, 0.8, 0.7])]
+    scored = [(d, s) for d, s in zip(docs, [0.9, 0.8, 0.7], strict=False)]
     out = r._mmr_rerank("x", scored, k=3, lam=1.0)
     assert [d.metadata["id"] for d in out] == ["d1", "d2", "d3"]
 
@@ -150,7 +151,7 @@ def test_mmr_diversity_selects_distinct_doc():
         _doc("d2", "linear programming optimization"),
         _doc("d3", "neural network deep learning"),
     ]
-    scored = [(d, s) for d, s in zip(docs, [0.9, 0.8, 0.7])]
+    scored = [(d, s) for d, s in zip(docs, [0.9, 0.8, 0.7], strict=False)]
     out = r._mmr_rerank("x", scored, k=3, lam=0.0)
     ids = [d.metadata["id"] for d in out]
     # d3 应在 d2 之前被选中（避免与已选 d1 重复）
@@ -173,7 +174,7 @@ def test_mmr_embedding_cosine_and_query_path():
         _doc("d2", "linear programming optimization"),
         _doc("d3", "neural network deep learning"),
     ]
-    scored = [(d, s) for d, s in zip(docs, [0.9, 0.8, 0.7])]
+    scored = [(d, s) for d, s in zip(docs, [0.9, 0.8, 0.7], strict=False)]
     out = r._mmr_rerank("linear programming", scored, k=3, lam=0.5)
     ids = [d.metadata["id"] for d in out]
     assert len(ids) == 3
@@ -187,6 +188,7 @@ def test_mmr_embedding_cosine_and_query_path():
 
 def test_singleton_symbols_importable():
     from app.knowledge.retriever import get_shared_retriever, invalidate_shared_retriever
+
     assert callable(get_shared_retriever)
     assert callable(invalidate_shared_retriever)
 

@@ -8,14 +8,13 @@
 """
 
 import json
+import logging
+import os
 import subprocess
 import sys
 import tempfile
-import os
 import uuid
-import logging
 from pathlib import Path
-from typing import Optional
 
 from app.config import get_settings
 
@@ -36,6 +35,7 @@ def docker_daemon_up() -> bool:
     因此「可用」= 二进制存在 **且** daemon 可连通。
     """
     import time as _time
+
     now = _time.monotonic()
     if _daemon_probe["ok"] is not None and (now - _daemon_probe["ts"]) < 60:
         return _daemon_probe["ok"]
@@ -44,7 +44,9 @@ def docker_daemon_up() -> bool:
     try:
         probe = subprocess.run(
             ["docker", "info", "--format", "{{.ServerVersion}}"],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
         ok = probe.returncode == 0 and bool(probe.stdout.strip())
     except Exception:
@@ -80,8 +82,20 @@ def _make_preexec_fn(max_memory_mb: int, timeout: int):
 
 def _clean_env() -> dict:
     """构建清洗后的子进程环境变量，仅保留 Python 运行必需项。"""
-    safe_keys = {"PATH", "PYTHONPATH", "PYTHONIOENCODING", "TEMP", "TMP", "TMPDIR",
-                 "HOME", "USERPROFILE", "SYSTEMROOT", "COMSPEC", "APPDATA", "LOCALAPPDATA"}
+    safe_keys = {
+        "PATH",
+        "PYTHONPATH",
+        "PYTHONIOENCODING",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "HOME",
+        "USERPROFILE",
+        "SYSTEMROOT",
+        "COMSPEC",
+        "APPDATA",
+        "LOCALAPPDATA",
+    }
     env = {k: v for k, v in os.environ.items() if k.upper() in safe_keys}
     env["PYTHONIOENCODING"] = "utf-8"
     env.pop("HTTP_PROXY", None)
@@ -99,7 +113,7 @@ class SandboxExecutor:
       - SANDBOX_BACKEND=docker: 用 docker run --rm 隔离执行（需先构建镜像）
     """
 
-    def __init__(self, timeout: Optional[int] = None):
+    def __init__(self, timeout: int | None = None):
         settings = get_settings()
         self.timeout = timeout or settings.sandbox_timeout
         self.max_memory_mb = settings.sandbox_max_memory_mb
@@ -121,6 +135,7 @@ class SandboxExecutor:
         # 复制额外文件到沙箱工作目录
         if extra_files:
             import shutil as _shutil
+
             for fpath in extra_files:
                 try:
                     _shutil.copy2(fpath, str(output_subdir / Path(fpath).name))
@@ -138,15 +153,19 @@ class SandboxExecutor:
     # ── subprocess 模式 ──────────────────────────────────────────
 
     def _run_subprocess(self, code: str, output_subdir: Path, run_id: str) -> dict:
-        """在本机子进程中执行（原有逻辑）。"""
+        """在本机子进程中执行 + psutil 进程树内存监控（Windows 无 rlimit 的补偿）。
+
+        监控线程每 0.3s 汇总父进程+全部子进程 RSS，超 max_memory_mb 即杀整树，
+        防止大 DataFrame 操作吃光内存导致后端主进程被系统 OOM 杀掉。
+        """
         wrapped_code = self._wrap_code(code, str(output_subdir))
 
         try:
-            result = subprocess.run(
+            proc = subprocess.Popen(
                 [sys.executable, "-c", wrapped_code],
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=self.timeout,
                 cwd=str(output_subdir),
                 encoding="utf-8",
                 errors="replace",
@@ -154,30 +173,100 @@ class SandboxExecutor:
                 preexec_fn=_make_preexec_fn(self.max_memory_mb, self.timeout),
             )
 
+            oom_killed = {"hit": False}
+
+            def _monitor_memory():
+                try:
+                    import time as _time
+
+                    import psutil
+
+                    limit = self.max_memory_mb * 1024 * 1024
+                    parent = psutil.Process(proc.pid)
+                    while proc.poll() is None:
+                        try:
+                            rss = parent.memory_info().rss
+                            for child in parent.children(recursive=True):
+                                rss += child.memory_info().rss
+                        except psutil.NoSuchProcess:
+                            break
+                        if rss > limit:
+                            oom_killed["hit"] = True
+                            for child in parent.children(recursive=True):
+                                try:
+                                    child.kill()
+                                except Exception:
+                                    pass
+                            try:
+                                parent.kill()
+                            except Exception:
+                                pass
+                            break
+                        _time.sleep(0.3)
+                except Exception:
+                    pass  # 监控失败不影响执行
+
+            import threading
+
+            monitor = threading.Thread(target=_monitor_memory, daemon=True)
+            monitor.start()
+
+            try:
+                stdout, stderr = proc.communicate(timeout=self.timeout)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.communicate()
+                return {
+                    "success": False,
+                    "stdout": "",
+                    "stderr": f"执行超时 ({self.timeout}秒)",
+                    "returncode": -1,
+                    "images": [],
+                    "xlsx_files": [],
+                    "csv_files": [],
+                    "html_files": [],
+                    "run_id": run_id,
+                }
+
+            if oom_killed["hit"]:
+                return {
+                    "success": False,
+                    "stdout": "",
+                    "stderr": f"内存超限（>{self.max_memory_mb}MB），已终止执行。请减小数据规模或改用 docker 沙箱。",
+                    "returncode": -1,
+                    "images": [],
+                    "xlsx_files": [],
+                    "csv_files": [],
+                    "html_files": [],
+                    "run_id": run_id,
+                }
+
             images = sorted(output_subdir.glob("*.png"))
             xlsx_files = sorted(output_subdir.glob("*.xlsx"))
             csv_files = sorted(output_subdir.glob("*.csv"))
             html_files = sorted(output_subdir.glob("*.html"))
             return {
-                "success": result.returncode == 0,
-                "stdout": result.stdout[:5000],
-                "stderr": result.stderr[:2000],
-                "returncode": result.returncode,
+                "success": proc.returncode == 0,
+                "stdout": stdout[:5000],
+                "stderr": stderr[:2000],
+                "returncode": proc.returncode,
                 "images": [str(img) for img in images],
                 "xlsx_files": [str(f) for f in xlsx_files],
                 "csv_files": [str(f) for f in csv_files],
                 "html_files": [str(f) for f in html_files],
                 "run_id": run_id,
             }
-        except subprocess.TimeoutExpired:
-            return {
-                "success": False, "stdout": "", "stderr": f"执行超时 ({self.timeout}秒)",
-                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
-            }
         except Exception as e:
             return {
-                "success": False, "stdout": "", "stderr": str(e),
-                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
+                "success": False,
+                "stdout": "",
+                "stderr": str(e),
+                "returncode": -1,
+                "images": [],
+                "xlsx_files": [],
+                "csv_files": [],
+                "html_files": [],
+                "run_id": run_id,
             }
 
     # ── Docker 模式 ──────────────────────────────────────────────
@@ -196,19 +285,28 @@ class SandboxExecutor:
         container_output = "/output"
 
         cmd = [
-            "docker", "run", "--rm",
+            "docker",
+            "run",
+            "--rm",
             "--network=none",
             f"--memory={self.max_memory_mb}m",
             f"--memory-swap={self.max_memory_mb}m",  # 禁用 swap
             "--cap-drop=ALL",
-            "--security-opt", "no-new-privileges",
-            "--pids-limit", "64",
+            "--security-opt",
+            "no-new-privileges",
+            "--pids-limit",
+            "64",
             "--read-only",
-            "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-            "-e", "HOME=/tmp",
-            "-e", "MPLCONFIGDIR=/tmp/matplotlib",
-            "-e", "PYTHONDONTWRITEBYTECODE=1",
-            "-v", f"{output_subdir}:{container_output}:rw",
+            "--tmpfs",
+            "/tmp:rw,noexec,nosuid,size=64m",
+            "-e",
+            "HOME=/tmp",
+            "-e",
+            "MPLCONFIGDIR=/tmp/matplotlib",
+            "-e",
+            "PYTHONDONTWRITEBYTECODE=1",
+            "-v",
+            f"{output_subdir}:{container_output}:rw",
             SANDBOX_IMAGE,
             f"{container_output}/_code.py",
             container_output,
@@ -224,22 +322,10 @@ class SandboxExecutor:
                 errors="replace",
             )
 
-            images = sorted(
-                p for p in output_subdir.glob("*.png")
-                if p.name != "_code.py"
-            )
-            xlsx_files = sorted(
-                p for p in output_subdir.glob("*.xlsx")
-                if p.name != "_code.py"
-            )
-            csv_files = sorted(
-                p for p in output_subdir.glob("*.csv")
-                if p.name != "_code.py"
-            )
-            html_files = sorted(
-                p for p in output_subdir.glob("*.html")
-                if p.name != "_code.py"
-            )
+            images = sorted(p for p in output_subdir.glob("*.png") if p.name != "_code.py")
+            xlsx_files = sorted(p for p in output_subdir.glob("*.xlsx") if p.name != "_code.py")
+            csv_files = sorted(p for p in output_subdir.glob("*.csv") if p.name != "_code.py")
+            html_files = sorted(p for p in output_subdir.glob("*.html") if p.name != "_code.py")
             return {
                 "success": result.returncode == 0,
                 "stdout": result.stdout[:5000],
@@ -253,22 +339,42 @@ class SandboxExecutor:
             }
         except subprocess.TimeoutExpired:
             return {
-                "success": False, "stdout": "", "stderr": f"执行超时 ({self.timeout}秒)",
-                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
+                "success": False,
+                "stdout": "",
+                "stderr": f"执行超时 ({self.timeout}秒)",
+                "returncode": -1,
+                "images": [],
+                "xlsx_files": [],
+                "csv_files": [],
+                "html_files": [],
+                "run_id": run_id,
             }
         except FileNotFoundError:
             return {
-                "success": False, "stdout": "",
+                "success": False,
+                "stdout": "",
                 "stderr": (
                     "Docker 未安装或未在 PATH 中。请安装 Docker Desktop，"
                     "然后执行: docker build -t mathmodel-sandbox -f Dockerfile.sandbox ."
                 ),
-                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
+                "returncode": -1,
+                "images": [],
+                "xlsx_files": [],
+                "csv_files": [],
+                "html_files": [],
+                "run_id": run_id,
             }
         except Exception as e:
             return {
-                "success": False, "stdout": "", "stderr": str(e),
-                "returncode": -1, "images": [], "xlsx_files": [], "csv_files": [], "html_files": [], "run_id": run_id,
+                "success": False,
+                "stdout": "",
+                "stderr": str(e),
+                "returncode": -1,
+                "images": [],
+                "xlsx_files": [],
+                "csv_files": [],
+                "html_files": [],
+                "run_id": run_id,
             }
 
     def _wrap_code(self, code: str, output_dir: str) -> str:
@@ -277,7 +383,7 @@ class SandboxExecutor:
         不再预导入 numpy/scipy/pandas —— LLM 生成的代码自带 import，预导入浪费
         200-500MB 内存每个沙箱进程。matplotlib 仅设置 backend（轻量），pyplot 按需导入。
         """
-        return f'''
+        return f"""
 # ── 网络阻断：禁止任何 socket 连接（connect + connect_ex 双拦）──
 import socket as _socket
 _original_connect = _socket.socket.connect
@@ -310,4 +416,4 @@ if "matplotlib.pyplot" in _sys.modules:
         fig.savefig(_os.path.join({json.dumps(output_dir)}, f"figure_{{i}}.png"),
                     dpi=150, bbox_inches="tight")
     _plt.close("all")
-'''
+"""

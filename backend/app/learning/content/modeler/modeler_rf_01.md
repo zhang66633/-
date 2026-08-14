@@ -194,13 +194,14 @@ X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=42)
 
 # 单树基线
 tree = DecisionTreeRegressor(max_depth=4, random_state=42).fit(X_tr, y_tr)
-print("单树 R²:", round(r2_score(y_te, tree.predict(X_te)), 3))      # 0.324
+print("单树 R²:", round(r2_score(y_te, tree.predict(X_te)), 3))  # 0.324
 
 # 随机森林(开启 OOB)
-rf = RandomForestRegressor(n_estimators=100, max_depth=4,
-                           oob_score=True, random_state=42).fit(X_tr, y_tr)
-print("RF 测试 R²:", round(r2_score(y_te, rf.predict(X_te)), 3))     # 0.492
-print("RF OOB  R²:", round(rf.oob_score_, 3))                        # 0.424
+rf = RandomForestRegressor(n_estimators=100, max_depth=4, oob_score=True, random_state=42).fit(
+    X_tr, y_tr
+)
+print("RF 测试 R²:", round(r2_score(y_te, rf.predict(X_te)), 3))  # 0.492
+print("RF OOB  R²:", round(rf.oob_score_, 3))  # 0.424
 
 # 特征重要性(MDI)
 names = load_diabetes().feature_names

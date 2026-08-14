@@ -4,11 +4,11 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
+from ..auth.dependencies import decode_jwt
 from ..config import get_settings
 from ..services.redis_pubsub import RedisSubscriber
-from ..auth.dependencies import decode_jwt
 
 logger = logging.getLogger(__name__)
 ws_router = APIRouter()
@@ -32,10 +32,15 @@ async def task_websocket(websocket: WebSocket, task_id: str, token: str = Query(
     settings = get_settings()
 
     # Send an initial connection-confirmation event
-    await websocket.send_text(json.dumps({
-        "event": "connected",
-        "task_id": task_id,
-    }, ensure_ascii=False))
+    await websocket.send_text(
+        json.dumps(
+            {
+                "event": "connected",
+                "task_id": task_id,
+            },
+            ensure_ascii=False,
+        )
+    )
 
     subscriber = RedisSubscriber(settings.redis_url)
 

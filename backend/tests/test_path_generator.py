@@ -3,13 +3,14 @@
 运行: 在 backend/ 目录下 `python -m pytest tests/test_path_generator.py -q`
       或直接 `python tests/test_path_generator.py`。
 """
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.learning.unit_content import ALL_MODELER, ALL_UNITS, CONTENT_DIR  # noqa: E402
 from app.learning.path_generator import generate_learning_path, get_unit_detail  # noqa: E402
+from app.learning.unit_content import ALL_MODELER, ALL_UNITS, CONTENT_DIR  # noqa: E402
 
 
 def test_all_roles_have_units():

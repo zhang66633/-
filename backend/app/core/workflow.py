@@ -27,23 +27,23 @@
               END
 """
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 
-from .state import AgentState
 from .nodes import (
-    classify_problem,
-    retrieve_knowledge,
-    plan_execution,
     analysis_agent_node,
-    modeling_agent_node,
+    classify_problem,
     data_preprocessing_agent_node,
+    export_results_agent_node,
+    format_response,
+    modeling_agent_node,
+    plan_execution,
+    retrieve_knowledge,
     solving_agent_node,
     verification_agent_node,
-    export_results_agent_node,
     writing_agent_node,
-    format_response,
 )
-from .router import route_to_first_agent, after_agent_router
+from .router import after_agent_router, route_to_first_agent
+from .state import AgentState
 
 
 def build_orchestrator() -> StateGraph:

@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -26,30 +25,32 @@ def _resolve_uid(user: GitHubUser | None) -> str:
     """登录用户按 GitHub login 隔离；访客落入共享桶。"""
     return user.login if (user and user.login) else GUEST_USER_ID
 
+
 # ── 请求/响应模型 ─────────────────────────────────────
 
+
 class CreateConversationRequest(BaseModel):
-    mode: str = "chat"          # chat | qa | practice | solution | learning
+    mode: str = "chat"  # chat | qa | practice | solution | learning
     title: str = "新对话"
 
 
 class UpdateConversationRequest(BaseModel):
-    title: Optional[str] = None
+    title: str | None = None
 
 
 class MessagePayload(BaseModel):
     id: str
     msg_type: str
-    content: Optional[str] = None
-    tool_name: Optional[str] = None
-    input: Optional[dict] = None
-    output: Optional[list] = None
-    status: Optional[str] = None
-    thinking: Optional[str] = None
-    agent_type: Optional[str] = None
-    answered: Optional[bool] = None
-    streaming: Optional[bool] = None
-    created_at: Optional[str] = None
+    content: str | None = None
+    tool_name: str | None = None
+    input: dict | None = None
+    output: list | None = None
+    status: str | None = None
+    thinking: str | None = None
+    agent_type: str | None = None
+    answered: bool | None = None
+    streaming: bool | None = None
+    created_at: str | None = None
 
 
 class SyncMessagesRequest(BaseModel):
@@ -58,9 +59,10 @@ class SyncMessagesRequest(BaseModel):
 
 # ── 路由 ─────────────────────────────────────────────
 
+
 @session_router.get("")
 async def list_conversations(
-    mode: Optional[str] = Query(None),
+    mode: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     user: GitHubUser | None = Depends(get_current_user),
@@ -130,6 +132,7 @@ async def delete_conversation(
 
 
 # ── 消息路由 ─────────────────────────────────────────
+
 
 @session_router.get("/{conv_id}/messages")
 async def get_messages(

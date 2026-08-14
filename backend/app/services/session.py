@@ -8,9 +8,8 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 from app.config import get_settings
 
@@ -27,10 +26,10 @@ class SessionManager:
         manager.cancel(task_id)  # sets cancel event, stops orchestrator
     """
 
-    def __init__(self, persist_path: Optional[Path] = None):
+    def __init__(self, persist_path: Path | None = None):
         self._lock = threading.Lock()
-        self._tasks: Dict[str, dict] = {}
-        self._cancel_events: Dict[str, threading.Event] = {}
+        self._tasks: dict[str, dict] = {}
+        self._cancel_events: dict[str, threading.Event] = {}
         self._persist_path = persist_path
 
         # Load existing sessions if persist file exists
@@ -44,7 +43,7 @@ class SessionManager:
         import uuid
 
         task_id = str(uuid.uuid4())[:8]
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         task = {
             "task_id": task_id,
@@ -64,7 +63,7 @@ class SessionManager:
 
         return task
 
-    def add_artifact(self, task_id: str, artifact: dict) -> Optional[dict]:
+    def add_artifact(self, task_id: str, artifact: dict) -> dict | None:
         """向任务的文件区追加一个文件记录。
 
         artifact 形如:
@@ -77,30 +76,33 @@ class SessionManager:
             if task is None:
                 return None
             arts = task.setdefault("artifacts", [])
-            if any(a.get("name") == artifact.get("name") and a.get("url") == artifact.get("url") for a in arts):
+            if any(
+                a.get("name") == artifact.get("name") and a.get("url") == artifact.get("url")
+                for a in arts
+            ):
                 return task
             arts.append(artifact)
-            task["updated_at"] = datetime.now(timezone.utc).isoformat()
+            task["updated_at"] = datetime.now(UTC).isoformat()
             self._save()
             return task
 
-    def get(self, task_id: str) -> Optional[dict]:
+    def get(self, task_id: str) -> dict | None:
         """Get a task by ID (returns None if not found)."""
         with self._lock:
             return self._tasks.get(task_id)
 
-    def list_all(self) -> List[dict]:
+    def list_all(self) -> list[dict]:
         """List all tasks."""
         with self._lock:
             return list(self._tasks.values())
 
-    def update(self, task_id: str, **fields) -> Optional[dict]:
+    def update(self, task_id: str, **fields) -> dict | None:
         """Update task fields. Returns updated task or None."""
         with self._lock:
             task = self._tasks.get(task_id)
             if task is None:
                 return None
-            fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+            fields["updated_at"] = datetime.now(UTC).isoformat()
             task.update(fields)
             self._save()
             return task
@@ -123,7 +125,7 @@ class SessionManager:
             task = self._tasks.get(task_id)
             if task:
                 task["status"] = "cancelled"
-                task["updated_at"] = datetime.now(timezone.utc).isoformat()
+                task["updated_at"] = datetime.now(UTC).isoformat()
                 self._save()
                 return True
             return False
@@ -162,9 +164,7 @@ class SessionManager:
             data = json.loads(self._persist_path.read_text(encoding="utf-8"))
             if isinstance(data, dict):
                 self._tasks = data
-                logger.info(
-                    "Loaded %d sessions from %s", len(self._tasks), self._persist_path
-                )
+                logger.info("Loaded %d sessions from %s", len(self._tasks), self._persist_path)
         except Exception:
             logger.warning("Failed to load sessions", exc_info=True)
             self._tasks = {}
@@ -172,7 +172,7 @@ class SessionManager:
 
 # ── module-level singleton ──────────────────────────────────────────
 
-_session_manager: Optional[SessionManager] = None
+_session_manager: SessionManager | None = None
 
 
 def get_session_manager() -> SessionManager:

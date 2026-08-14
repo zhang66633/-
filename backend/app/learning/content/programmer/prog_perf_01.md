@@ -60,7 +60,7 @@ for v in x:
     s += v**2
 
 # 快:整个运算下沉到 C 层
-s = np.dot(x, x)               # 或 (x**2).sum() 或 x @ x
+s = np.dot(x, x)  # 或 (x**2).sum() 或 x @ x
 ```
 
 > ⚠️ **`np.vectorize` 不是加速**。它只是把函数调用「循环」包了一层语法糖,内部仍是 Python 循环,甚至可能更慢。真正的向量化必须让计算发生在 NumPy 内部。
@@ -79,6 +79,7 @@ Numba 是 JIT 编译器:给函数加 `@njit` 装饰器,把纯 Python 循环编�
 import numpy as np
 from numba import njit
 
+
 @njit
 def sum_of_squares(x):
     s = 0.0
@@ -86,9 +87,10 @@ def sum_of_squares(x):
         s += v * v
     return s
 
+
 x = np.random.default_rng(0).normal(size=1_000_000)
-sum_of_squares(x)               # 第一次调用含编译时间
-sum_of_squares(x)               # 之后都是机器码速度
+sum_of_squares(x)  # 第一次调用含编译时间
+sum_of_squares(x)  # 之后都是机器码速度
 ```
 
 - **适用**:数值循环(仿真、动态规划、网格计算),代码越「循环密集」收益越大
@@ -102,10 +104,10 @@ sum_of_squares(x)               # 之后都是机器码速度
 import numpy as np
 
 a = np.ones((1000, 1000))
-b = a + 1                      # 新数组
-b = a[::2, ::2]                # 视图:不复制数据(但修改会联动原数组!)
-a += 1                         # in-place:原地修改,不产生新数组
-a32 = a.astype(np.float32)     # 降精度:内存减半,缓存命中率提升
+b = a + 1  # 新数组
+b = a[::2, ::2]  # 视图:不复制数据(但修改会联动原数组!)
+a += 1  # in-place:原地修改,不产生新数组
+a32 = a.astype(np.float32)  # 降精度:内存减半,缓存命中率提升
 ```
 
 - 链式矩阵运算 `A @ B @ C` 会先算 `A @ B` 产生临时矩阵;`np.linalg.multi_dot([A, B, C])` 自动选最优结合顺序
@@ -139,6 +141,7 @@ import numpy as np
 import timeit
 from numba import njit
 
+
 def mc_pi_loop(n, rng):
     inside = 0
     for _ in range(n):
@@ -147,10 +150,12 @@ def mc_pi_loop(n, rng):
             inside += 1
     return 4.0 * inside / n
 
+
 def mc_pi_numpy(n, rng):
     x = rng.random(n)
     y = rng.random(n)
     return 4.0 * np.mean(x * x + y * y <= 1.0)
+
 
 @njit
 def mc_pi_numba(n, rng):
@@ -161,14 +166,14 @@ def mc_pi_numba(n, rng):
             inside += 1
     return 4.0 * inside / n
 
+
 rng = np.random.default_rng(0)
 n = 300_000
 print("纯循环:", mc_pi_loop(n, rng))
 print("NumPy :", mc_pi_numpy(n, rng))
-print("Numba :", mc_pi_numba(n, rng))     # 首次调用含编译
+print("Numba :", mc_pi_numba(n, rng))  # 首次调用含编译
 
-for name, f in [("纯循环", mc_pi_loop), ("NumPy", mc_pi_numpy),
-                ("Numba", mc_pi_numba)]:
+for name, f in [("纯循环", mc_pi_loop), ("NumPy", mc_pi_numpy), ("Numba", mc_pi_numba)]:
     t = timeit.timeit(lambda: f(n, rng), number=3) / 3
     print(f"{name}: 单次 {t * 1000:.2f} ms")
 ```
@@ -200,6 +205,7 @@ from numba import njit
 rng = np.random.default_rng(0)
 X = rng.normal(size=(300, 2))
 
+
 def dist_loop(X):
     n = X.shape[0]
     D = np.empty((n, n))
@@ -208,9 +214,11 @@ def dist_loop(X):
             D[i, j] = np.sqrt(((X[i] - X[j]) ** 2).sum())
     return D
 
+
 def dist_vec(X):
-    diff = X[:, None, :] - X[None, :, :]   # 广播成 (n, n, 2)
-    return np.sqrt((diff ** 2).sum(axis=2))
+    diff = X[:, None, :] - X[None, :, :]  # 广播成 (n, n, 2)
+    return np.sqrt((diff**2).sum(axis=2))
+
 
 @njit
 def dist_numba(X):
@@ -223,12 +231,13 @@ def dist_numba(X):
             D[i, j] = (dx * dx + dy * dy) ** 0.5
     return D
 
-print("三种实现一致:",
-      np.allclose(dist_loop(X), dist_vec(X)) and
-      np.allclose(dist_loop(X), dist_numba(X)))
 
-for name, f in [("双重循环", dist_loop), ("广播向量化", dist_vec),
-                ("Numba", dist_numba)]:
+print(
+    "三种实现一致:",
+    np.allclose(dist_loop(X), dist_vec(X)) and np.allclose(dist_loop(X), dist_numba(X)),
+)
+
+for name, f in [("双重循环", dist_loop), ("广播向量化", dist_vec), ("Numba", dist_numba)]:
     t = timeit.timeit(lambda: f(X), number=3) / 3
     print(f"{name}: {t * 1000:.2f} ms")
 ```
@@ -255,6 +264,7 @@ import numpy as np
 import timeit
 from numba import njit
 
+
 def sir_final(beta, gamma, days, S0=9999.0, I0=1.0):
     S, I, R = S0, I0, 0.0
     N = S0 + I0
@@ -263,6 +273,7 @@ def sir_final(beta, gamma, days, S0=9999.0, I0=1.0):
         new_rec = gamma * I
         S, I, R = S - new_inf, I + new_inf - new_rec, R + new_rec
     return R
+
 
 @njit
 def sir_final_nb(beta, gamma, days, S0=9999.0, I0=1.0):
@@ -276,25 +287,26 @@ def sir_final_nb(beta, gamma, days, S0=9999.0, I0=1.0):
         R += new_rec
     return R
 
+
 rng = np.random.default_rng(1)
 params = rng.uniform([0.05, 0.02], [0.8, 0.3], size=(2000, 2))  # (β, γ)
+
 
 def scan(f):
     return np.array([f(b, g, 5000) for b, g in params])
 
+
 print("纯 Python 结果前 3:", scan(sir_final)[:3].round(1))
 print("Numba 结果前 3:  ", scan(sir_final_nb)[:3].round(1))
 
-scan(sir_final_nb)           # 预热:触发 JIT 编译,别把编译时间算进基准
+scan(sir_final_nb)  # 预热:触发 JIT 编译,别把编译时间算进基准
 t_py = timeit.timeit(lambda: scan(sir_final), number=1)
 t_nb = timeit.timeit(lambda: scan(sir_final_nb), number=1)
-print(f"纯 Python: {t_py:.2f} s | Numba: {t_nb:.2f} s | "
-      f"加速 {t_py / t_nb:.0f} 倍")
+print(f"纯 Python: {t_py:.2f} s | Numba: {t_nb:.2f} s | 加速 {t_py / t_nb:.0f} 倍")
 
 R_all = scan(sir_final_nb)
 i = int(np.argmax(R_all))
-print(f"最终感染规模最大的参数: β={params[i, 0]:.2f}, "
-      f"γ={params[i, 1]:.2f}, R={R_all[i]:.0f}")
+print(f"最终感染规模最大的参数: β={params[i, 0]:.2f}, γ={params[i, 1]:.2f}, R={R_all[i]:.0f}")
 ```
 
 **输出解读**(数值依机器而异):
@@ -372,6 +384,7 @@ from numba import njit
 rng = np.random.default_rng(0)
 data = rng.normal(size=1_000_000)
 
+
 # 0. 基线:纯循环
 def baseline(x):
     s = 0.0
@@ -379,9 +392,11 @@ def baseline(x):
         s += v * v
     return s
 
+
 # 1. 向量化
 def vectorized(x):
     return x @ x
+
 
 # 2. JIT 编译
 @njit
@@ -391,10 +406,12 @@ def jitted(x):
         s += v * v
     return s
 
-print("结果一致:", np.allclose(baseline(data), vectorized(data))
-      and np.allclose(baseline(data), jitted(data)))
-for name, f in [("纯循环", baseline), ("向量化", vectorized),
-                ("Numba", jitted)]:
+
+print(
+    "结果一致:",
+    np.allclose(baseline(data), vectorized(data)) and np.allclose(baseline(data), jitted(data)),
+)
+for name, f in [("纯循环", baseline), ("向量化", vectorized), ("Numba", jitted)]:
     t = timeit.timeit(lambda: f(data), number=10) / 10
     print(f"{name}: {t * 1000:.2f} ms")
 ```

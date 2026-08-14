@@ -6,9 +6,8 @@
 
 from __future__ import annotations
 
-import json
 import logging
-from typing import ClassVar, List, Optional, Type
+from typing import ClassVar
 
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
@@ -45,21 +44,18 @@ class WebSearchTool(BaseTool):
         "- 验证某个方法或公式的正确性\n"
         "返回标题、摘要和链接。注意：搜索结果可能包含过时或不准确信息，需甄别。"
     )
-    args_schema: Type[BaseModel] = WebSearchInput
+    args_schema: type[BaseModel] = WebSearchInput
 
     def _run(
         self,
         query: str,
         max_results: int = 5,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
         try:
             from duckduckgo_search import DDGS
         except ImportError:
-            return (
-                "错误: duckduckgo-search 未安装。"
-                "请运行 `pip install duckduckgo-search`"
-            )
+            return "错误: duckduckgo-search 未安装。请运行 `pip install duckduckgo-search`"
 
         try:
             with DDGS() as ddgs:

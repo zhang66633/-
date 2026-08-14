@@ -198,20 +198,22 @@ n = 200
 eps = rng.normal(0, 1, n)
 y = np.zeros(n)
 for t in range(2, n):
-    y[t] = 0.6 * y[t-1] + 0.3 * y[t-2] + eps[t]
+    y[t] = 0.6 * y[t - 1] + 0.3 * y[t - 2] + eps[t]
 
 # 1) ADF 平稳性检验
 p_adf = adfuller(y, autolag="AIC")[1]
-print("ADF p 值:", round(p_adf, 4))          # p < 0.05 → 平稳
+print("ADF p 值:", round(p_adf, 4))  # p < 0.05 → 平稳
 
 # 2) ACF / PACF(真实数据不平稳时先 y = np.diff(y))
-plot_acf(y, lags=20); plot_pacf(y, lags=20); plt.show()
+plot_acf(y, lags=20)
+plot_pacf(y, lags=20)
+plt.show()
 
 # 3) 拟合与诊断
 model = sm.tsa.ARIMA(y, order=(2, 0, 0)).fit()
-print(model.summary())                        # 系数应接近 0.6 / 0.3
+print(model.summary())  # 系数应接近 0.6 / 0.3
 lb = sm.stats.acorr_ljungbox(model.resid, lags=[10], return_df=True)
-print("Ljung-Box p 值:", round(lb["lb_pvalue"][0], 3))   # > 0.05 通过
+print("Ljung-Box p 值:", round(lb["lb_pvalue"][0], 3))  # > 0.05 通过
 
 # 4) 预测
 fc = model.get_forecast(10)

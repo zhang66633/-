@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, ClassVar, List, Optional, Type
+from typing import ClassVar
 
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.documents import Document
@@ -25,16 +25,16 @@ from ..knowledge.retriever import HybridRetriever
 
 logger = logging.getLogger(__name__)
 
-_KB_ROOT: Optional[Path] = None
-_PERSIST_DIR: Optional[Path] = None
-_RETRIEVER: Optional[BaseRetriever] = None
+_KB_ROOT: Path | None = None
+_PERSIST_DIR: Path | None = None
+_RETRIEVER: BaseRetriever | None = None
 
 
 def _resolve_kb_paths():
     """延迟解析 KB 路径，避免循环依赖（config -> main -> retriever）。"""
     global _KB_ROOT, _PERSIST_DIR
     if _KB_ROOT is None:
-        settings = get_settings()
+        get_settings()
         backend_root = Path(__file__).parent.parent.parent
         _KB_ROOT = backend_root / "data" / "knowledge_base"
         _PERSIST_DIR = backend_root / "data" / "chroma_db"
@@ -63,8 +63,11 @@ def reset_retriever() -> None:
 
 # ── Input Schemas ──────────────────────────────────────────────
 
+
 class MethodSearchInput(BaseModel):
-    query: str = Field(description="要搜索的关键词或问题描述，如 '线性规划求解' 或 '如何做层次分析'")
+    query: str = Field(
+        description="要搜索的关键词或问题描述，如 '线性规划求解' 或 '如何做层次分析'"
+    )
 
 
 class PaperSearchInput(BaseModel):
@@ -77,11 +80,12 @@ class TemplateSearchInput(BaseModel):
 
 # ── Tool Implementations ───────────────────────────────────────
 
+
 def _format_doc(d: Document, max_chars: int = 800) -> str:
     """截断 doc.page_content，给 LLM 简洁上下文。"""
     text = d.page_content or ""
     if len(text) > max_chars:
-        text = text[:max_chars] + f"…(+{len(text)-max_chars} 字符)"
+        text = text[:max_chars] + f"…(+{len(text) - max_chars} 字符)"
     return text
 
 
@@ -92,12 +96,12 @@ class SearchMethodCardsTool(BaseTool):
         "当你需要介绍某类方法、判断方法适用场景、给出方法对比时调用。"
         "返回每张卡片的核心原理、公式、适用条件与典型场景摘要。"
     )
-    args_schema: ClassVar[Type[BaseModel]] = MethodSearchInput
+    args_schema: ClassVar[type[BaseModel]] = MethodSearchInput
 
     def _run(
         self,
         query: str,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
         try:
             retriever = get_retriever()
@@ -106,8 +110,7 @@ class SearchMethodCardsTool(BaseTool):
             if not docs:
                 return "未找到相关方法卡片。"
             return "\n\n---\n\n".join(
-                f"【{d.metadata.get('name', '未知方法')}】\n{_format_doc(d)}"
-                for d in docs
+                f"【{d.metadata.get('name', '未知方法')}】\n{_format_doc(d)}" for d in docs
             )
         except Exception as e:  # noqa: BLE001
             logger.exception("search_method_cards failed")
@@ -121,12 +124,12 @@ class SearchSimilarPapersTool(BaseTool):
         "当你需要给出真实题目参考、论文结构示例、或历年案例时调用。"
         "返回题号、年份、问题摘要、方法概要与亮点摘要。"
     )
-    args_schema: ClassVar[Type[BaseModel]] = PaperSearchInput
+    args_schema: ClassVar[type[BaseModel]] = PaperSearchInput
 
     def _run(
         self,
         query: str,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
         try:
             retriever = get_retriever()
@@ -151,12 +154,12 @@ class GetAnalysisTemplateTool(BaseTool):
         "当你需要给出解题思路框架、步骤清单、决策流程时调用。"
         "返回模板名、适用场景与标准步骤摘要。"
     )
-    args_schema: ClassVar[Type[BaseModel]] = TemplateSearchInput
+    args_schema: ClassVar[type[BaseModel]] = TemplateSearchInput
 
     def _run(
         self,
         query: str,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
         try:
             retriever = get_retriever()
@@ -165,15 +168,14 @@ class GetAnalysisTemplateTool(BaseTool):
             if not docs:
                 return "未找到相关模板。"
             return "\n\n---\n\n".join(
-                f"【{d.metadata.get('name', '未知模板')}】\n{_format_doc(d)}"
-                for d in docs
+                f"【{d.metadata.get('name', '未知模板')}】\n{_format_doc(d)}" for d in docs
             )
         except Exception as e:  # noqa: BLE001
             logger.exception("get_analysis_template failed")
             return f"工具执行失败: {e}"
 
 
-def create_kb_tools() -> List[BaseTool]:
+def create_kb_tools() -> list[BaseTool]:
     """工厂：返回全部 KB 工具，供 llm.bind_tools() 使用。"""
     return [
         SearchMethodCardsTool(),

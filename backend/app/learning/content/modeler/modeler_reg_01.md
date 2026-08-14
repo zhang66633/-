@@ -267,14 +267,14 @@ lr = LinearRegression().fit(x.reshape(-1, 1), y)
 print("截距 =", round(lr.intercept_, 4), " 斜率 =", round(lr.coef_[0], 4))  # -0.6, 2.2
 
 # --- 方式二:statsmodels 完整统计推断(论文输出) ---
-X = sm.add_constant(x)          # 加上截距列
+X = sm.add_constant(x)  # 加上截距列
 model = sm.OLS(y, X).fit()
-print(model.summary())          # R²、t、p、置信区间、DW 全在里面
+print(model.summary())  # R²、t、p、置信区间、DW 全在里面
 
 # 预测 x0=6 的点预测与 95% 预测区间
 pred = model.get_prediction([1, 6])
-print("点预测:", round(pred.predicted_mean[0], 4))          # 12.6
-print("95% 预测区间:", pred.conf_int(obs=True)[0].round(4)) # (9.2, 16.0)
+print("点预测:", round(pred.predicted_mean[0], 4))  # 12.6
+print("95% 预测区间:", pred.conf_int(obs=True)[0].round(4))  # (9.2, 16.0)
 ```
 
 > `conf_int()` 默认给均值的置信区间,`obs=True` 才给出**预测区间**(更宽),引用进论文前先想清楚要哪个。

@@ -2,12 +2,10 @@
 
 import threading
 from pathlib import Path
-from typing import List
 
 import yaml
 
 from .schemas import MethodCard, Paper, Problem, Template
-
 
 # ── 进程级缓存：避免每次检索都全量重解析 YAML ─────────────────────────
 # 键为 (str(kb_root), kind)；`invalidate_kb_cache()` 在 reindex/import 后清空。
@@ -47,10 +45,10 @@ class KnowledgeBaseLoader:
             _kb_cache[key] = result
         return result
 
-    def load_all_methods(self) -> List[MethodCard]:
+    def load_all_methods(self) -> list[MethodCard]:
         """Load all method cards from YAML files（进程级缓存，按 kb_root 复用）。"""
 
-        def _build() -> List[MethodCard]:
+        def _build() -> list[MethodCard]:
             cards = []
             for yaml_file in self.methods_dir.rglob("*.yaml"):
                 data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
@@ -60,10 +58,10 @@ class KnowledgeBaseLoader:
 
         return self._load_cached("methods", _build)
 
-    def load_all_papers(self) -> List[Paper]:
+    def load_all_papers(self) -> list[Paper]:
         """Load all structured papers from YAML files（进程级缓存）。"""
 
-        def _build() -> List[Paper]:
+        def _build() -> list[Paper]:
             papers = []
             for yaml_file in self.papers_dir.rglob("*.yaml"):
                 data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
@@ -73,10 +71,10 @@ class KnowledgeBaseLoader:
 
         return self._load_cached("papers", _build)
 
-    def load_all_templates(self) -> List[Template]:
+    def load_all_templates(self) -> list[Template]:
         """Load all analysis templates from YAML files（进程级缓存）。"""
 
-        def _build() -> List[Template]:
+        def _build() -> list[Template]:
             templates = []
             for yaml_file in self.templates_dir.rglob("*.yaml"):
                 data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
@@ -93,15 +91,11 @@ class KnowledgeBaseLoader:
                 return card
         return None
 
-    def get_methods_by_category(self, category: str) -> List[MethodCard]:
+    def get_methods_by_category(self, category: str) -> list[MethodCard]:
         """Filter method cards by category."""
-        return [
-            card
-            for card in self.load_all_methods()
-            if category in card.category
-        ]
+        return [card for card in self.load_all_methods() if category in card.category]
 
-    def get_papers_by_type(self, problem_type: str) -> List[Paper]:
+    def get_papers_by_type(self, problem_type: str) -> list[Paper]:
         """Find papers matching a problem type tag."""
         results = []
         for paper in self.load_all_papers():
@@ -118,7 +112,7 @@ class KnowledgeBaseLoader:
                 return tpl
         return None
 
-    def get_templates_for_type(self, problem_type: str) -> List[Template]:
+    def get_templates_for_type(self, problem_type: str) -> list[Template]:
         """Find templates applicable to a problem type."""
         results = []
         for tpl in self.load_all_templates():
@@ -128,10 +122,10 @@ class KnowledgeBaseLoader:
 
     # ── Problem (竞赛真题) ────────────────────────────────────────────
 
-    def load_all_problems(self) -> List[Problem]:
+    def load_all_problems(self) -> list[Problem]:
         """Load all competition problems from YAML files（进程级缓存）。"""
 
-        def _build() -> List[Problem]:
+        def _build() -> list[Problem]:
             problems = []
             if not self.problems_dir.exists():
                 return problems
@@ -150,9 +144,7 @@ class KnowledgeBaseLoader:
                 return prob
         return None
 
-    def get_problem_by_key(
-        self, year: int, competition: str, problem_id: str
-    ) -> Problem | None:
+    def get_problem_by_key(self, year: int, competition: str, problem_id: str) -> Problem | None:
         """Find a problem by its natural key (year, competition, problem_id)."""
         for prob in self.load_all_problems():
             if (
@@ -165,7 +157,7 @@ class KnowledgeBaseLoader:
 
     def get_problems_by_competition(
         self, competition: str, year: int | None = None
-    ) -> List[Problem]:
+    ) -> list[Problem]:
         """Filter problems by competition, optionally by year."""
         results = []
         for prob in self.load_all_problems():
@@ -176,18 +168,12 @@ class KnowledgeBaseLoader:
             results.append(prob)
         return results
 
-    def get_problems_by_type(self, problem_type: str) -> List[Problem]:
+    def get_problems_by_type(self, problem_type: str) -> list[Problem]:
         """Filter problems by problem_type tag."""
         return [
-            p
-            for p in self.load_all_problems()
-            if problem_type in p.tags.get("problem_type", [])
+            p for p in self.load_all_problems() if problem_type in p.tags.get("problem_type", [])
         ]
 
-    def get_papers_by_problem(self, problem_ref: str) -> List[Paper]:
+    def get_papers_by_problem(self, problem_ref: str) -> list[Paper]:
         """Find all papers linked to a specific problem."""
-        return [
-            p
-            for p in self.load_all_papers()
-            if p.problem_ref == problem_ref
-        ]
+        return [p for p in self.load_all_papers() if p.problem_ref == problem_ref]

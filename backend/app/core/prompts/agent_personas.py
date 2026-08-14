@@ -16,11 +16,11 @@ from dataclasses import dataclass, field
 
 @dataclass
 class AgentPersona:
-    agent_id: str            # 对应 AgentType 枚举: "orchestrator" | "analysis" | ...
-    name: str                # 中文名
-    emoji: str               # 头像 emoji
-    tagline: str             # 一句话
-    style: str               # 说话风格 (注入 prompt)
+    agent_id: str  # 对应 AgentType 枚举: "orchestrator" | "analysis" | ...
+    name: str  # 中文名
+    emoji: str  # 头像 emoji
+    tagline: str  # 一句话
+    style: str  # 说话风格 (注入 prompt)
     expertise: list[str] = field(default_factory=list)
     web_search_hints: list[str] = field(default_factory=list)
     # 联网搜索策略: ["bilibili:线性代数 特征值", "github:AHP python"]

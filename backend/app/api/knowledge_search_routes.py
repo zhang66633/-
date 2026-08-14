@@ -4,23 +4,32 @@
 
 import re
 import uuid
+from pathlib import Path
 
 import yaml
-from pathlib import Path
-from typing import Optional
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+)
+from pydantic import BaseModel
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
-from pydantic import BaseModel, Field
-
-from ..config import get_settings
 from ..auth.dependencies import require_contributor
 from ..auth.schemas import GitHubUser
-
-
+from ..config import get_settings
 from .knowledge_shared import *  # noqa: F403
 from .knowledge_shared import (  # noqa: F401
-    _extraction_jobs, _get_embedder, _get_loader, _get_retriever,
-    _find_yaml_file, _next_id,
+    _extraction_jobs,
+    _find_yaml_file,
+    _get_embedder,
+    _get_loader,
+    _get_retriever,
+    _next_id,
 )
 
 knowledge_router = APIRouter()
@@ -49,12 +58,10 @@ async def kb_stats():
 @knowledge_router.get("/search", response_model=SearchResponse)
 async def kb_search(
     q: str = Query(..., description="Search query string"),
-    type: Optional[str] = Query(
+    type: str | None = Query(
         None, description="Filter by doc type: method_card / paper / template"
     ),
-    problem_type: Optional[str] = Query(
-        None, description="Filter by problem type tag"
-    ),
+    problem_type: str | None = Query(None, description="Filter by problem type tag"),
     k: int = Query(5, ge=1, le=20, description="Number of results"),
 ):
     """Semantic + tag-based hybrid search over the knowledge base."""
@@ -62,7 +69,7 @@ async def kb_search(
         retriever = _get_retriever()
         metadata_filter = {"type": type} if type else None
         # /search 为交互式高精度路径：显式开启 query expansion 与 LLM rerank
-        #（低延迟路径如 pipeline/RAG chat 走 retriever 默认的保守配置，二者解耦）。
+        # （低延迟路径如 pipeline/RAG chat 走 retriever 默认的保守配置，二者解耦）。
         docs = retriever._get_relevant_documents(
             q,
             metadata_filter=metadata_filter,
@@ -96,7 +103,7 @@ async def kb_search(
 
 @knowledge_router.get("/methods", response_model=list[MethodCardSummary])
 async def list_methods(
-    category: Optional[str] = Query(None, description="Filter by category tag"),
+    category: str | None = Query(None, description="Filter by category tag"),
 ):
     """List all method cards, optionally filtered by category."""
     loader = _get_loader()
@@ -122,9 +129,9 @@ async def get_method(card_id: str):
 
 @knowledge_router.get("/papers", response_model=list[PaperSummary])
 async def list_papers(
-    problem_type: Optional[str] = Query(None, description="Filter by problem type tag"),
-    competition: Optional[str] = Query(None, description="Filter: 国赛/美赛/研赛"),
-    year: Optional[int] = Query(None, description="Filter by competition year"),
+    problem_type: str | None = Query(None, description="Filter by problem type tag"),
+    competition: str | None = Query(None, description="Filter: 国赛/美赛/研赛"),
+    year: int | None = Query(None, description="Filter by competition year"),
 ):
     """List all papers with optional filters."""
     loader = _get_loader()
@@ -155,7 +162,7 @@ async def get_paper(paper_id: str):
 
 @knowledge_router.get("/templates", response_model=list[TemplateSummary])
 async def list_templates(
-    problem_type: Optional[str] = Query(None, description="Filter by applicable problem type"),
+    problem_type: str | None = Query(None, description="Filter by applicable problem type"),
 ):
     """List all templates, optionally filtered by problem type."""
     loader = _get_loader()
@@ -185,6 +192,7 @@ async def get_template(tpl_id: str):
 
 
 # ── raw text (original material dual-view) ──────────────────────
+
 
 class RawTextResponse(BaseModel):
     entry_id: str
@@ -232,9 +240,9 @@ async def get_template_raw(tpl_id: str):
 
 @knowledge_router.get("/problems", response_model=list[ProblemSummary])
 async def list_problems(
-    competition: Optional[str] = Query(None, description="Filter: 国赛/美赛/研赛"),
-    year: Optional[int] = Query(None, description="Filter by competition year"),
-    problem_type: Optional[str] = Query(None, description="Filter by problem type tag"),
+    competition: str | None = Query(None, description="Filter: 国赛/美赛/研赛"),
+    year: int | None = Query(None, description="Filter by competition year"),
+    problem_type: str | None = Query(None, description="Filter by problem type tag"),
 ):
     """List all problems with optional filters."""
     loader = _get_loader()
@@ -245,10 +253,7 @@ async def list_problems(
     if year:
         problems = [p for p in problems if p.year == year]
     if problem_type:
-        problems = [
-            p for p in problems
-            if problem_type in p.tags.get("problem_type", [])
-        ]
+        problems = [p for p in problems if problem_type in p.tags.get("problem_type", [])]
 
     return [
         ProblemSummary(
@@ -317,6 +322,7 @@ async def kb_reindex(
         count = embedder.build_index(incremental=incremental)
         # 索引重建后失效共享 retriever + loader 缓存，避免下一次检索命中旧 Chroma 集合
         from ..knowledge.retriever import invalidate_shared_retriever
+
         invalidate_shared_retriever()
         mode = "增量" if incremental else "全量"
         return ReindexResponse(
@@ -335,7 +341,9 @@ async def kb_reindex(
 async def upload_knowledge(
     background_tasks: BackgroundTasks,
     text: str = Form("", description="题目描述/论文文本"),
-    files: list[UploadFile] = File([], description="附件文件（Excel/CSV/图片/PDF/DOCX/TXT等，可多选）"),
+    files: list[UploadFile] = File(
+        [], description="附件文件（Excel/CSV/图片/PDF/DOCX/TXT等，可多选）"
+    ),
     kb_type: str = Form(..., description="method / paper / template / problem"),
     name: str = Form("", description="名称提示"),
     problem_ref: str = Form("", description="上传论文时指定关联的题目 ID，跳过自动匹配"),
@@ -348,11 +356,13 @@ async def upload_knowledge(
     返回 job_id，前端轮询 GET /knowledge/jobs/{job_id} 获取结果。
     """
     if kb_type not in ("method", "paper", "template", "problem"):
-        raise HTTPException(status_code=400, detail="kb_type 必须为 method / paper / template / problem")
+        raise HTTPException(
+            status_code=400, detail="kb_type 必须为 method / paper / template / problem"
+        )
 
     raw_text = text.strip()
-    text_parts: list[str] = []   # 各文件解析后的文本片段
-    raw_images: list[str] = []   # base64 图片 (PNG/JPG/GIF/PDF页)
+    text_parts: list[str] = []  # 各文件解析后的文本片段
+    raw_images: list[str] = []  # base64 图片 (PNG/JPG/GIF/PDF页)
     raw_file_data: list[dict] = []  # 附件元数据（文件名+内容）用于持久化
 
     for f in files:
@@ -376,8 +386,15 @@ async def upload_knowledge(
 
             elif ext in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"):
                 import base64
-                mime_map = {".png": "png", ".jpg": "jpeg", ".jpeg": "jpeg",
-                            ".gif": "gif", ".webp": "webp", ".bmp": "bmp"}
+
+                mime_map = {
+                    ".png": "png",
+                    ".jpg": "jpeg",
+                    ".jpeg": "jpeg",
+                    ".gif": "gif",
+                    ".webp": "webp",
+                    ".bmp": "bmp",
+                }
                 mime = mime_map.get(ext, "png")
                 img_b64 = base64.b64encode(content).decode()
                 raw_images.append(f"data:image/{mime};base64,{img_b64}")
@@ -425,8 +442,15 @@ async def upload_knowledge(
     _extraction_jobs[job_id] = {"status": "processing", "result": None, "error": None}
 
     background_tasks.add_task(
-        _run_extraction, job_id, raw_text, text_parts, raw_images, raw_file_data,
-        kb_type, name, problem_ref,
+        _run_extraction,
+        job_id,
+        raw_text,
+        text_parts,
+        raw_images,
+        raw_file_data,
+        kb_type,
+        name,
+        problem_ref,
     )
     return KnowledgeUploadJob(job_id=job_id, status="processing")
 
@@ -434,6 +458,7 @@ async def upload_knowledge(
 def _ocr_pdf_text(file_bytes: bytes) -> str:
     """对扫描版/无文字层 PDF 做 OCR 提取（pymupdf 渲染 + RapidOCR）。"""
     import io
+
     try:
         import fitz  # pymupdf
         from rapidocr_onnxruntime import RapidOCR
@@ -445,14 +470,13 @@ def _ocr_pdf_text(file_bytes: bytes) -> str:
 
     try:
         import numpy as np
+
         ocr = RapidOCR()
         doc = fitz.open(io.BytesIO(file_bytes))
         pages = []
         for page in doc:
             pix = page.get_pixmap(dpi=150)
-            img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
-                pix.height, pix.width, pix.n
-            )
+            img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
             # RapidOCR 接受 BGR/灰度，统一转 3 通道
             if pix.n == 4:  # RGBA -> RGB
                 img = img[:, :, :3]
@@ -479,6 +503,7 @@ def _extract_pdf_text(file_bytes: bytes) -> str:
     # 首选 pdfplumber
     try:
         import pdfplumber
+
         pages = []
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
             for page in pdf.pages:
@@ -496,6 +521,7 @@ def _extract_pdf_text(file_bytes: bytes) -> str:
     if not extracted.strip():
         try:
             import PyPDF2
+
             reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
             pages = []
             for page in reader.pages:
@@ -513,7 +539,9 @@ def _extract_pdf_text(file_bytes: bytes) -> str:
         extracted = _ocr_pdf_text(file_bytes)
 
     if not extracted.strip():
-        raise HTTPException(status_code=400, detail="PDF 未提取到任何文本（可能为纯图片且 OCR 无结果）")
+        raise HTTPException(
+            status_code=400, detail="PDF 未提取到任何文本（可能为纯图片且 OCR 无结果）"
+        )
 
     return extracted
 
@@ -524,6 +552,7 @@ def _pdf_to_images(file_bytes: bytes, max_pages: int = 30) -> list[str]:
     限制 max_pages 防止超大 PDF 导致 LLM context 溢出。
     """
     import base64
+
     import fitz
 
     try:
@@ -553,14 +582,14 @@ def _build_multimodal_message(text_content: str, images_base64: list[str]):
     if not images_base64:
         return HumanMessage(content=text_content)
 
-    content: list[dict] = [
-        {"type": "text", "text": text_content}
-    ]
+    content: list[dict] = [{"type": "text", "text": text_content}]
     for img in images_base64:
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{img}"},
-        })
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{img}"},
+            }
+        )
 
     return HumanMessage(content=content)
 
@@ -574,6 +603,7 @@ def _parse_excel(file_bytes: bytes, filename: str) -> str:
     每个 sheet 输出: 行列数、列名、前20行数据、数值列统计信息。
     """
     import io
+
     import pandas as pd
 
     xls = pd.ExcelFile(io.BytesIO(file_bytes))
@@ -596,7 +626,7 @@ def _parse_excel(file_bytes: bytes, filename: str) -> str:
             # Statistical summary for numeric columns
             num_cols = df.select_dtypes(include="number").columns
             if len(num_cols) > 0:
-                parts.append(f"\n数值列统计摘要:")
+                parts.append("\n数值列统计摘要:")
                 try:
                     parts.append(df[num_cols].describe().to_string())
                 except Exception:
@@ -608,6 +638,7 @@ def _parse_excel(file_bytes: bytes, filename: str) -> str:
 def _parse_csv(file_bytes: bytes, filename: str) -> str:
     """CSV → 结构化文本摘要。"""
     import io
+
     import pandas as pd
 
     # Try common encodings
@@ -640,6 +671,7 @@ def _extract_docx_text(file_bytes: bytes) -> str:
     """Extract text from a DOCX byte stream（段落 + 表格，按文档顺序）。"""
     try:
         import io
+
         import docx
         from docx.table import Table
         from docx.text.paragraph import Paragraph
@@ -650,6 +682,7 @@ def _extract_docx_text(file_bytes: bytes) -> str:
         def _iter_block_items(document):
             """按文档顺序产出段落和表格对象。"""
             from docx.oxml.ns import qn
+
             for child in document.element.body.iterchildren():
                 if child.tag == qn("w:p"):
                     yield Paragraph(child, document)
@@ -690,7 +723,16 @@ async def get_extraction_job(job_id: str):
     )
 
 
-async def _run_extraction(job_id: str, raw_text: str, text_parts: list[str], raw_images: list[str], raw_file_data: list[dict], kb_type: str, name_hint: str, problem_ref: str = ""):
+async def _run_extraction(
+    job_id: str,
+    raw_text: str,
+    text_parts: list[str],
+    raw_images: list[str],
+    raw_file_data: list[dict],
+    kb_type: str,
+    name_hint: str,
+    problem_ref: str = "",
+):
     """Background task: LLM extract → validate → write YAML → index.
 
     Accepts multiple file types assembled into a rich multimodal message:
@@ -776,6 +818,7 @@ async def _run_extraction(job_id: str, raw_text: str, text_parts: list[str], raw
                 prob_yf = _find_yaml_file("problem", target_problem_id)
                 if prob_yf:
                     import yaml as _yaml
+
                     prob_data = _yaml.safe_load(prob_yf.read_text(encoding="utf-8"))
                     if prob_data and "problem" in prob_data:
                         linked = prob_data["problem"].get("linked_papers", [])
@@ -783,26 +826,38 @@ async def _run_extraction(job_id: str, raw_text: str, text_parts: list[str], raw
                             linked.append(validated.id)
                             prob_data["problem"]["linked_papers"] = linked
                             prob_yf.write_text(
-                                yaml.dump(prob_data, allow_unicode=True,
-                                          default_flow_style=False, sort_keys=False, indent=2),
+                                yaml.dump(
+                                    prob_data,
+                                    allow_unicode=True,
+                                    default_flow_style=False,
+                                    sort_keys=False,
+                                    indent=2,
+                                ),
                                 encoding="utf-8",
                             )
 
         # 3. Build YAML and write file
         top_key_map = {
-            "method": "method_card", "paper": "paper",
-            "template": "template", "problem": "problem",
+            "method": "method_card",
+            "paper": "paper",
+            "template": "template",
+            "problem": "problem",
         }
         top_key = top_key_map[kb_type]
         yaml_str = yaml.dump(
             {top_key: validated.model_dump() if hasattr(validated, "model_dump") else extracted},
-            allow_unicode=True, default_flow_style=False, sort_keys=False, indent=2,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=2,
         )
 
         # Determine output path
         subdir_map = {
-            "method": "methods", "paper": "papers",
-            "template": "templates", "problem": "problems",
+            "method": "methods",
+            "paper": "papers",
+            "template": "templates",
+            "problem": "problems",
         }
         subdir = subdir_map[kb_type]
         if kb_type == "method":
@@ -1044,6 +1099,7 @@ _EXTRACT_TEMPLATE_PROMPT = """你是一个数学建模教学专家。请从以�
 def _parse_llm_json(text: str) -> dict:
     """Extract JSON from LLM response (handles markdown fences)."""
     import json
+
     json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if json_match:
         text = json_match.group(1)
@@ -1055,5 +1111,3 @@ def _parse_llm_json(text: str) -> dict:
         return json.loads(text)
     except json.JSONDecodeError:
         return {}
-
-

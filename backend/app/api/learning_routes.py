@@ -1,17 +1,21 @@
 """学习 API — 学习路径、学习单元、推荐."""
 
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ..learning.schemas import (
-    AgentRole, LearningPath, LearningUnit, LearningPhase,
-    UnitStatus, UnitType, UserLevel, LearningEvent,
-)
-from ..learning.path_generator import generate_learning_path, get_unit_detail
 from ..learning.mastery_tracker import get_mastery_tracker
+from ..learning.path_generator import generate_learning_path, get_unit_detail
+from ..learning.schemas import (
+    AgentRole,
+    LearningEvent,
+    LearningPath,
+    LearningUnit,
+    UnitStatus,
+    UserLevel,
+)
 from ..services.achievement_service import get_achievement_service
 
 learning_router = APIRouter(prefix="/learning", tags=["Learning"])
@@ -19,10 +23,11 @@ learning_router = APIRouter(prefix="/learning", tags=["Learning"])
 
 # ── 学习路径 ──────────────────────────────────────────
 
+
 class GeneratePathRequest(BaseModel):
-    role: str = "modeler"   # modeler | programmer | writer
-    level: str = "beginner" # beginner | intermediate | advanced
-    goal: str = "国赛"       # 国赛 | 美赛 | 兴趣
+    role: str = "modeler"  # modeler | programmer | writer
+    level: str = "beginner"  # beginner | intermediate | advanced
+    goal: str = "国赛"  # 国赛 | 美赛 | 兴趣
 
 
 class PathResponse(BaseModel):
@@ -50,6 +55,7 @@ async def get_path(role: str):
 
 
 # ── 学习单元 ──────────────────────────────────────────
+
 
 class UnitResponse(BaseModel):
     unit: LearningUnit
@@ -93,7 +99,10 @@ async def complete_unit(unit_id: str, req: UnitCompleteRequest):
     achievement_service = get_achievement_service()
     achievement_service.add_event(event)
     get_learning_store().add_event(
-        unit_id=unit_id, event_type="learn", score=1.0, user_id=req.user_id,
+        unit_id=unit_id,
+        event_type="learn",
+        score=1.0,
+        user_id=req.user_id,
     )
 
     # 更新单元状态
@@ -111,6 +120,7 @@ async def complete_unit(unit_id: str, req: UnitCompleteRequest):
 
 
 # ── 下一步推荐 ────────────────────────────────────────
+
 
 class NextRecommendResponse(BaseModel):
     recommended_unit: LearningUnit | None
@@ -138,17 +148,22 @@ async def get_next_recommendation(role: str = "modeler"):
 # ── 题库与练习(选择题)───────────────────────────────
 
 from ..learning.quiz_bank import (  # noqa: E402
-    categories_summary, get_by_unit, get_question, list_questions, public_view,
+    categories_summary,
+    get_by_unit,
+    get_question,
+    list_questions,
+    public_view,
 )
-from ..services.practice_store import get_practice_store  # noqa: E402
 from ..services.learning_store import get_learning_store  # noqa: E402
+from ..services.practice_store import get_practice_store  # noqa: E402
 
 MAX_QUIZ_PER_ROUND = 100
 
 
 class QuizQuestionView(BaseModel):
     """题库/练习里的题目视图(不含答案)。"""
-    no: int                    # 永久题号(力扣式, 全库稳定排序, 筛选不变)
+
+    no: int  # 永久题号(力扣式, 全库稳定排序, 筛选不变)
     id: str
     unit_id: str
     role: str
@@ -157,7 +172,7 @@ class QuizQuestionView(BaseModel):
     question: str
     options: list[str]
     tags: list[str] = []
-    status: str = "untried"   # untried | wrong | mastered
+    status: str = "untried"  # untried | wrong | mastered
     wrong_times: int = 0
 
 
@@ -177,7 +192,10 @@ async def quiz_bank(
 ):
     """题库浏览: 按类别/难度/角色/单元过滤,附用户作答状态(不含答案)。"""
     questions = list_questions(
-        category=category, difficulty=difficulty, role=role, unit_id=unit_id,
+        category=category,
+        difficulty=difficulty,
+        role=role,
+        unit_id=unit_id,
     )
     store = get_practice_store()
     wrong_ids = store.get_wrong_question_ids(user_id)
@@ -244,7 +262,7 @@ class QuizAnswerRequest(BaseModel):
     question_id: str
     choice: int
     user_id: str = "default"
-    round_id: str = ""   # 练习轮次(供中途退出丢弃)
+    round_id: str = ""  # 练习轮次(供中途退出丢弃)
 
 
 class QuizAnswerResponse(BaseModel):
@@ -266,7 +284,11 @@ async def quiz_answer(req: QuizAnswerRequest):
     correct = req.choice == q["answer_index"]
     store = get_practice_store()
     record_id = store.record_answer(
-        req.question_id, req.choice, correct, req.user_id, req.round_id,
+        req.question_id,
+        req.choice,
+        correct,
+        req.user_id,
+        req.round_id,
     )
 
     # 掌握度 + 成就闭环(事件驱动,复用学习事件管线)
@@ -292,8 +314,10 @@ async def quiz_answer(req: QuizAnswerRequest):
     get_achievement_service().add_event(event)
     # 持久化练习事件(热力图/连续天数/成就的数据源)
     get_learning_store().add_event(
-        unit_id=q["unit_id"], event_type="practice",
-        score=1.0 if correct else 0.0, user_id=req.user_id,
+        unit_id=q["unit_id"],
+        event_type="practice",
+        score=1.0 if correct else 0.0,
+        user_id=req.user_id,
     )
 
     return QuizAnswerResponse(
@@ -330,6 +354,7 @@ async def quiz_mistakes(user_id: str = "default"):
 
 
 # ── 错题本手动增删 / 轮次丢弃 ──────────────────────────
+
 
 @learning_router.post("/quiz/mistakes/{question_id}")
 async def quiz_mistake_add(question_id: str, user_id: str = "default"):
@@ -379,5 +404,3 @@ async def quiz_by_unit(unit_id: str, user_id: str = "default"):
         views.append(QuizQuestionView(**view))
 
     return QuizPracticeResponse(questions=views)
-
-

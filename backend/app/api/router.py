@@ -1,24 +1,24 @@
 """API 路由入口 — 注册子路由 + Auth/Health 内联路由。"""
+
 import logging
 import secrets
-from fastapi import APIRouter, HTTPException, Query, Depends, Request, Response
-from fastapi.responses import JSONResponse
-import httpx
 
-from .chat_routes import chat_router
-from .ws import ws_router
-from .knowledge_routes import knowledge_router
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+
+from ..config import get_settings
 from .apikeys import apikeys_router
-from .tasks import tasks_router
-from .files import files_router
+from .chat_routes import chat_router
 from .export_routes import export_router
+from .files import files_router
 from .knowledge_import_routes import import_router
+from .knowledge_routes import knowledge_router
 from .learning_routes import learning_router
 from .profile_routes import profile_router
-from .session_routes import session_router
 from .schemas.response import HealthResponse
-from ..config import get_settings
-from ..services.session import get_session_manager
+from .session_routes import session_router
+from .tasks import tasks_router
+from .ws import ws_router
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ api_router.include_router(session_router)
 
 # ── Auth（内联，轻量 OAuth）──
 
-from ..auth import GitHubUser, get_current_user, ALLOWED_CONTRIBUTORS, TokenResponse, UserResponse
+from ..auth import ALLOWED_CONTRIBUTORS, GitHubUser, TokenResponse, UserResponse, get_current_user
 
 _auth_router = APIRouter()
 
@@ -50,8 +50,11 @@ async def github_login(response: Response):
     settings = get_settings()
     state = secrets.token_urlsafe(16)
     response.set_cookie(
-        OAUTH_STATE_COOKIE, state,
-        max_age=600, httponly=True, samesite="lax",
+        OAUTH_STATE_COOKIE,
+        state,
+        max_age=600,
+        httponly=True,
+        samesite="lax",
     )
     authorize_url = (
         f"https://github.com/login/oauth/authorize?"
@@ -60,6 +63,7 @@ async def github_login(response: Response):
         f"&state={state}"
     )
     return {"authorize_url": authorize_url}
+
 
 @_auth_router.get("/auth/callback")
 async def github_callback(
@@ -78,10 +82,12 @@ async def github_callback(
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
             "https://github.com/login/oauth/access_token",
-            data={"client_id": settings.github_client_id,
-                  "client_secret": settings.github_client_secret,
-                  "code": code,
-                  "redirect_uri": settings.github_redirect_uri},
+            data={
+                "client_id": settings.github_client_id,
+                "client_secret": settings.github_client_secret,
+                "code": code,
+                "redirect_uri": settings.github_redirect_uri,
+            },
             headers={"Accept": "application/json"},
         )
         if token_resp.status_code != 200:
@@ -102,12 +108,14 @@ async def github_callback(
         raise HTTPException(status_code=403, detail=f"仅项目贡献者可登录，当前: {login}")
     from ..auth.dependencies import create_jwt
 
-    token = create_jwt(GitHubUser(
-        id=gh_user.get("id", 0),
-        login=login,
-        name=gh_user.get("name", login),
-        avatar_url=gh_user.get("avatar_url", ""),
-    ))
+    token = create_jwt(
+        GitHubUser(
+            id=gh_user.get("id", 0),
+            login=login,
+            name=gh_user.get("name", login),
+            avatar_url=gh_user.get("avatar_url", ""),
+        )
+    )
     return TokenResponse(
         access_token=token,
         user=GitHubUser(
@@ -117,6 +125,7 @@ async def github_callback(
             avatar_url=gh_user.get("avatar_url", ""),
         ),
     )
+
 
 @_auth_router.get("/auth/user")
 async def get_user_info(user: GitHubUser | None = Depends(get_current_user)):
@@ -128,9 +137,11 @@ async def get_user_info(user: GitHubUser | None = Depends(get_current_user)):
         is_contributor=user.login.lower() in {c.lower() for c in ALLOWED_CONTRIBUTORS},
     )
 
+
 @_auth_router.post("/auth/logout")
 async def logout():
     return {"success": True}
+
 
 @api_router.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -140,8 +151,8 @@ async def health_check():
 @api_router.get("/sandbox/status")
 async def sandbox_status():
     """沙箱执行模式状态（供前端面板展示当前是 Docker 硬隔离还是 subprocess 回退）。"""
-    from ..sandbox.executor import docker_daemon_up
     from ..config import get_settings
+    from ..sandbox.executor import docker_daemon_up
 
     settings = get_settings()
     docker_up = docker_daemon_up()
@@ -150,9 +161,13 @@ async def sandbox_status():
         "backend": backend,
         "configured": settings.sandbox_backend,
         "docker_available": docker_up,
-        "note": ("docker 硬隔离" if backend == "docker"
-                 else "docker 不可用（未安装或未启动），已回退 subprocess 模式"),
+        "note": (
+            "docker 硬隔离"
+            if backend == "docker"
+            else "docker 不可用（未安装或未启动），已回退 subprocess 模式"
+        ),
     }
+
 
 # 合并 auth 子路由
 for route in _auth_router.routes:

@@ -3,6 +3,7 @@
 运行: 在 backend/ 目录下 `python -m pytest tests/test_nodes.py -q`
       或直接 `python tests/test_nodes.py`。
 """
+
 import sys
 from pathlib import Path
 
@@ -11,10 +12,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from langchain_core.messages import AIMessage  # noqa: E402
 
 import app.core.nodes as nodes  # noqa: E402
-from app.core.node_helpers import _next_step, _extract_code_block, _clean_md, _extract_json  # noqa: E402
-
+from app.core.node_helpers import (  # noqa: E402
+    _clean_md,
+    _extract_code_block,
+    _extract_json,
+    _next_step,
+)
 
 # ── 桩：替代真实 LLM 调用（nodes 命名空间内 get_llm 被替换）──
+
 
 class _FakeLLM:
     def __init__(self, text: str):
@@ -56,6 +62,7 @@ def _base_state(**overrides) -> dict:
 
 # ── 纯辅助函数 ──────────────────────────────────────────────
 
+
 def test_next_step_increments():
     assert _next_step({"current_step_index": -1}) == 0
     assert _next_step({"current_step_index": 0}) == 1
@@ -80,6 +87,7 @@ def test_extract_json():
 
 
 # ── 验证节点回退状态机 ───────────────────────────────────────
+
 
 def test_verification_pass_no_rollback():
     _stub_llm('{"verdict": "PASS"}')
@@ -134,16 +142,18 @@ def test_verification_json_among_prose():
 
 def test_modeling_consumes_rollback_flag():
     _stub_llm("模型输出内容")
-    out = nodes.modeling_agent_node(_base_state(
-        current_step_index=0, rollback_target="modeling",
-    ))
+    out = nodes.modeling_agent_node(
+        _base_state(
+            current_step_index=0,
+            rollback_target="modeling",
+        )
+    )
     assert out["rollback_target"] is None  # 消费回退标志，防自循环
     assert out["current_step_index"] == 1
 
 
 if __name__ == "__main__":
-    fns = [(n, f) for n, f in sorted(globals().items())
-           if n.startswith("test_") and callable(f)]
+    fns = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0
     for name, fn in fns:
         try:

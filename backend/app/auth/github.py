@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
@@ -109,13 +108,14 @@ class GitHubOAuthClient:
 
 # ── Module-level client ────────────────────────────────────────────
 
-_oauth_client: Optional[GitHubOAuthClient] = None
+_oauth_client: GitHubOAuthClient | None = None
 
 
 def get_oauth_client() -> GitHubOAuthClient:
     """Get or create the GitHub OAuth client singleton."""
     global _oauth_client
     from app.config import get_settings
+
     settings = get_settings()
     if _oauth_client is None:
         _oauth_client = GitHubOAuthClient(

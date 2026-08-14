@@ -164,6 +164,7 @@ D. 用大 M 把容量写成线性约束加入信息素更新
 
 ```python
 import numpy as np
+
 rng = np.random.default_rng(42)
 
 # 15 城 TSP(精确最优 3.5184)
@@ -172,28 +173,31 @@ pts = np.random.rand(15, 2)
 d = np.sqrt(((pts[:, None] - pts[None]) ** 2).sum(-1))
 n = len(pts)
 
+
 def solve_tsp(ants=10, iters=100, alpha=1.0, beta=3.0, rho=0.1, q=10.0):
-    tau = np.ones((n, n))                       # 信息素矩阵
+    tau = np.ones((n, n))  # 信息素矩阵
     best_len, best_tour = float("inf"), None
     for _ in range(iters):
-        for _ in range(ants):                   # 每只蚂蚁构建一条完整路径
+        for _ in range(ants):  # 每只蚂蚁构建一条完整路径
             tour, cur, unvis = [0], 0, list(range(1, n))
             while unvis:
                 w = (tau[cur, unvis] ** alpha) * ((1.0 / d[cur, unvis]) ** beta)
-                w = w / w.sum()                 # 转移概率(天然满足候选集合法)
+                w = w / w.sum()  # 转移概率(天然满足候选集合法)
                 cur = unvis[int(rng.choice(len(unvis), p=w))]
-                tour.append(cur); unvis.remove(cur)
+                tour.append(cur)
+                unvis.remove(cur)
             L = sum(d[tour[i], tour[(i + 1) % n]] for i in range(n))
             if L < best_len:
                 best_len, best_tour = L, tour.copy()
-        tau *= (1 - rho)                        # 挥发
-        for i in range(n):                      # Ant-Cycle 沉积(最优路径)
+        tau *= 1 - rho  # 挥发
+        for i in range(n):  # Ant-Cycle 沉积(最优路径)
             tau[best_tour[i]][best_tour[(i + 1) % n]] += q / best_len
-        tau = np.clip(tau, 1e-3, 10.0)          # MMAS 式限幅
+        tau = np.clip(tau, 1e-3, 10.0)  # MMAS 式限幅
     return best_len
 
+
 best = solve_tsp()
-print("最优路径长度: %.4f (精确最优 3.5184)" % best)   # 典型输出: 3.5184
+print("最优路径长度: %.4f (精确最优 3.5184)" % best)  # 典型输出: 3.5184
 ```
 
 > 试试把 `best_len` 换成逐蚂蚁沉积(每只蚂蚁按自己的 $L_k$ 沉积),观察收敛曲线的变化——那就是基础 AS 与精英策略的差别。

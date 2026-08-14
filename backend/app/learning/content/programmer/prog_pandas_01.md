@@ -22,14 +22,16 @@
 ```python
 import pandas as pd
 
-df = pd.DataFrame({
-    "城市": ["北京", "上海", "广州"],
-    "GDP": [4.4, 4.7, 3.0],
-    "人口": [2186, 2487, 1882],
-})
-print(df.info())          # 列类型与非空计数
-print(df.describe())      # 数值列的统计量
-print(df.head(2))         # 前两行
+df = pd.DataFrame(
+    {
+        "城市": ["北京", "上海", "广州"],
+        "GDP": [4.4, 4.7, 3.0],
+        "人口": [2186, 2487, 1882],
+    }
+)
+print(df.info())  # 列类型与非空计数
+print(df.describe())  # 数值列的统计量
+print(df.head(2))  # 前两行
 ```
 
 ### 2. 读入数据的第一件事:摸清底细
@@ -46,7 +48,7 @@ import pandas as pd
 # 常用参数: parse_dates=["日期"](日期列直接解析)、usecols(只读部分列)、index_col(指定索引)
 raw = "日期,城市,温度\n2024-06-01,北京,25.3\n2024-06-02,上海,27.1\n"
 df = pd.read_csv(io.StringIO(raw), parse_dates=["日期"])
-print(df.dtypes)          # 确认「日期」已解析为 datetime64 类型
+print(df.dtypes)  # 确认「日期」已解析为 datetime64 类型
 ```
 
 ### 3. 数据清洗四件套
@@ -55,14 +57,16 @@ print(df.dtypes)          # 确认「日期」已解析为 datetime64 类型
 import pandas as pd
 import numpy as np
 
-df = pd.DataFrame({
-    "x": [1.0, np.nan, 3.0, 3.0, 5.0],
-    "y": ["a", "b", "c", "c", "d"],
-})
+df = pd.DataFrame(
+    {
+        "x": [1.0, np.nan, 3.0, 3.0, 5.0],
+        "y": ["a", "b", "c", "c", "d"],
+    }
+)
 
 # (1) 缺失值
-miss = df.isna().sum()                # 统计缺失
-df2 = df.dropna(subset=["x"])         # 删除 x 缺失的行
+miss = df.isna().sum()  # 统计缺失
+df2 = df.dropna(subset=["x"])  # 删除 x 缺失的行
 df3 = df.fillna({"x": df["x"].mean()})  # 均值填充(按列指定)
 
 # (2) 重复值
@@ -82,19 +86,21 @@ df.loc[(df["x"] - mu).abs() > 3 * sd, "x"] = np.nan
 ```python
 import pandas as pd
 
-df = pd.DataFrame({
-    "地区": ["华东", "华南", "华北", "华东"],
-    "销量": [120, 80, 60, 200],
-    "利润": [12, 8, 5, 25],
-})
+df = pd.DataFrame(
+    {
+        "地区": ["华东", "华南", "华北", "华东"],
+        "销量": [120, 80, 60, 200],
+        "利润": [12, 8, 5, 25],
+    }
+)
 
 # 列筛选
 df[["地区", "销量"]]
 # 行筛选:loc(标签)/ iloc(位置)/ 布尔条件 / query
-df.loc[0, "销量"]              # 第 0 行「销量」列
-df.iloc[1:3, 0:2]              # 位置切片
-df[df["销量"] > 100]           # 布尔筛选
-df.query("销量 > 100 and 地区 == '华东'")   # SQL 风格
+df.loc[0, "销量"]  # 第 0 行「销量」列
+df.iloc[1:3, 0:2]  # 位置切片
+df[df["销量"] > 100]  # 布尔筛选
+df.query("销量 > 100 and 地区 == '华东'")  # SQL 风格
 # 排序
 df.sort_values("利润", ascending=False)
 ```
@@ -106,16 +112,18 @@ df.sort_values("利润", ascending=False)
 ```python
 import pandas as pd
 
-df = pd.DataFrame({
-    "地区": ["华东", "华南", "华东", "华南"],
-    "产品": ["A", "A", "B", "B"],
-    "销量": [10, 20, 30, 40],
-    "利润": [1, 2, 6, 8],
-})
+df = pd.DataFrame(
+    {
+        "地区": ["华东", "华南", "华东", "华南"],
+        "产品": ["A", "A", "B", "B"],
+        "销量": [10, 20, 30, 40],
+        "利润": [1, 2, 6, 8],
+    }
+)
 
-g = df.groupby("地区")                 # 分组对象
-print(g["销量"].sum())                 # 各地区销量和
-print(g.agg({"销量": ["mean", "max"], "利润": "sum"}))   # 多指标聚合
+g = df.groupby("地区")  # 分组对象
+print(g["销量"].sum())  # 各地区销量和
+print(g.agg({"销量": ["mean", "max"], "利润": "sum"}))  # 多指标聚合
 print(df.pivot_table(index="地区", columns="产品", values="销量", aggfunc="sum"))
 ```
 
@@ -128,8 +136,8 @@ import numpy as np
 idx = pd.date_range("2023-01-01", periods=365, freq="D")
 s = pd.Series(np.arange(365) % 20 + 10, index=idx)
 
-weekly = s.resample("W").mean()        # 按周重采样(降采样)
-smooth = s.rolling(7, center=True).mean()   # 7 日滑动平均(平滑)
+weekly = s.resample("W").mean()  # 按周重采样(降采样)
+smooth = s.rolling(7, center=True).mean()  # 7 日滑动平均(平滑)
 ```
 
 ## 🧮 核心 API 速查
@@ -182,8 +190,7 @@ df = df.drop_duplicates()
 df["日期"] = pd.to_datetime(df["日期"])
 # ③ 异常值:温度 > 50 视为传感器故障,置 NaN 后按城市均值填充
 df.loc[df["温度"] > 50, "温度"] = np.nan
-df["温度"] = df.groupby("城市")["温度"].transform(
-    lambda s: s.fillna(s.mean()))
+df["温度"] = df.groupby("城市")["温度"].transform(lambda s: s.fillna(s.mean()))
 # ④ 其余缺失:湿度/风速用整体均值填充
 df["湿度"] = df["湿度"].fillna(df["湿度"].mean())
 df["风速"] = df["风速"].fillna(df["风速"].mean())
@@ -224,27 +231,31 @@ import numpy as np
 
 rng = np.random.default_rng(5)
 n = 200
-df = pd.DataFrame({
-    "月份": rng.integers(1, 13, n),
-    "地区": rng.choice(["华东", "华南", "华北", "西南"], n),
-    "销量": rng.integers(10, 200, n),
-    "单价": rng.normal(30, 5, n).round(2),
-})
+df = pd.DataFrame(
+    {
+        "月份": rng.integers(1, 13, n),
+        "地区": rng.choice(["华东", "华南", "华北", "西南"], n),
+        "销量": rng.integers(10, 200, n),
+        "单价": rng.normal(30, 5, n).round(2),
+    }
+)
 df["销售额"] = df["销量"] * df["单价"]
 
 # (1) 分组聚合:同一列多指标 + 多列不同指标
-summary = df.groupby("地区").agg(
-    总销量=("销量", "sum"),
-    平均销售额=("销售额", "mean"),
-    订单数=("销售额", "count"),
-).round(2)
+summary = (
+    df.groupby("地区")
+    .agg(
+        总销量=("销量", "sum"),
+        平均销售额=("销售额", "mean"),
+        订单数=("销售额", "count"),
+    )
+    .round(2)
+)
 print(summary)
 
 # (2) 透视表:地区 × 月份 → 销售额之和
-pivot = df.pivot_table(index="地区", columns="月份",
-                       values="销售额", aggfunc="sum",
-                       fill_value=0)
-best = pivot.stack().idxmax()        # 找出最大销售额的 (地区, 月份)
+pivot = df.pivot_table(index="地区", columns="月份", values="销售额", aggfunc="sum", fill_value=0)
+best = pivot.stack().idxmax()  # 找出最大销售额的 (地区, 月份)
 best = (best[0], int(best[1]))
 print("\n销售额最高的组合:", best, "=", round(pivot.loc[best], 2))
 print("\n透视表(前 4 行):")
@@ -289,14 +300,14 @@ idx = pd.date_range("2023-01-01", "2023-12-31", freq="D")
 base = 15 + 12 * np.sin(2 * np.pi * np.arange(len(idx)) / 365 - np.pi / 2)
 temp = pd.Series(base + rng.normal(0, 2, len(idx)), index=idx)
 
-weekly = temp.resample("W").mean()              # 周均值
-smooth = temp.rolling(7, center=True).mean()    # 7 日中心滑动平均
+weekly = temp.resample("W").mean()  # 周均值
+smooth = temp.rolling(7, center=True).mean()  # 7 日中心滑动平均
 
 print(f"原始序列: 均值 {temp.mean():.2f}, 标准差 {temp.std():.2f}")
 print(f"7日平滑后: 均值 {smooth.mean():.2f}, 标准差 {smooth.std():.2f}")
 print(f"周均值序列长度: {len(weekly)} 个点")
 print("原始前 3 天:", temp.head(3).round(2).tolist())
-print("平滑前 3 天:", smooth.head(3).round(2).tolist())   # 中心滑动,头部为 NaN
+print("平滑前 3 天:", smooth.head(3).round(2).tolist())  # 中心滑动,头部为 NaN
 ```
 
 **输出解读**:
@@ -326,6 +337,7 @@ print("平滑前 3 天:", smooth.head(3).round(2).tolist())   # 中心滑动,头
 
 ```python
 import pandas as pd
+
 df = pd.DataFrame({"x": [-1, 2, -3, 4], "y": [1, 2, 3, 4]})
 df[df["x"] > 0]["y"] = 0
 print(df["y"].tolist())
@@ -346,11 +358,11 @@ D. 报错并中断执行
 
 ```python
 import pandas as pd
-df = pd.DataFrame({"地区": ["华东", "华南", "华东", "华南"],
-                   "销量": [10, 20, 30, 40],
-                   "利润": [1, 2, 6, 8]})
-out = df.groupby("地区").agg(平均销量=("销量", "mean"),
-                            总利润=("利润", "sum"))
+
+df = pd.DataFrame(
+    {"地区": ["华东", "华南", "华东", "华南"], "销量": [10, 20, 30, 40], "利润": [1, 2, 6, 8]}
+)
+out = df.groupby("地区").agg(平均销量=("销量", "mean"), 总利润=("利润", "sum"))
 print(out.loc["华东", "平均销量"], out.loc["华东", "总利润"])
 ```
 
@@ -401,11 +413,13 @@ import numpy as np
 # 1. 读入(编码、日期列一次到位;此处用模拟数据代替附件)
 rng = np.random.default_rng(0)
 idx = pd.date_range("2024-01-01", periods=200, freq="D")
-df = pd.DataFrame({
-    "日期": idx,
-    "城市": rng.choice(["北京", "上海", "广州"], 200),
-    "温度": rng.normal(25, 6, 200).round(1),
-})
+df = pd.DataFrame(
+    {
+        "日期": idx,
+        "城市": rng.choice(["北京", "上海", "广州"], 200),
+        "温度": rng.normal(25, 6, 200).round(1),
+    }
+)
 
 # 2. 摸底
 print(df.info())
@@ -420,10 +434,14 @@ df = df.fillna(df.mean(numeric_only=True))
 
 # 4. 派生列 + 聚合
 df["月"] = df["日期"].dt.month
-result = df.groupby(["城市", "月"]).agg(
-    平均温度=("温度", "mean"),
-    观测数=("温度", "count"),
-).reset_index()
+result = (
+    df.groupby(["城市", "月"])
+    .agg(
+        平均温度=("温度", "mean"),
+        观测数=("温度", "count"),
+    )
+    .reset_index()
+)
 
 # 5. 导出
 result.to_csv("result.csv", index=False)

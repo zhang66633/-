@@ -1,6 +1,5 @@
 """FastAPI application entry point."""
 
-import os
 import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -30,10 +29,9 @@ async def lifespan(app: FastAPI):
     # JWT secret 安全校验
     if settings.jwt_secret == "set-in-env-file":
         if not settings.debug:
-            raise RuntimeError(
-                "jwt_secret 未配置！生产环境必须在 .env 中设置 JWT_SECRET。"
-            )
+            raise RuntimeError("jwt_secret 未配置！生产环境必须在 .env 中设置 JWT_SECRET。")
         import secrets as _secrets
+
         settings.jwt_secret = _secrets.token_urlsafe(32)
         print(
             "[WARNING] JWT_SECRET 未配置，已生成随机临时密钥（重启后 token 失效）。"
@@ -48,9 +46,13 @@ async def lifespan(app: FastAPI):
         print(f"[INFO] ChromaDB 远程模式: {settings.chroma_http_url}", flush=True)
         try:
             from urllib.parse import urlparse
+
             import chromadb
+
             parsed = urlparse(settings.chroma_http_url)
-            client = chromadb.HttpClient(host=parsed.hostname or "localhost", port=parsed.port or 8000)
+            client = chromadb.HttpClient(
+                host=parsed.hostname or "localhost", port=parsed.port or 8000
+            )
             collections = client.list_collections()
             names = [c if isinstance(c, str) else c.name for c in collections]
             if "kb_docs" not in names:
@@ -68,6 +70,7 @@ async def lifespan(app: FastAPI):
         def _rebuild_index():
             try:
                 from .knowledge.embedder import KBEmbedder
+
                 embedder = KBEmbedder(
                     kb_root=settings.kb_root,
                     persist_dir=settings.chroma_dir,
@@ -87,13 +90,14 @@ async def lifespan(app: FastAPI):
 
     # Clean up Redis publisher
     from .services.redis_pubsub import shutdown_publisher
+
     shutdown_publisher()
     print("MathModelAgent backend shutting down.")
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    settings = get_settings()
+    get_settings()
 
     app = FastAPI(
         title="Math Model Agent",

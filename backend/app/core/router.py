@@ -5,7 +5,7 @@ from .state import AgentState
 
 def route_to_first_agent(state: AgentState) -> str:
     """根据执行计划，路由到第一个 agent 节点。
-    
+
     如果计划为空或所有步骤完成，直接跳到 format_response。
     """
     plan = state.get("execution_plan", [])

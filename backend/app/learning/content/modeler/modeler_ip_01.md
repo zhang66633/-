@@ -188,28 +188,34 @@ import numpy as np
 from scipy.optimize import linprog, milp, Bounds, LinearConstraint
 
 # 例 1:max 5x1+8x2  s.t. x1+x2<=6, 5x1+9x2<=45, 变量非负整数
-c = [-5, -8]; A = [[1, 1], [5, 9]]; b = [6, 45]
+c = [-5, -8]
+A = [[1, 1], [5, 9]]
+b = [6, 45]
 
 r = linprog(c, A_ub=A, b_ub=b, method="highs")
-print("LP 松弛:", r.x, -r.fun)              # [2.25 3.75] 41.25
+print("LP 松弛:", r.x, -r.fun)  # [2.25 3.75] 41.25
 
-res = milp(c=c, integrality=np.array([1, 1]),
-           bounds=Bounds([0, 0], [np.inf, np.inf]),
-           constraints=LinearConstraint(np.array(A), -np.inf, b))
-print("整数最优:", res.x, -res.fun)         # [0. 5.] 40.0
+res = milp(
+    c=c,
+    integrality=np.array([1, 1]),
+    bounds=Bounds([0, 0], [np.inf, np.inf]),
+    constraints=LinearConstraint(np.array(A), -np.inf, b),
+)
+print("整数最优:", res.x, -res.fun)  # [0. 5.] 40.0
 
 # 手写分支定界(教学版,max 问题)
 best_x, best_z = None, -np.inf
 
+
 def bb(cvec, A_, b_, fixed):
     """fixed: 已固定变量的字典 {下标: 值}; 递归分支定界"""
     global best_x, best_z
-    lo = np.zeros(2); hi = np.full(2, np.inf)
+    lo = np.zeros(2)
+    hi = np.full(2, np.inf)
     for j, v in fixed.items():
         lo[j] = hi[j] = v
-    r = linprog(-np.array(cvec), A_ub=A_, b_ub=b_,
-                bounds=list(zip(lo, hi)), method="highs")
-    if not r.success or -r.fun <= best_z:      # 上界不优于当前最优 → 剪枝
+    r = linprog(-np.array(cvec), A_ub=A_, b_ub=b_, bounds=list(zip(lo, hi)), method="highs")
+    if not r.success or -r.fun <= best_z:  # 上界不优于当前最优 → 剪枝
         return
     x = r.x
     if np.all(np.abs(x - np.round(x)) < 1e-6):  # 整数可行 → 更新最优
@@ -219,8 +225,9 @@ def bb(cvec, A_, b_, fixed):
     bb(cvec, A_, b_, {**fixed, j: np.floor(x[j])})
     bb(cvec, A_, b_, {**fixed, j: np.ceil(x[j])})
 
+
 bb([5, 8], A, b, {})
-print(best_x, best_z)                          # [0. 5.] 40.0
+print(best_x, best_z)  # [0. 5.] 40.0
 ```
 
 > 教学版 BB 只适合小问题;正式比赛直接用 `milp`(底层 HiGHS 的分支定界远比手写版高效)。

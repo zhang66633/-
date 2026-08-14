@@ -9,9 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-import uuid
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -125,6 +123,7 @@ class KBExtractor:
         # 1) PyMuPDF（文本型 PDF）
         try:
             import fitz  # PyMuPDF
+
             doc = fitz.open(stream=data, filetype="pdf")
             pages = []
             for page in doc:
@@ -139,8 +138,10 @@ class KBExtractor:
         # 2) pdfplumber（表格密集的 PDF）
         if not text.strip():
             try:
-                import pdfplumber
                 import io
+
+                import pdfplumber
+
                 with pdfplumber.open(io.BytesIO(data)) as pdf:
                     pages = [p.extract_text() or "" for p in pdf.pages]
                 text = "\n\n".join(pages)
@@ -150,8 +151,9 @@ class KBExtractor:
         # 3) OCR 兜底（扫描版 PDF，无文本层）
         if not text.strip():
             try:
-                from rapidocr_onnxruntime import RapidOCR
                 import fitz
+                from rapidocr_onnxruntime import RapidOCR
+
                 ocr = RapidOCR()
                 doc = fitz.open(stream=data, filetype="pdf")
                 ocr_pages = []
@@ -314,6 +316,7 @@ class KBExtractor:
     def embed_new(self, yaml_path: Path) -> int:
         """将新 YAML 文件加入向量索引。返回索引文档数。"""
         from app.knowledge.embedder import KBEmbedder
+
         settings = get_settings()
         embedder = KBEmbedder(
             kb_root=settings.kb_root,
@@ -324,6 +327,7 @@ class KBExtractor:
     def _next_method_ids(self) -> list[str]:
         """获取已有方法卡片 ID 列表，用于生成新 ID。"""
         from app.knowledge.loader import KnowledgeBaseLoader
+
         settings = get_settings()
         loader = KnowledgeBaseLoader(settings.kb_root)
         return [c.id for c in loader.load_all_methods()]

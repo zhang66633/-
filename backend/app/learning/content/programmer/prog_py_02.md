@@ -21,12 +21,12 @@
 ```python
 import numpy as np
 
-a = np.arange(24).reshape(4, 6)   # 4×6 矩阵,元素 0~23
-print(a.shape, a.ndim, a.dtype)   # (4, 6) 2 int64(或 int32,依平台)
+a = np.arange(24).reshape(4, 6)  # 4×6 矩阵,元素 0~23
+print(a.shape, a.ndim, a.dtype)  # (4, 6) 2 int64(或 int32,依平台)
 
-b = a.reshape(-1, 3)              # -1 表示「自动推算」:24/3 = 8 行
-c = a.T                           # 转置:6×4
-d = a[:, :, np.newaxis]           # 末尾加一轴:4×6×1
+b = a.reshape(-1, 3)  # -1 表示「自动推算」:24/3 = 8 行
+c = a.T  # 转置:6×4
+d = a[:, :, np.newaxis]  # 末尾加一轴:4×6×1
 print(b.shape, c.shape, d.shape)
 ```
 
@@ -44,11 +44,11 @@ print(b.shape, c.shape, d.shape)
 import numpy as np
 
 rng = np.random.default_rng(1)
-a = rng.integers(-5, 6, size=(5, 5))   # 5×5 的 -5~5 随机整数
+a = rng.integers(-5, 6, size=(5, 5))  # 5×5 的 -5~5 随机整数
 
 # (1) 基础切片:视图!与原数组共享内存
 sub = a[1:3, 2:4]
-sub[:] = 999                    # 修改切片会同步修改原数组
+sub[:] = 999  # 修改切片会同步修改原数组
 print("切片赋值后 a[1:3,2:4] 全为 999:", (a[1:3, 2:4] == 999).all())
 
 # (2) 布尔索引:返回一维数组
@@ -56,7 +56,7 @@ pos = a[a > 0]
 print("正元素个数:", pos.size)
 
 # (3) 花式索引:按下标列表取行/列
-rows = a[[0, 2, 4]]             # 取第 0、2、4 行
+rows = a[[0, 2, 4]]  # 取第 0、2、4 行
 print("花式索引取行后形状:", rows.shape)
 ```
 
@@ -79,12 +79,12 @@ NumPy 从**尾部**开始逐维比较两个数组的形状:
 ```python
 import numpy as np
 
-A = np.arange(12).reshape(3, 4)      # (3,4)
-v = np.array([10, 20, 30, 40])       # (4,) → 视作 (1,4) → 广播为 (3,4)
-print(A + v)                          # 每一行都加上 v
+A = np.arange(12).reshape(3, 4)  # (3,4)
+v = np.array([10, 20, 30, 40])  # (4,) → 视作 (1,4) → 广播为 (3,4)
+print(A + v)  # 每一行都加上 v
 
-col = np.array([[1], [2], [3]])       # (3,1) → 广播为 (3,4)
-print((col + A).shape)                # (3,4),每一列加对应数
+col = np.array([[1], [2], [3]])  # (3,1) → 广播为 (3,4)
+print((col + A).shape)  # (3,4),每一列加对应数
 ```
 
 **小练习 3**:不运行代码,预测 `np.ones((3, 1)) + np.arange(4)` 的结果形状,再验证。
@@ -104,9 +104,9 @@ import numpy as np
 
 X = np.arange(1, 13).reshape(3, 4)
 print("原矩阵:\n", X)
-print("axis=0 求和(压掉行,得每列之和):", X.sum(axis=0))   # [15 18 21 24]
-print("axis=1 求和(压掉列,得每行之和):", X.sum(axis=1))   # [10 26 42]
-print("全局最大值位置(展平后下标):", X.argmax())           # 11
+print("axis=0 求和(压掉行,得每列之和):", X.sum(axis=0))  # [15 18 21 24]
+print("axis=1 求和(压掉列,得每行之和):", X.sum(axis=1))  # [10 26 42]
+print("全局最大值位置(展平后下标):", X.argmax())  # 11
 ```
 
 ### 5. 常用线性代数:np.linalg
@@ -117,13 +117,13 @@ import numpy as np
 A = np.array([[2.0, 1.0], [1.0, 3.0]])
 b = np.array([5.0, 10.0])
 
-x = np.linalg.solve(A, b)                 # 解 Ax = b
-print("方程组的解:", x)                    # [1. 3.]
-print("验证 A@x - b:", A @ x - b)         # [0. 0.]
+x = np.linalg.solve(A, b)  # 解 Ax = b
+print("方程组的解:", x)  # [1. 3.]
+print("验证 A@x - b:", A @ x - b)  # [0. 0.]
 
-vals, vecs = np.linalg.eig(A)             # 特征值分解
+vals, vecs = np.linalg.eig(A)  # 特征值分解
 print("特征值:", vals.round(3))
-print("行列式:", np.linalg.det(A))        # 5.0
+print("行列式:", np.linalg.det(A))  # 5.0
 ```
 
 ## 🧮 核心 API 速查
@@ -151,11 +151,11 @@ print("行列式:", np.linalg.det(A))        # 5.0
 import numpy as np
 
 rng = np.random.default_rng(7)
-img = rng.integers(0, 256, size=(8, 12))   # 8×12 灰度图
+img = rng.integers(0, 256, size=(8, 12))  # 8×12 灰度图
 
-flip_ud = img[::-1, :]                     # 行序反转 = 上下翻转
-flip_lr = img[:, ::-1]                     # 列序反转 = 左右翻转
-down = img[::2, ::2]                       # 隔行隔列降采样
+flip_ud = img[::-1, :]  # 行序反转 = 上下翻转
+flip_lr = img[:, ::-1]  # 列序反转 = 左右翻转
+down = img[::2, ::2]  # 隔行隔列降采样
 
 print("原图形状:", img.shape, "→ 降采样后:", down.shape)
 print("上下翻转 (0,0) 是否等于原图 (7,0):", flip_ud[0, 0] == img[7, 0])
@@ -187,16 +187,16 @@ rng = np.random.default_rng(3)
 # 4 列指标:量纲分别为 十、百、个位、三百(显式按列生成)
 locs = np.array([50, 200, 8, 300])
 scales = np.array([10, 40, 2, 60])
-X = rng.normal(size=(40, 4)) * scales + locs     # (40,4) * (4,) 广播
+X = rng.normal(size=(40, 4)) * scales + locs  # (40,4) * (4,) 广播
 
-mu = X.mean(axis=0)        # 各列均值,形状 (4,)
-sigma = X.std(axis=0)      # 各列标准差,形状 (4,)
-Z = (X - mu) / sigma       # 广播:(40,4) - (4,) → (40,4)
+mu = X.mean(axis=0)  # 各列均值,形状 (4,)
+sigma = X.std(axis=0)  # 各列标准差,形状 (4,)
+Z = (X - mu) / sigma  # 广播:(40,4) - (4,) → (40,4)
 
 print("列均值:", mu.round(2))
 print("列标准差:", sigma.round(2))
-print("标准化后各列均值:", Z.mean(axis=0).round(12))    # 全 0
-print("标准化后各列标准差:", Z.std(axis=0).round(12))   # 全 1
+print("标准化后各列均值:", Z.mean(axis=0).round(12))  # 全 0
+print("标准化后各列标准差:", Z.std(axis=0).round(12))  # 全 1
 ```
 
 **输出解读**:
@@ -222,17 +222,17 @@ import numpy as np
 rng = np.random.default_rng(11)
 t = np.linspace(0, 24, 1440, endpoint=False)
 temp = 20 + 8 * np.sin(2 * np.pi * t / 24) + rng.normal(0, 0.8, 1440)
-temp[rng.integers(0, 1440, 12)] += 40       # 注入 12 个异常尖峰
+temp[rng.integers(0, 1440, 12)] += 40  # 注入 12 个异常尖峰
 
 mu, sd = temp.mean(), temp.std()
-mask = np.abs(temp - mu) > 3 * sd           # 布尔掩码:True = 异常
+mask = np.abs(temp - mu) > 3 * sd  # 布尔掩码:True = 异常
 print(f"检出异常 {mask.sum()} 个")
 
 # 向量化前向填充:记录每个位置「最近的上一个有效下标」
-temp2 = np.concatenate([[mu], temp])        # 头部垫一个均值,处理开头即异常
-valid = np.concatenate([[True], ~mask])     # 垫子视为有效
+temp2 = np.concatenate([[mu], temp])  # 头部垫一个均值,处理开头即异常
+valid = np.concatenate([[True], ~mask])  # 垫子视为有效
 pos = np.where(valid, np.arange(1441), 0)
-fixed = temp2[np.maximum.accumulate(pos)][1:]   # 去掉垫子
+fixed = temp2[np.maximum.accumulate(pos)][1:]  # 去掉垫子
 
 print(f"修复前: 最大值 {temp.max():.1f}, 标准差 {temp.std():.3f}")
 print(f"修复后: 最大值 {fixed.max():.1f}, 标准差 {fixed.std():.3f}")
@@ -266,6 +266,7 @@ print("非异常位置未被改动:", (fixed[~mask] == temp[~mask]).all())
 
 ```python
 import numpy as np
+
 a = np.arange(10)
 b = a[3:7]
 b[0] = 99
@@ -287,6 +288,7 @@ D. 报错:视图对象不可赋值
 
 ```python
 import numpy as np
+
 X = np.arange(1, 13).reshape(3, 4)
 print(X.sum(axis=0))
 ```
@@ -306,6 +308,7 @@ D. [6 15 24 33]
 
 ```python
 import numpy as np
+
 r = np.ones((3, 1)) + np.arange(4)
 print(r.shape)
 ```
@@ -335,20 +338,20 @@ D. (3, 4)
 import numpy as np
 
 rng = np.random.default_rng(42)
-A = rng.normal(size=(4, 5))          # 4×5 随机矩阵
+A = rng.normal(size=(4, 5))  # 4×5 随机矩阵
 
 # 形状变换
 print("形状:", A.shape, "→", A.reshape(5, 4).shape, "→", A.T.shape)
 
 # 拼接:行方向与列方向
-B = np.concatenate([A, A[:, :2]], axis=1)      # (4,7)
-C = np.stack([A[0], A[1]], axis=0)             # (2,5)
+B = np.concatenate([A, A[:, :2]], axis=1)  # (4,7)
+C = np.stack([A[0], A[1]], axis=0)  # (2,5)
 print("拼接后:", B.shape, C.shape)
 
 # 索引三件套
-print("子矩阵:", A[1:3, 0:2])                   # 基础切片(视图)
-print("布尔:", A[A > 1.5])                      # 布尔索引(拷贝,一维)
-print("花式:", A[[3, 0], :].shape)              # 花式索引(拷贝)
+print("子矩阵:", A[1:3, 0:2])  # 基础切片(视图)
+print("布尔:", A[A > 1.5])  # 布尔索引(拷贝,一维)
+print("花式:", A[[3, 0], :].shape)  # 花式索引(拷贝)
 
 # 广播与聚合
 print("按列标准化:\n", (A - A.mean(axis=0)) / A.std(axis=0))

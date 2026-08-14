@@ -179,20 +179,23 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment, milp, Bounds, LinearConstraint
 
 # 例 1:指派问题(匈牙利算法)
-cost = np.array([[4, 1, 3],
-                 [2, 0, 5],
-                 [3, 2, 2]])
+cost = np.array([[4, 1, 3], [2, 0, 5], [3, 2, 2]])
 row, col = linear_sum_assignment(cost)
-print("最优指派:", list(zip(row, col)))      # [(0, 1), (1, 0), (2, 2)]
-print("总成本:", cost[row, col].sum())        # 5
+print("最优指派:", list(zip(row, col)))  # [(0, 1), (1, 0), (2, 2)]
+print("总成本:", cost[row, col].sum())  # 5
 
 # 例 2:0-1 背包(milp 求解)
-v = np.array([8, 11, 6, 4]); w = np.array([3, 4, 2, 1]); W = 8
-res = milp(c=-v, integrality=np.ones(4),
-           bounds=Bounds(np.zeros(4), np.ones(4)),
-           constraints=LinearConstraint(w.reshape(1, -1), -np.inf, [W]))
+v = np.array([8, 11, 6, 4])
+w = np.array([3, 4, 2, 1])
+W = 8
+res = milp(
+    c=-v,
+    integrality=np.ones(4),
+    bounds=Bounds(np.zeros(4), np.ones(4)),
+    constraints=LinearConstraint(w.reshape(1, -1), -np.inf, [W]),
+)
 print("选中的物品:", np.where(res.x > 0.5)[0])  # [0 1 3]
-print("最大价值:", -res.fun)                    # 23.0
+print("最大价值:", -res.fun)  # 23.0
 
 # 最大化指派:收益矩阵取负后调 linear_sum_assignment
 profit = np.array([[8, 5, 3], [4, 9, 7], [6, 2, 10]])

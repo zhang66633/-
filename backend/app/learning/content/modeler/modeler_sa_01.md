@@ -164,6 +164,7 @@ D. 两者本质等价,强弱差异只来自随机种子
 
 ```python
 import numpy as np
+
 rng = np.random.default_rng(42)
 
 # 15 城 TSP(与本文实验同实例,精确最优 3.5184)
@@ -172,8 +173,10 @@ pts = np.random.rand(15, 2)
 d = np.sqrt(((pts[:, None] - pts[None]) ** 2).sum(-1))
 n = len(pts)
 
+
 def tour_len(t):
     return sum(d[t[i], t[(i + 1) % n]] for i in range(n))
+
 
 tour = rng.permutation(n).tolist()
 cur = tour_len(tour)
@@ -183,17 +186,17 @@ T, alpha, budget = 5.0, 0.995, 5000
 evals = 0
 while evals < budget:
     t = tour.copy()
-    i, j = rng.choice(n, 2, replace=False)     # swap 邻域
+    i, j = rng.choice(n, 2, replace=False)  # swap 邻域
     t[i], t[j] = t[j], t[i]
     fp = tour_len(t)
     if fp < cur or rng.random() < np.exp((cur - fp) / T):
-        tour, cur = t, fp                     # Metropolis 准则
+        tour, cur = t, fp  # Metropolis 准则
     if cur < best:
-        best_tour, best = tour.copy(), cur    # 记录历史最优!
+        best_tour, best = tour.copy(), cur  # 记录历史最优!
     T *= alpha
     evals += 1
 
-print("最优路径长度: %.4f" % best)     # 多次运行均值约 3.857(精确最优 3.5184)
+print("最优路径长度: %.4f" % best)  # 多次运行均值约 3.857(精确最优 3.5184)
 ```
 
 > 把 swap 换成 2-opt(反转一段)后,同样的预算下解的质量会显著提升——动手改一行 `t[i:j] = t[i:j][::-1]` 试试。

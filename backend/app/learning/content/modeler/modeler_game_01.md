@@ -238,27 +238,29 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 # ---- 例2: 混合策略 NE(等期望收益法) ----
-A = np.array([[3, 0], [0, 2]])   # 行玩家(甲)收益
-B = np.array([[2, 0], [0, 3]])   # 列玩家(乙)收益
+A = np.array([[3, 0], [0, 2]])  # 行玩家(甲)收益
+B = np.array([[2, 0], [0, 3]])  # 列玩家(乙)收益
 
 # 甲无差异: 3q = 2(1-q) → q; 乙无差异: 2p = 3(1-p) → p
 q = 2 / (3 + 2)
 p = 3 / (2 + 3)
 print(f"混合NE: 甲以 {p:.2f} 选A, 乙以 {q:.2f} 选A")
-print(f"期望收益: 甲 {3*q:.2f}, 乙 {2*p:.2f}")
+print(f"期望收益: 甲 {3 * q:.2f}, 乙 {2 * p:.2f}")
 
 # ---- 例3拓展: 鹰鸽博弈复制者动态 ----
 V, C = 2.0, 4.0
+
+
 def hawk_dove(t, x):
     fH = x * (V - C) / 2 + (1 - x) * V
     fD = (1 - x) * V / 2
     fbar = x * fH + (1 - x) * fD
     return [x * (fH - fbar)]
 
-sol = solve_ivp(hawk_dove, [0, 40], [0.05],
-                t_eval=np.linspace(0, 40, 200))
+
+sol = solve_ivp(hawk_dove, [0, 40], [0.05], t_eval=np.linspace(0, 40, 200))
 print("理论ESS x*=V/C =", V / C, "; 数值终值 =", sol.y[0, -1])
-print("均衡时两派收益:", (V - C) / 2 * (V/C) + (1 - V/C) * V)
+print("均衡时两派收益:", (V - C) / 2 * (V / C) + (1 - V / C) * V)
 ```
 
 ## 📚 延伸阅读

@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import ClassVar, List, Optional, Type
+from typing import ClassVar
 
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
@@ -35,14 +35,47 @@ logger = logging.getLogger(__name__)
 
 # 会被 sympy 解析器识别的"已知函数"前缀，避免被当作变量名
 _SYM_RESERVED = {
-    "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
-    "sinh", "cosh", "tanh",
-    "exp", "log", "ln", "sqrt", "cbrt",
-    "Abs", "sign", "Min", "Max",
-    "pi", "E", "I", "oo", "zoo", "nan",
-    "diff", "integrate", "limit", "Sum", "Product", "factorial", "binomial",
-    "Rational", "Integer", "Float", "Symbol", "Function", "Matrix",
-    "True", "False", "None",
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "atan2",
+    "sinh",
+    "cosh",
+    "tanh",
+    "exp",
+    "log",
+    "ln",
+    "sqrt",
+    "cbrt",
+    "Abs",
+    "sign",
+    "Min",
+    "Max",
+    "pi",
+    "E",
+    "I",
+    "oo",
+    "zoo",
+    "nan",
+    "diff",
+    "integrate",
+    "limit",
+    "Sum",
+    "Product",
+    "factorial",
+    "binomial",
+    "Rational",
+    "Integer",
+    "Float",
+    "Symbol",
+    "Function",
+    "Matrix",
+    "True",
+    "False",
+    "None",
 }
 
 
@@ -73,10 +106,10 @@ class SymbolicMathInput(BaseModel):
         default="",
         description=(
             "附加参数 JSON 字符串（按 operation 不同含义不同）: "
-            "- integrate_def: '{\"lower\": 0, \"upper\": 1}' 定积分上下限"
-            "- limit: '{\"point\": 0, \"direction\": \"+\"}' 极限点和方向(+/-/both)"
-            "- series: '{\"point\": 0, \"order\": 6}' 展开点和阶数"
-            "- dsolve: '{\"func\": \"y\"}' 因变量函数名（默认 y(x)）"
+            '- integrate_def: \'{"lower": 0, "upper": 1}\' 定积分上下限'
+            '- limit: \'{"point": 0, "direction": "+"}\' 极限点和方向(+/-/both)'
+            '- series: \'{"point": 0, "order": 6}\' 展开点和阶数'
+            '- dsolve: \'{"func": "y"}\' 因变量函数名（默认 y(x)）'
             "- solve: 可省，solve 默认解关于 variable 的方程"
         ),
     )
@@ -92,7 +125,7 @@ class SymbolicMathTool(BaseTool):
         "当你需要精确的符号推导结果（如公式、解析解、变换后的形式），或要让论文中给出"
         "LaTeX 公式时调用。返回 LaTeX 与纯文本两套结果。"
     )
-    args_schema: ClassVar[Type[BaseModel]] = SymbolicMathInput
+    args_schema: ClassVar[type[BaseModel]] = SymbolicMathInput
 
     def _run(
         self,
@@ -100,7 +133,7 @@ class SymbolicMathTool(BaseTool):
         operation: str,
         variable: str = "x",
         extra: str = "",
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
         try:
             import sympy as sp
@@ -163,7 +196,9 @@ class SymbolicMathTool(BaseTool):
                 point = sp.sympify(str(extra_dict.get("point", 0)), locals=local_dict)
                 order = int(extra_dict.get("order", 6))
                 result = sp.series(expr, x, point, order)
-                return _format_sympy(result.removeO(), op, variable, extra=f"在 {point} 展开到 {order} 阶")
+                return _format_sympy(
+                    result.removeO(), op, variable, extra=f"在 {point} 展开到 {order} 阶"
+                )
 
             if op == "simplify":
                 return _format_sympy(sp.simplify(expr), op, variable)
@@ -183,7 +218,9 @@ class SymbolicMathTool(BaseTool):
                     result = sp.dsolve(expr, f_of_x)
                 else:
                     result = sp.dsolve(sp.Eq(expr, 0), f_of_x)
-                return _format_sympy(result, op, variable, extra=f"ODE 关于 {func_name}({variable})")
+                return _format_sympy(
+                    result, op, variable, extra=f"ODE 关于 {func_name}({variable})"
+                )
 
             if op == "matrix_eigen":
                 mat = sp.Matrix(expr)
@@ -243,7 +280,7 @@ class ConvexOptimizationInput(BaseModel):
             "  - 'x >= 0'           连续变量 x 且 x >= 0\n"
             "  - 'z: integer'       整数变量 z（IP 用）\n"
             "  - 'w: boolean'       0/1 变量 w（IP 用）\n"
-            "示例: '[\"x >= 0\", \"y >= 0\", \"z: integer\"]'"
+            '示例: \'["x >= 0", "y >= 0", "z: integer"]\''
         ),
     )
     constraints: str = Field(
@@ -251,7 +288,7 @@ class ConvexOptimizationInput(BaseModel):
         description=(
             "约束列表 JSON 数组，每项是一个 Python 表达式，支持: "
             "'<='、'>='、'==' 三种关系。\n"
-            "示例: '[\"x + y <= 10\", \"2*x - y >= 5\", \"x >= 0\", \"y >= 0\"]'"
+            '示例: \'["x + y <= 10", "2*x - y >= 5", "x >= 0", "y >= 0"]\''
         ),
     )
 
@@ -265,7 +302,7 @@ class ConvexOptimizationTool(BaseTool):
         "适用于资源分配、运输问题、投资组合、排产调度、配送路径等需要给出**具体数值最优解**的场景。"
         "返回最优解（每个变量的数值）、最优值、求解器与状态。"
     )
-    args_schema: ClassVar[Type[BaseModel]] = ConvexOptimizationInput
+    args_schema: ClassVar[type[BaseModel]] = ConvexOptimizationInput
 
     def _run(
         self,
@@ -274,7 +311,7 @@ class ConvexOptimizationTool(BaseTool):
         variables: str = "[]",
         constraints: str = "[]",
         sense: str = "minimize",
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
         try:
             import cvxpy as cp
@@ -326,7 +363,7 @@ class ConvexOptimizationTool(BaseTool):
                     if name not in var_map:
                         var_map[name] = cp.Variable(name=name)
                     # 转 sympy 后再转 cvxpy
-                    sym_rhs = sp.sympify(rhs_str)
+                    sp.sympify(rhs_str)
                     cstr = _sympy_to_cvxpy(sp.sympify(f"{name} {op} {rhs_str}"), var_map)
                     extra_constraints.append(cstr)
                 else:
@@ -363,7 +400,9 @@ class ConvexOptimizationTool(BaseTool):
                 try:
                     sym_c = sp.sympify(cstr)
                     cvx_c = _sympy_to_cvxpy(sym_c, var_map)
-                    if not isinstance(cvx_c, (cp.constraints.Constraint, cp.expressions.expression.Expression)):
+                    if not isinstance(
+                        cvx_c, (cp.constraints.Constraint, cp.expressions.expression.Expression)
+                    ):
                         cstr_errors.append(f"约束不合法: {cstr!r}（不是 cvxpy 表达式或关系）")
                         continue
                     cvx_constraints.append(cvx_c)
@@ -426,7 +465,8 @@ class ConvexOptimizationTool(BaseTool):
 # 内部辅助
 # ────────────────────────────────────────────────────────────────────
 
-def _extract_symbols(expr: str) -> List[str]:
+
+def _extract_symbols(expr: str) -> list[str]:
     """从表达式字符串中提取所有非保留的标识符作为符号名。"""
     tokens = re.findall(r"\b([A-Za-z_][A-Za-z_0-9]*)\b", expr)
     seen: list[str] = []
@@ -453,8 +493,8 @@ def _sympy_to_cvxpy(expr, var_map: dict):
     支持: Number/Symbol/Add/Mul/Pow/常用函数/关系运算。
     变量从 var_map 查;未知符号当常数;数值直接取 float。
     """
-    import sympy as sp
     import cvxpy as cp
+    import sympy as sp
 
     if isinstance(expr, (int, float)):
         return float(expr)
@@ -484,7 +524,7 @@ def _sympy_to_cvxpy(expr, var_map: dict):
     if expr.is_Pow:
         base = _sympy_to_cvxpy(expr.args[0], var_map)
         exp_v = _sympy_to_cvxpy(expr.args[1], var_map)
-        return base ** exp_v
+        return base**exp_v
 
     if expr.is_Relational or hasattr(expr, "rel_op"):
         lhs = _sympy_to_cvxpy(expr.lhs, var_map)
@@ -500,11 +540,19 @@ def _sympy_to_cvxpy(expr, var_map: dict):
 
     # 函数
     func_map = {
-        sp.sin: cp.sin, sp.cos: cp.cos, sp.tan: cp.tan,
-        sp.asin: cp.arcsin, sp.acos: cp.arccos, sp.atan: cp.arctan,
-        sp.sinh: cp.sinh, sp.cosh: cp.cosh, sp.tanh: cp.tanh,
-        sp.exp: cp.exp, sp.log: cp.log,
-        sp.Abs: cp.abs, sp.sqrt: cp.sqrt,
+        sp.sin: cp.sin,
+        sp.cos: cp.cos,
+        sp.tan: cp.tan,
+        sp.asin: cp.arcsin,
+        sp.acos: cp.arccos,
+        sp.atan: cp.arctan,
+        sp.sinh: cp.sinh,
+        sp.cosh: cp.cosh,
+        sp.tanh: cp.tanh,
+        sp.exp: cp.exp,
+        sp.log: cp.log,
+        sp.Abs: cp.abs,
+        sp.sqrt: cp.sqrt,
     }
     func = getattr(expr, "func", None)
     if func in func_map:
@@ -520,8 +568,10 @@ def _sympy_to_cvxpy(expr, var_map: dict):
 
 # ── 输出格式化 ──
 
+
 def _format_sympy(result, op: str, variable: str, extra: str = "") -> str:
     import sympy as sp
+
     extra_line = f"（{extra}）" if extra else ""
     latex = sp.latex(result)
     text = str(result)
@@ -534,6 +584,7 @@ def _format_sympy(result, op: str, variable: str, extra: str = "") -> str:
 
 def _format_sympy_solutions(result, variable: str) -> str:
     import sympy as sp
+
     if not result:
         return f"操作: solve (变量 {variable})\n无解（可能无实数解或方程恒等/矛盾）"
 
@@ -552,6 +603,7 @@ def _format_sympy_solutions(result, variable: str) -> str:
 
 def _format_eigen(ev, evects) -> str:
     import sympy as sp
+
     ev_str = ", ".join(f"`{sp.latex(k)}` (重数 {v})" for k, v in ev.items())
     evect_lines = []
     for lam, mult, vects in evects:
@@ -562,13 +614,10 @@ def _format_eigen(ev, evects) -> str:
             except Exception:
                 v_strs.append(f"`{v}`")
         evect_lines.append(f"  λ = `{sp.latex(lam)}` (重数 {mult}): " + "; ".join(v_strs))
-    return (
-        "矩阵特征值:\n" + ev_str + "\n\n特征向量:\n" + "\n".join(evect_lines)
-    )
+    return "矩阵特征值:\n" + ev_str + "\n\n特征向量:\n" + "\n".join(evect_lines)
 
 
 def _format_cvxpy_result(prob, var_map: dict, pt: str, sense: str, solver_used: str = "") -> str:
-    import cvxpy as cp
 
     status_map = {
         "optimal": "[OK] 最优",
@@ -586,14 +635,12 @@ def _format_cvxpy_result(prob, var_map: dict, pt: str, sense: str, solver_used: 
         except Exception:
             solver_name = ""
 
-    head = (
-        f"问题类型: {pt}（{sense}）\n"
-        f"求解器: {solver_name or 'default'}\n"
-        f"状态: {status_zh}"
-    )
+    head = f"问题类型: {pt}（{sense}）\n求解器: {solver_name or 'default'}\n状态: {status_zh}"
 
     if prob.status not in ("optimal", "optimal_inaccurate"):
-        return f"{head}\n该问题无最优解。请检查约束（infeasible/不可行）或目标方向（unbounded/无界）。"
+        return (
+            f"{head}\n该问题无最优解。请检查约束（infeasible/不可行）或目标方向（unbounded/无界）。"
+        )
 
     opt_val = prob.value
     try:
@@ -614,12 +661,17 @@ def _format_cvxpy_result(prob, var_map: dict, pt: str, sense: str, solver_used: 
         except (TypeError, ValueError):
             sol_lines.append(f"  {name} = {val}")
 
-    return f"{head}\n最优值: {opt_str}\n\n最优解:\n" + "\n".join(sol_lines) if sol_lines else f"{head}\n最优值: {opt_str}"
+    return (
+        f"{head}\n最优值: {opt_str}\n\n最优解:\n" + "\n".join(sol_lines)
+        if sol_lines
+        else f"{head}\n最优值: {opt_str}"
+    )
 
 
 # ── 工厂 ──
 
-def create_math_tools() -> List[BaseTool]:
+
+def create_math_tools() -> list[BaseTool]:
     """工厂：返回全部数学工具（供 llm.bind_tools()）。"""
     return [
         SymbolicMathTool(),

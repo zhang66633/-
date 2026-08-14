@@ -1,7 +1,5 @@
 """Auth module — GitHub OAuth login + JWT session management."""
 
-from .schemas import GitHubUser, TokenResponse, UserResponse
-from .github import ALLOWED_CONTRIBUTORS
 from .dependencies import (
     create_jwt,
     decode_jwt,
@@ -9,6 +7,8 @@ from .dependencies import (
     require_auth,
     require_contributor,
 )
+from .github import ALLOWED_CONTRIBUTORS
+from .schemas import GitHubUser, TokenResponse, UserResponse
 
 __all__ = [
     "GitHubUser",

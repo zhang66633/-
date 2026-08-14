@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 x = np.linspace(0, 2 * np.pi, 100)
-fig, ax = plt.subplots(figsize=(7, 4.5))   # 1 个坐标系,画布 7×4.5 英寸
+fig, ax = plt.subplots(figsize=(7, 4.5))  # 1 个坐标系,画布 7×4.5 英寸
 ax.plot(x, np.sin(x), label="sin(x)")
 ax.plot(x, np.cos(x), label="cos(x)")
 ax.set_xlabel("x")
@@ -34,7 +34,7 @@ ax.set_ylabel("y")
 ax.set_title("三角函数")
 ax.legend()
 ax.grid(alpha=0.3)
-fig.savefig("trig.png", dpi=200)           # 保存而不是 plt.show()
+fig.savefig("trig.png", dpi=200)  # 保存而不是 plt.show()
 ```
 
 ### 2. 四种基础图型
@@ -55,8 +55,7 @@ axes[0, 1].scatter(x, y, s=20, c=y, cmap="viridis")
 # 柱状图:分类对比
 axes[1, 0].bar(["A", "B", "C"], [3, 7, 5], color="steelblue")
 # 误差棒图:均值 ± 标准差
-axes[1, 1].errorbar(["A", "B", "C"], [3, 7, 5],
-                    yerr=[0.5, 1.0, 0.8], fmt="o", capsize=4)
+axes[1, 1].errorbar(["A", "B", "C"], [3, 7, 5], yerr=[0.5, 1.0, 0.8], fmt="o", capsize=4)
 fig.tight_layout()
 fig.savefig("four_basic.png", dpi=200)
 ```
@@ -74,11 +73,11 @@ X, Y = np.meshgrid(x, x)
 Z = np.exp(-(X**2 + Y**2) / 2) + 0.3 * np.sin(2 * X) * np.cos(2 * Y)
 
 fig, ax = plt.subplots(figsize=(7, 5))
-im = ax.imshow(Z, extent=[-3, 3, -3, 3], origin="lower",
-               cmap="viridis", aspect="auto")
+im = ax.imshow(Z, extent=[-3, 3, -3, 3], origin="lower", cmap="viridis", aspect="auto")
 ax.contour(X, Y, Z, levels=6, colors="white", linewidths=0.6)
 fig.colorbar(im, ax=ax, label="z")
-ax.set_xlabel("x"); ax.set_ylabel("y")
+ax.set_xlabel("x")
+ax.set_ylabel("y")
 fig.savefig("field.png", dpi=200)
 ```
 
@@ -90,9 +89,9 @@ fig.savefig("field.png", dpi=200)
 import matplotlib.pyplot as plt
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]  # 中文字体
-plt.rcParams["axes.unicode_minus"] = False   # 解决负号显示为方块
-plt.rcParams["font.size"] = 11               # 全局字号
-plt.rcParams["axes.grid"] = True             # 默认开网格
+plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示为方块
+plt.rcParams["font.size"] = 11  # 全局字号
+plt.rcParams["axes.grid"] = True  # 默认开网格
 ```
 
 - **中文字体**:Windows 用 `SimHei`/`Microsoft YaHei`;若论文模板要求英文图,直接不加中文
@@ -132,14 +131,14 @@ import matplotlib.pyplot as plt
 rng = np.random.default_rng(0)
 x = np.linspace(0, 10, 25)
 y = 2.5 * x + 1.2 + rng.normal(0, 1.5, x.size)
-k, b = np.polyfit(x, y, 1)                 # 最小二乘直线
-resid = y - (k * x + b)                    # 残差
+k, b = np.polyfit(x, y, 1)  # 最小二乘直线
+resid = y - (k * x + b)  # 残差
 
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 6), sharex=True,
-                               gridspec_kw={"height_ratios": [3, 1]})
+fig, (ax1, ax2) = plt.subplots(
+    2, 1, figsize=(7, 6), sharex=True, gridspec_kw={"height_ratios": [3, 1]}
+)
 ax1.scatter(x, y, s=30, label="观测数据", zorder=3)
-ax1.plot(x, k * x + b, "r-", lw=2,
-         label=f"拟合直线: $y={k:.2f}x+{b:.2f}$")
+ax1.plot(x, k * x + b, "r-", lw=2, label=f"拟合直线: $y={k:.2f}x+{b:.2f}$")
 ax1.set_ylabel("y")
 ax1.legend()
 ax1.grid(alpha=0.3)
@@ -178,16 +177,17 @@ X, Y = np.meshgrid(x, x)
 Z = np.exp(-(X**2 + Y**2) / 2) + 0.3 * np.sin(2 * X) * np.cos(2 * Y)
 
 fig, ax = plt.subplots(figsize=(7, 5))
-im = ax.imshow(Z, extent=[-3, 3, -3, 3], origin="lower",
-               cmap="viridis", aspect="auto")
+im = ax.imshow(Z, extent=[-3, 3, -3, 3], origin="lower", cmap="viridis", aspect="auto")
 cs = ax.contour(X, Y, Z, levels=6, colors="white", linewidths=0.6)
 ax.clabel(cs, fontsize=8, fmt="%.1f")
 fig.colorbar(im, ax=ax, label="z")
-ax.set_xlabel("x"); ax.set_ylabel("y")
+ax.set_xlabel("x")
+ax.set_ylabel("y")
 ax.set_title("目标函数形态:中心主峰 + 周边多个局部极值")
 fig.savefig("field.png", dpi=200)
-print(f"全局最大值位置: ({X.ravel()[Z.argmax()]:.2f}, "
-      f"{Y.ravel()[Z.argmax()]:.2f}), 值 {Z.max():.3f}")
+print(
+    f"全局最大值位置: ({X.ravel()[Z.argmax()]:.2f}, {Y.ravel()[Z.argmax()]:.2f}), 值 {Z.max():.3f}"
+)
 ```
 
 **输出解读**:
@@ -253,6 +253,7 @@ print("子图数量:", axes.size, "张")
 
 ```python
 import matplotlib.pyplot as plt
+
 fig, ax = plt.subplots()
 ax.plot(x, y)
 ```
@@ -306,6 +307,7 @@ plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]
 plt.rcParams["axes.unicode_minus"] = False
 plt.rcParams["font.size"] = 11
 
+
 def paper_line(x, y_list, labels, xlabel, ylabel, fname, title=None):
     """多条曲线的论文级折线图:y_list 为曲线列表,labels 为图例。"""
     fig, ax = plt.subplots(figsize=(7, 4.5))
@@ -319,11 +321,11 @@ def paper_line(x, y_list, labels, xlabel, ylabel, fname, title=None):
     ax.legend()
     fig.tight_layout()
     fig.savefig(fname, dpi=300, bbox_inches="tight")
-    plt.close(fig)          # 防止循环绘图时内存堆积
+    plt.close(fig)  # 防止循环绘图时内存堆积
+
 
 x = np.linspace(0, 4, 100)
-paper_line(x, [np.exp(-x), np.exp(-2 * x)],
-           ["λ=1", "λ=2"], "t", "衰减曲线", "decay.png")
+paper_line(x, [np.exp(-x), np.exp(-2 * x)], ["λ=1", "λ=2"], "t", "衰减曲线", "decay.png")
 print("已保存 decay.png")
 ```
 

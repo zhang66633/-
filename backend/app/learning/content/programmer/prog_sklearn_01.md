@@ -24,13 +24,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
 X, y = make_classification(n_samples=200, n_features=4, random_state=0)
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.25, random_state=0)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=0)
 
-model = LogisticRegression(max_iter=2000)   # ① 创建(设置超参数)
-model.fit(X_train, y_train)                 # ② 训练(从数据学习)
-pred = model.predict(X_test)                # ③ 预测(分类/回归)
-score = model.score(X_test, y_test)         # ③' 评估(默认指标)
+model = LogisticRegression(max_iter=2000)  # ① 创建(设置超参数)
+model.fit(X_train, y_train)  # ② 训练(从数据学习)
+pred = model.predict(X_test)  # ③ 预测(分类/回归)
+score = model.score(X_test, y_test)  # ③' 评估(默认指标)
 print("测试准确率:", f"{score:.3f}")
 ```
 
@@ -47,11 +46,12 @@ from sklearn.metrics import accuracy_score
 
 X, y = make_classification(n_samples=400, n_features=8, random_state=0)
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y)   # 分层划分
+    X, y, test_size=0.2, random_state=42, stratify=y
+)  # 分层划分
 
 scaler = StandardScaler()
-X_train_s = scaler.fit_transform(X_train)   # 训练集:拟合 + 变换
-X_test_s = scaler.transform(X_test)         # 测试集:只用变换!
+X_train_s = scaler.fit_transform(X_train)  # 训练集:拟合 + 变换
+X_test_s = scaler.transform(X_test)  # 测试集:只用变换!
 
 model = LogisticRegression(max_iter=2000)
 model.fit(X_train_s, y_train)
@@ -83,14 +83,14 @@ print("测试准确率:", model.score(X_test_s, y_test))
 
 ```python
 from sklearn.datasets import make_classification
-from sklearn.model_selection import (train_test_split, cross_val_score,
-                                     GridSearchCV)
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 
 X, y = make_classification(n_samples=400, n_features=8, random_state=0)
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y)
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
 X_train_s = StandardScaler().fit_transform(X_train)
 
 model = RandomForestClassifier(n_estimators=100, random_state=0)
@@ -101,9 +101,10 @@ print(f"5折CV: {scores.mean():.3f} ± {scores.std():.3f}")
 # 网格搜索:超参数自动调优
 grid = GridSearchCV(
     RandomForestClassifier(random_state=0),
-    param_grid={"n_estimators": [50, 100, 200],
-                "max_depth": [5, 10, None]},
-    cv=5, scoring="accuracy")
+    param_grid={"n_estimators": [50, 100, 200], "max_depth": [5, 10, None]},
+    cv=5,
+    scoring="accuracy",
+)
 grid.fit(X_train_s, y_train)
 print("最优参数:", grid.best_params_)
 ```
@@ -142,12 +143,13 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, classification_report
 
-X, y = make_classification(n_samples=500, n_features=6,
-                           n_informative=4, n_redundant=0,
-                           random_state=0)
+X, y = make_classification(
+    n_samples=500, n_features=6, n_informative=4, n_redundant=0, random_state=0
+)
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y)
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
 
 scaler = StandardScaler()
 X_train_s = scaler.fit_transform(X_train)
@@ -163,8 +165,7 @@ for name, model in models.items():
     print(f"\n===== {name} =====")
     print("测试准确率:", f"{model.score(X_test_s, y_test):.3f}")
     print("混淆矩阵:\n", confusion_matrix(y_test, y_pred))
-    print(classification_report(y_test, y_pred, zero_division=0,
-                                digits=3))
+    print(classification_report(y_test, y_pred, zero_division=0, digits=3))
 ```
 
 **输出解读**(节选):
@@ -197,19 +198,18 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 
-X, y = make_regression(n_samples=300, n_features=8, noise=20,
-                       random_state=0)
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.25, random_state=42)
+X, y = make_regression(n_samples=300, n_features=8, noise=20, random_state=0)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
 
-for name, model in [("线性回归", LinearRegression()),
-                    ("岭回归", Ridge(alpha=10.0))]:
+for name, model in [("线性回归", LinearRegression()), ("岭回归", Ridge(alpha=10.0))]:
     model.fit(X_train, y_train)
     pred = model.predict(X_test)
     r2 = r2_score(y_test, pred)
     rmse = mean_squared_error(y_test, pred) ** 0.5
-    print(f"{name}: R²={r2:.3f}, RMSE={rmse:.2f}, "
-          f"系数范围 [{model.coef_.min():.1f}, {model.coef_.max():.1f}]")
+    print(
+        f"{name}: R²={r2:.3f}, RMSE={rmse:.2f}, "
+        f"系数范围 [{model.coef_.min():.1f}, {model.coef_.max():.1f}]"
+    )
 ```
 
 **输出解读**:
@@ -235,8 +235,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import adjusted_rand_score
 
-X, y_true = make_blobs(n_samples=400, centers=4, n_features=8,
-                       cluster_std=1.5, random_state=0)
+X, y_true = make_blobs(n_samples=400, centers=4, n_features=8, cluster_std=1.5, random_state=0)
 X_s = StandardScaler().fit_transform(X)
 
 # (1) KMeans 聚类质量:调整兰德指数(1=完全一致,0=随机)
@@ -245,15 +244,13 @@ y_pred = km.fit_predict(X_s)
 print(f"ARI = {adjusted_rand_score(y_true, y_pred):.3f}")
 
 # (2) 肘部法则:k 从 2 到 8 的惯性(簇内平方和)
-inertias = [KMeans(n_clusters=k, n_init=10, random_state=0)
-            .fit(X_s).inertia_ for k in range(2, 9)]
+inertias = [KMeans(n_clusters=k, n_init=10, random_state=0).fit(X_s).inertia_ for k in range(2, 9)]
 print("惯性序列(k=2..8):", [round(v) for v in inertias])
 
 # (3) PCA 可视化(降维后再聚类,验证结构)
 X2 = PCA(n_components=2, random_state=0).fit_transform(X_s)
 km2 = KMeans(n_clusters=4, n_init=10, random_state=0).fit(X2)
-print(f"PCA 降维后聚类 ARI = "
-      f"{adjusted_rand_score(y_true, km2.labels_):.3f}")
+print(f"PCA 降维后聚类 ARI = {adjusted_rand_score(y_true, km2.labels_):.3f}")
 ```
 
 **输出解读**:
@@ -286,7 +283,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
 X, y = make_classification(n_samples=300, n_features=6, random_state=0)
-X_s = StandardScaler().fit_transform(X)          # 全量标准化
+X_s = StandardScaler().fit_transform(X)  # 全量标准化
 X_train, X_test, y_train, y_test = train_test_split(X_s, y, test_size=0.2)
 model = LogisticRegression(max_iter=2000).fit(X_train, y_train)
 print(model.score(X_test, y_test))
@@ -306,8 +303,7 @@ D. 没有泄露,但评估结果必然虚低
 **第 2 题** 二分类问题的混淆矩阵为(行=真实,列=预测):
 
 ```python
-cm = [[50, 5],
-      [10, 35]]
+cm = [[50, 5], [10, 35]]
 ```
 
 准确率是:
@@ -350,30 +346,34 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 
-X, y = make_classification(n_samples=800, n_features=10,
-                           n_informative=6, random_state=0)
+X, y = make_classification(n_samples=800, n_features=10, n_informative=6, random_state=0)
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y)
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
 
 # 预处理 + 模型装进 Pipeline,彻底防泄漏
 pipelines = {
-    "逻辑回归": Pipeline([("scaler", StandardScaler()),
-                          ("model", LogisticRegression(max_iter=2000))]),
-    "随机森林": Pipeline([("scaler", StandardScaler()),
-                          ("model", RandomForestClassifier(random_state=0))]),
+    "逻辑回归": Pipeline(
+        [("scaler", StandardScaler()), ("model", LogisticRegression(max_iter=2000))]
+    ),
+    "随机森林": Pipeline(
+        [("scaler", StandardScaler()), ("model", RandomForestClassifier(random_state=0))]
+    ),
 }
 for name, pipe in pipelines.items():
-    cv = cross_val_score(pipe, X_train, y_train, cv=5,
-                         scoring="accuracy")
+    cv = cross_val_score(pipe, X_train, y_train, cv=5, scoring="accuracy")
     print(f"{name}: 5折CV = {cv.mean():.3f} ± {cv.std():.3f}")
 
 # 网格搜索调优最优模型,最后才碰测试集
-best_pipe = Pipeline([("scaler", StandardScaler()),
-                      ("model", RandomForestClassifier(random_state=0))])
-grid = GridSearchCV(best_pipe,
-                    {"model__n_estimators": [50, 100, 200],
-                     "model__max_depth": [5, 10, None]},
-                    cv=5, scoring="accuracy")
+best_pipe = Pipeline(
+    [("scaler", StandardScaler()), ("model", RandomForestClassifier(random_state=0))]
+)
+grid = GridSearchCV(
+    best_pipe,
+    {"model__n_estimators": [50, 100, 200], "model__max_depth": [5, 10, None]},
+    cv=5,
+    scoring="accuracy",
+)
 grid.fit(X_train, y_train)
 print("最优参数:", grid.best_params_)
 print("测试集最终成绩:", f"{grid.score(X_test, y_test):.3f}")

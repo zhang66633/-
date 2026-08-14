@@ -11,10 +11,8 @@
 
 from __future__ import annotations
 
-import json
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from langchain_core.documents import Document
 
@@ -61,6 +59,7 @@ class EpisodicMemory:
         """获取与 KBEmbedder 相同的 embedding 函数。"""
         if self._embeddings is None:
             from app.knowledge.embedder import KBEmbedder
+
             settings = get_settings()
             embedder = KBEmbedder(
                 kb_root=settings.kb_root,
@@ -74,12 +73,15 @@ class EpisodicMemory:
         """懒加载 ChromaDB collection。"""
         if self._store is None:
             from langchain_chroma import Chroma
+
             settings = get_settings()
 
             if settings.chroma_http_url:
                 # 远程模式
                 from urllib.parse import urlparse
+
                 import chromadb
+
                 parsed = urlparse(settings.chroma_http_url)
                 client = chromadb.HttpClient(
                     host=parsed.hostname or "localhost",
@@ -122,6 +124,7 @@ class EpisodicMemory:
 
         try:
             from app.core.llm.factory import get_llm
+
             llm = get_llm("analysis")
             response = llm.invoke(prompt)
             experience = str(response.content).strip()
@@ -140,7 +143,7 @@ class EpisodicMemory:
                     "type": "experience",
                     "session_id": session_id,
                     "problem_type": problem_type,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
             )
             self.store.add_documents([doc])

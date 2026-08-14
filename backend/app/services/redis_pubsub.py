@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Dict, Optional
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
-import redis.asyncio as aioredis
 import redis as sync_redis
+import redis.asyncio as aioredis
 
 from app.config import get_settings
 
@@ -28,6 +28,7 @@ _fake_server = None
 try:
     import fakeredis
     import fakeredis.aioredis as fake_aioredis
+
     _FAKEREDIS_AVAILABLE = True
 except ImportError:
     pass
@@ -51,9 +52,7 @@ def _create_sync_client(redis_url: str):
     except Exception:
         if _FAKEREDIS_AVAILABLE:
             logger.info("Redis unavailable — using fakeredis (in-memory)")
-            return fakeredis.FakeRedis(
-                server=_get_fake_server(), decode_responses=True
-            )
+            return fakeredis.FakeRedis(server=_get_fake_server(), decode_responses=True)
         raise
 
 
@@ -67,10 +66,9 @@ async def _create_async_client(redis_url: str):
     except Exception:
         if _FAKEREDIS_AVAILABLE:
             logger.info("Redis unavailable — using fakeredis (in-memory, async)")
-            return fake_aioredis.FakeRedis(
-                server=_get_fake_server(), decode_responses=True
-            )
+            return fake_aioredis.FakeRedis(server=_get_fake_server(), decode_responses=True)
         raise
+
 
 # ── Event types ──────────────────────────────────────────────────────
 
@@ -89,12 +87,12 @@ class ProgressEvent:
         event: str,
         node: str,
         task_id: str,
-        data: Optional[dict] = None,
+        data: dict | None = None,
     ):
         self.event = event
         self.node = node
         self.task_id = task_id
-        self.timestamp = datetime.now(timezone.utc).isoformat()
+        self.timestamp = datetime.now(UTC).isoformat()
         self.data = data or {}
 
     def to_json(self) -> str:
@@ -126,7 +124,7 @@ class RedisPublisher:
 
     def __init__(self, redis_url: str):
         self.redis_url = redis_url
-        self._client: Optional[sync_redis.Redis] = None
+        self._client: sync_redis.Redis | None = None
 
     @property
     def client(self) -> sync_redis.Redis:
@@ -134,7 +132,7 @@ class RedisPublisher:
             self._client = _create_sync_client(self.redis_url)
         return self._client
 
-    def publish(self, task_id: str, event: str, node: str, data: Optional[dict] = None) -> int:
+    def publish(self, task_id: str, event: str, node: str, data: dict | None = None) -> int:
         """Publish an event to the task's channel.
 
         Returns the number of subscribers that received the message.
@@ -147,15 +145,15 @@ class RedisPublisher:
             logger.warning("Failed to publish event to channel %s", channel, exc_info=True)
             return 0
 
-    def node_start(self, task_id: str, node: str, data: Optional[dict] = None) -> int:
+    def node_start(self, task_id: str, node: str, data: dict | None = None) -> int:
         """Shorthand for publishing a node_start event."""
         return self.publish(task_id, ProgressEvent.NODE_START, node, data)
 
-    def node_end(self, task_id: str, node: str, data: Optional[dict] = None) -> int:
+    def node_end(self, task_id: str, node: str, data: dict | None = None) -> int:
         """Shorthand for publishing a node_end event."""
         return self.publish(task_id, ProgressEvent.NODE_END, node, data)
 
-    def progress(self, task_id: str, node: str, data: Optional[dict] = None) -> int:
+    def progress(self, task_id: str, node: str, data: dict | None = None) -> int:
         """Shorthand for publishing a progress event."""
         return self.publish(task_id, ProgressEvent.PROGRESS, node, data)
 
@@ -163,7 +161,7 @@ class RedisPublisher:
         """Shorthand for publishing an error event."""
         return self.publish(task_id, ProgressEvent.ERROR, node, {"message": error_msg})
 
-    def task_end(self, task_id: str, node: str, status: str, data: Optional[dict] = None) -> int:
+    def task_end(self, task_id: str, node: str, status: str, data: dict | None = None) -> int:
         """Shorthand for publishing a task_end (completion) event."""
         payload = {"status": status}
         if data:
@@ -210,15 +208,13 @@ class RedisSubscriber:
                 await pubsub.unsubscribe(channel)
                 await client.aclose()
         except Exception:
-            logger.warning(
-                "Redis subscriber for task %s disconnected", task_id, exc_info=True
-            )
+            logger.warning("Redis subscriber for task %s disconnected", task_id, exc_info=True)
             # Yield nothing on connection failure — WebSocket will close cleanly
 
 
 # ── Module-level publisher singleton ─────────────────────────────────
 
-_publisher: Optional[RedisPublisher] = None
+_publisher: RedisPublisher | None = None
 
 
 def get_publisher() -> RedisPublisher:

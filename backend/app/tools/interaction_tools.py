@@ -15,9 +15,8 @@ from __future__ import annotations
 
 import json
 import logging
-import shutil
 from pathlib import Path
-from typing import ClassVar, List, Optional, Type
+from typing import ClassVar
 
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
@@ -40,12 +39,12 @@ class ClarifyOption(BaseModel):
 
 class ClarifyQuestion(BaseModel):
     question: str = Field(description="要向用户提出的问题")
-    options: List[ClarifyOption] = Field(description="2-4 个选项")
+    options: list[ClarifyOption] = Field(description="2-4 个选项")
     multiSelect: bool = Field(default=False, description="是否允许多选")
 
 
 class AskUserInput(BaseModel):
-    questions: List[ClarifyQuestion] = Field(
+    questions: list[ClarifyQuestion] = Field(
         description="1-3 个需要用户确认的问题",
         min_length=1,
         max_length=3,
@@ -62,9 +61,9 @@ class AskUserTool(BaseTool):
         "提出 1-3 个关键问题，每个问题给 2-4 个选项供用户选择。"
         "注意：如果用户的问题已经足够明确（如'粒子群算法是什么'），不要调用此工具，直接回答。"
     )
-    args_schema: Type[BaseModel] = AskUserInput
+    args_schema: type[BaseModel] = AskUserInput
 
-    def _run(self, questions: list, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
+    def _run(self, questions: list, run_manager: CallbackManagerForToolRun | None = None) -> str:
         # 此工具不会被后端真正执行——chat_routes 检测到后直接发 clarify 帧
         # 这里只是 fallback（理论上不会走到）
         return json.dumps({"questions": questions}, ensure_ascii=False)
@@ -84,7 +83,7 @@ class RunCodeInput(BaseModel):
             "如果用户上传了文件，文件会被复制到当前工作目录，直接用文件名读取即可。"
         )
     )
-    file_ids: List[str] = Field(
+    file_ids: list[str] = Field(
         default=[],
         description="需要复制到沙箱工作目录的已上传文件 ID 列表（来自用户上传的附件）。",
     )
@@ -101,10 +100,10 @@ class RunCodeTool(BaseTool):
         "matplotlib 图表会自动保存并返回路径。"
         "**数据文件已自动挂载到工作目录，直接用 pd.read_parquet('文件名') 读取，不需要传 file_ids。**"
     )
-    args_schema: Type[BaseModel] = RunCodeInput
+    args_schema: type[BaseModel] = RunCodeInput
 
     # ── 安全默认值（借鉴 cc-haha）──
-    is_concurrency_safe: bool = False   # 代码执行有副作用，不可并发
+    is_concurrency_safe: bool = False  # 代码执行有副作用，不可并发
     is_read_only: bool = False
     is_destructive: bool = False
     max_result_chars: int = TOOL_DEFAULTS["max_result_chars"]
@@ -115,11 +114,11 @@ class RunCodeTool(BaseTool):
     def _run(
         self,
         code: str,
-        file_ids: List[str] | None = None,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        file_ids: list[str] | None = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
-        from ..sandbox.executor import SandboxExecutor
         from ..config import get_settings
+        from ..sandbox.executor import SandboxExecutor
 
         executor = SandboxExecutor()
 
@@ -141,7 +140,13 @@ class RunCodeTool(BaseTool):
             if data_dir.exists():
                 for f in data_dir.iterdir():
                     if f.is_file() and f.suffix.lower() in (
-                        ".xlsx", ".xls", ".csv", ".tsv", ".txt", ".json", ".dat"
+                        ".xlsx",
+                        ".xls",
+                        ".csv",
+                        ".tsv",
+                        ".txt",
+                        ".json",
+                        ".dat",
                     ):
                         extra_files.append(str(f))
                         logger.info("自动挂载数据文件: %s", f.name)

@@ -1,11 +1,14 @@
 """用户画像 API — 角色选择、水平诊断、进度查询."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from ..learning.schemas import (
-    AgentRole, UserLevel, UserProfile, RoleProfile,
-    SelfAssessment, LearningGoal,
+    AgentRole,
+    LearningGoal,
+    RoleProfile,
+    SelfAssessment,
+    UserProfile,
 )
 
 profile_router = APIRouter(prefix="/profile", tags=["Profile"])
@@ -13,9 +16,12 @@ profile_router = APIRouter(prefix="/profile", tags=["Profile"])
 
 # ── 请求/响应模型 ─────────────────────────────────────
 
+
 class DiagnoseRequest(BaseModel):
     role: str = "modeler"
-    self_assessment: dict | None = None  # {math_level, programming_level, writing_level, modeling_experience}
+    self_assessment: dict | None = (
+        None  # {math_level, programming_level, writing_level, modeling_experience}
+    )
     goal: str = "国赛"
     weekly_hours: int = 10
 
@@ -36,6 +42,7 @@ def _get_or_create(user_id: str) -> UserProfile:
 
 
 # ── 路由 ─────────────────────────────────────────────
+
 
 @profile_router.post("/diagnose", response_model=ProfileResponse)
 async def diagnose(req: DiagnoseRequest):
@@ -105,9 +112,7 @@ async def get_progress():
     # 统计
     pstats = pstore.get_stats("default")
     persisted_events = lstore.list_events("default")
-    completed_units = len({
-        r["unit_id"] for r in persisted_events if r["event_type"] == "learn"
-    })
+    completed_units = len({r["unit_id"] for r in persisted_events if r["event_type"] == "learn"})
     streak_days = _calc_streak_dates(
         pstore.active_dates("default") | lstore.active_dates("default")
     )
@@ -121,9 +126,9 @@ async def get_progress():
             "streak_days": streak_days,
             "total_answers": pstats["total_answers"],
             "correct_answers": pstats["correct_answers"],
-            "accuracy": round(
-                pstats["correct_answers"] / pstats["total_answers"] * 100, 1
-            ) if pstats["total_answers"] else 0,
+            "accuracy": round(pstats["correct_answers"] / pstats["total_answers"] * 100, 1)
+            if pstats["total_answers"]
+            else 0,
             "wrong_questions": pstats["wrong_questions"],
             "mastered_questions": pstats["mastered_questions"],
             "unlocked_achievements": unlocked_count,
@@ -139,7 +144,9 @@ async def get_progress():
         ],
         "roles": {
             "modeler": round(tracker.get_role_overall("default", role_skill_ids["modeler"]), 2),
-            "programmer": round(tracker.get_role_overall("default", role_skill_ids["programmer"]), 2),
+            "programmer": round(
+                tracker.get_role_overall("default", role_skill_ids["programmer"]), 2
+            ),
             "writer": round(tracker.get_role_overall("default", role_skill_ids["writer"]), 2),
         },
         "weekly": _weekly_message(
@@ -188,15 +195,18 @@ def _replay_events_to_tracker(tracker) -> None:
         if row["id"] in replayed:
             continue
         replayed.add(row["id"])
-        tracker.update_from_event("default", LearningEvent(
-            event_id=f"replay_{row['id']}",
-            user_id="default",
-            unit_id=row["unit_id"],
-            skill_ids=[row["unit_id"]],
-            event_type=row["event_type"],
-            score=row["score"],
-            created_at=_parse_naive_dt(row["created_at"]),
-        ))
+        tracker.update_from_event(
+            "default",
+            LearningEvent(
+                event_id=f"replay_{row['id']}",
+                user_id="default",
+                unit_id=row["unit_id"],
+                skill_ids=[row["unit_id"]],
+                event_type=row["event_type"],
+                score=row["score"],
+                created_at=_parse_naive_dt(row["created_at"]),
+            ),
+        )
 
     from ..learning.quiz_bank import get_question
 
@@ -208,15 +218,18 @@ def _replay_events_to_tracker(tracker) -> None:
         # skill 以单元为准(与角色掌握度列表对齐),题目反查单元
         q = get_question(row["question_id"])
         unit_id = q["unit_id"] if q else row["question_id"]
-        tracker.update_from_event("default", LearningEvent(
-            event_id=key,
-            user_id="default",
-            unit_id=unit_id,
-            skill_ids=[unit_id],
-            event_type="practice",
-            score=1.0 if row["is_correct"] else 0.0,
-            created_at=_parse_naive_dt(row["created_at"]),
-        ))
+        tracker.update_from_event(
+            "default",
+            LearningEvent(
+                event_id=key,
+                user_id="default",
+                unit_id=unit_id,
+                skill_ids=[unit_id],
+                event_type="practice",
+                score=1.0 if row["is_correct"] else 0.0,
+                created_at=_parse_naive_dt(row["created_at"]),
+            ),
+        )
 
 
 def _calc_streak_dates(dates: set[str]) -> int:
@@ -237,7 +250,7 @@ def _calc_streak_dates(dates: set[str]) -> int:
 
 def _build_calendar(active_dates: set[str]) -> list[dict]:
     """近 12 周每日活跃计数(GitHub 热力图数据: 无活动=count 0 也返回)。"""
-    from datetime import date, datetime, timedelta
+    from datetime import datetime, timedelta
 
     today = datetime.now().date()
     # 对齐到本周一(周一为一周起点), 覆盖前 11 周 + 本周
@@ -245,10 +258,12 @@ def _build_calendar(active_dates: set[str]) -> list[dict]:
     result = []
     for i in range(84):  # 12 周 × 7 天
         d = start + timedelta(days=i)
-        result.append({
-            "date": d.isoformat(),
-            "count": 1 if d.isoformat() in active_dates else 0,
-        })
+        result.append(
+            {
+                "date": d.isoformat(),
+                "count": 1 if d.isoformat() in active_dates else 0,
+            }
+        )
     return result
 
 

@@ -10,7 +10,6 @@ Provides:
 from __future__ import annotations
 
 from operator import itemgetter
-from typing import Any, List, Optional
 
 from langchain_core.documents import Document
 from langchain_core.language_models import BaseChatModel
@@ -18,12 +17,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import (
-    Runnable,
-    RunnableLambda,
-    RunnablePassthrough,
     RunnableSerializable,
 )
-
 
 # ── document formatting ────────────────────────────────────────────────
 
@@ -35,7 +30,7 @@ def _trim_doc(doc: Document, max_len: int = 1000) -> str:
     return content
 
 
-def format_docs(docs: List[Document]) -> str:
+def format_docs(docs: list[Document]) -> str:
     """Render retrieved documents as a formatted context block for the LLM."""
     if not docs:
         return "（知识库中未找到相关参考资料）"
@@ -47,7 +42,7 @@ def format_docs(docs: List[Document]) -> str:
         "problem": "竞赛真题",
     }
 
-    parts: List[str] = []
+    parts: list[str] = []
     for i, doc in enumerate(docs, start=1):
         meta = doc.metadata
         label = type_labels.get(meta.get("type", ""), "参考资料")
@@ -55,25 +50,22 @@ def format_docs(docs: List[Document]) -> str:
         score = meta.get("score")
         score_str = f" [相关性: {score:.2f}]" if score is not None else ""
 
-        parts.append(
-            f"### 参考 {i}: [{label}] {name}{score_str}\n\n"
-            f"{_trim_doc(doc)}\n"
-        )
+        parts.append(f"### 参考 {i}: [{label}] {name}{score_str}\n\n{_trim_doc(doc)}\n")
 
     return "\n".join(parts)
 
 
 def format_kb_context(
-    kb_methods: Optional[List[dict]] = None,
-    kb_papers: Optional[List[dict]] = None,
-    kb_templates: Optional[List[dict]] = None,
-    kb_problems: Optional[List[dict]] = None,
+    kb_methods: list[dict] | None = None,
+    kb_papers: list[dict] | None = None,
+    kb_templates: list[dict] | None = None,
+    kb_problems: list[dict] | None = None,
 ) -> str:
     """Build a combined KB context string from AgentState fields.
 
     Use this inside LangGraph nodes to inject KB results into prompts.
     """
-    sections: List[str] = []
+    sections: list[str] = []
 
     if kb_problems:
         problems_text = "\n".join(

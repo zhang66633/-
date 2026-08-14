@@ -199,12 +199,15 @@ D. 只算后半程:$8 + 5 = 13$ 分钟
 import heapq
 
 # Dijkstra: 例题 1 的无向图 (0=A, 1=B, 2=C, 3=D, 4=E, 5=F)
-adj = {0: [(1, 4), (2, 2)],
-       1: [(0, 4), (2, 1), (3, 5)],
-       2: [(0, 2), (1, 1), (3, 8), (4, 10)],
-       3: [(1, 5), (2, 8), (4, 2), (5, 6)],
-       4: [(2, 10), (3, 2), (5, 3)],
-       5: [(3, 6), (4, 3)]}
+adj = {
+    0: [(1, 4), (2, 2)],
+    1: [(0, 4), (2, 1), (3, 5)],
+    2: [(0, 2), (1, 1), (3, 8), (4, 10)],
+    3: [(1, 5), (2, 8), (4, 2), (5, 6)],
+    4: [(2, 10), (3, 2), (5, 3)],
+    5: [(3, 6), (4, 3)],
+}
+
 
 def dijkstra(n, adj, s):
     dist = [float("inf")] * n
@@ -213,7 +216,7 @@ def dijkstra(n, adj, s):
     h = [(0, s)]
     while h:
         d, u = heapq.heappop(h)
-        if d > dist[u]:          # 过时的堆条目, 跳过
+        if d > dist[u]:  # 过时的堆条目, 跳过
             continue
         for v, w in adj[u]:
             if d + w < dist[v]:
@@ -222,13 +225,15 @@ def dijkstra(n, adj, s):
                 heapq.heappush(h, (d + w, v))
     return dist, prev
 
+
 dist, prev = dijkstra(6, adj, 0)
-print("dist:", dist)              # [0, 3, 2, 8, 10, 13]
-path, v = [], 5                   # 回溯 A -> F 的路径
+print("dist:", dist)  # [0, 3, 2, 8, 10, 13]
+path, v = [], 5  # 回溯 A -> F 的路径
 while v != -1:
     path.append(v)
     v = prev[v]
-print("A -> F 路径:", path[::-1]) # [0, 2, 1, 3, 4, 5] = A-C-B-D-E-F
+print("A -> F 路径:", path[::-1])  # [0, 2, 1, 3, 4, 5] = A-C-B-D-E-F
+
 
 # Floyd: 例题 2 的 4 顶点图
 def floyd(n, edges):
@@ -244,6 +249,7 @@ def floyd(n, edges):
                 if D[i][k] + D[k][j] < D[i][j]:
                     D[i][j] = D[i][k] + D[k][j]
     return D
+
 
 print("Floyd 矩阵:", floyd(4, [(0, 1, 3), (0, 3, 7), (1, 2, 2), (2, 3, 1)]))
 # [[0,3,5,6],[3,0,2,3],[5,2,0,1],[6,3,1,0]]

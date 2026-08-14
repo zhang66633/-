@@ -190,12 +190,14 @@ D. DP 解背包只对小容量有效,所以它不算算法
 from functools import lru_cache
 import numpy as np
 
+
 # 自顶向下:记忆化(斐波那契)
 @lru_cache(maxsize=None)
 def fib(n):
     return n if n < 2 else fib(n - 1) + fib(n - 2)
 
-print(fib(30))                    # 832040, 指数级裸递归 → 线性记忆化
+
+print(fib(30))  # 832040, 指数级裸递归 → 线性记忆化
 
 # 自底向上:0-1 背包(例 2)
 v, w, W = [6, 10, 12], [2, 3, 4], 5
@@ -203,22 +205,34 @@ n = len(v)
 dp = np.zeros((n + 1, W + 1), dtype=int)
 for i in range(1, n + 1):
     for k in range(W + 1):
-        dp[i][k] = dp[i - 1][k]                      # 不装
-        if k >= w[i - 1]:                            # 装(注意下标偏移)
+        dp[i][k] = dp[i - 1][k]  # 不装
+        if k >= w[i - 1]:  # 装(注意下标偏移)
             dp[i][k] = max(dp[i][k], dp[i - 1][k - w[i - 1]] + v[i - 1])
-print(dp[n][W])                    # 16
+print(dp[n][W])  # 16
 
 # 分层图最短路(例 1):节点按拓扑序编号,dp[v] = min(dp[u] + c(u,v))
 # 边表:(起点, 终点, 权值), 拓扑序: A=0, B1..B3=1..3, C1..C2=4..5, D=6
-edges = [(0,1,2),(0,2,4),(0,3,3),(1,4,7),(1,5,4),(2,4,3),(2,5,2),
-         (3,4,4),(3,5,1),(4,6,1),(5,6,5)]
+edges = [
+    (0, 1, 2),
+    (0, 2, 4),
+    (0, 3, 3),
+    (1, 4, 7),
+    (1, 5, 4),
+    (2, 4, 3),
+    (2, 5, 2),
+    (3, 4, 4),
+    (3, 5, 1),
+    (4, 6, 1),
+    (5, 6, 5),
+]
 N, INF = 7, float("inf")
-dp = [INF] * N; dp[6] = 0                            # 终点 D 距离 0
-for u in range(N - 1, -1, -1):                       # 按拓扑序倒推
+dp = [INF] * N
+dp[6] = 0  # 终点 D 距离 0
+for u in range(N - 1, -1, -1):  # 按拓扑序倒推
     for a, b, c in edges:
         if a == u:
             dp[a] = min(dp[a], dp[b] + c)
-print(dp[0])                       # 8
+print(dp[0])  # 8
 ```
 
 ## 📚 延伸阅读

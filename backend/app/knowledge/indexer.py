@@ -65,7 +65,9 @@ def index_knowledge_base(
     if dry_run:
         click.echo(f"[dry-run] Would index from: {kb_path}")
         click.echo(f"[dry-run] Would persist to:  {persist_path}")
-        click.echo(f"[dry-run] Mode:              {'incremental' if incremental else 'full rebuild'}")
+        click.echo(
+            f"[dry-run] Mode:              {'incremental' if incremental else 'full rebuild'}"
+        )
 
         # Count files without embedding
         loader = __import__("app.knowledge.loader", fromlist=["KnowledgeBaseLoader"])

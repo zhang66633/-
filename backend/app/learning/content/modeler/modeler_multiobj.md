@@ -176,12 +176,14 @@ import numpy as np
 
 rng = np.random.default_rng(2026)
 
+
 def zdt1(x):
     n = x.shape[1]
     f1 = x[:, 0]
     g = 1 + 9 * np.sum(x[:, 1:], axis=1) / (n - 1)
     f2 = g * (1 - np.sqrt(f1 / g))
     return np.stack([f1, f2], axis=1)
+
 
 def nsga2(f, dim=10, pop=100, gens=250, pc=0.9, eta_c=20.0, eta_m=20.0):
     N = pop
@@ -196,37 +198,49 @@ def nsga2(f, dim=10, pop=100, gens=250, pc=0.9, eta_c=20.0, eta_m=20.0):
         for i in range(0, N, 2):
             p1, p2 = P[i], P[i + 1]
             u = rng.random(dim)
-            beta = np.where(u <= 0.5, (2 * u) ** (1 / (eta_c + 1)),
-                            (2 * (1 - u)) ** (-1 / (eta_c + 1)))
+            beta = np.where(
+                u <= 0.5, (2 * u) ** (1 / (eta_c + 1)), (2 * (1 - u)) ** (-1 / (eta_c + 1))
+            )
             if rng.random() < pc:
                 c1 = 0.5 * ((1 + beta) * p1 + (1 - beta) * p2)
                 c2 = 0.5 * ((1 - beta) * p1 + (1 + beta) * p2)
             else:
                 c1, c2 = p1.copy(), p2.copy()
             mu, r = rng.random(dim), rng.random(dim)
-            delta = np.where(mu < 0.5, (2 * mu) ** (1 / (eta_m + 1)) - 1,
-                             1 - (2 * (1 - mu)) ** (1 / (eta_m + 1)))
+            delta = np.where(
+                mu < 0.5, (2 * mu) ** (1 / (eta_m + 1)) - 1, 1 - (2 * (1 - mu)) ** (1 / (eta_m + 1))
+            )
             c1 = np.clip(c1 + (r < 1.0 / dim) * delta, 0, 1)
             c2 = np.clip(c2 + (r < 1.0 / dim) * delta, 0, 1)
             Q[i], Q[i + 1] = c1, c2
         # ---- 合并 + 非支配排序 + 拥挤度截断(精英保留) ----
-        R = np.vstack([P, Q]); F = f(R)
-        S = [[] for _ in range(2 * N)]; nn = [0] * (2 * N)
-        fronts = []; f1_ = []
+        R = np.vstack([P, Q])
+        F = f(R)
+        S = [[] for _ in range(2 * N)]
+        nn = [0] * (2 * N)
+        fronts = []
+        f1_ = []
         for i in range(2 * N):
             for j in range(2 * N):
-                if i == j: continue
-                if dominates(F[i], F[j]): S[i].append(j)
-                elif dominates(F[j], F[i]): nn[i] += 1
-            if nn[i] == 0: f1_.append(i)
-        fronts.append(f1_); k = 0
+                if i == j:
+                    continue
+                if dominates(F[i], F[j]):
+                    S[i].append(j)
+                elif dominates(F[j], F[i]):
+                    nn[i] += 1
+            if nn[i] == 0:
+                f1_.append(i)
+        fronts.append(f1_)
+        k = 0
         while fronts[k]:
             nxt = []
             for i in fronts[k]:
                 for j in S[i]:
                     nn[j] -= 1
-                    if nn[j] == 0: nxt.append(j)
-            k += 1; fronts.append(nxt)
+                    if nn[j] == 0:
+                        nxt.append(j)
+            k += 1
+            fronts.append(nxt)
         fronts.pop()
         sel = []
         for fr in fronts:
@@ -241,17 +255,18 @@ def nsga2(f, dim=10, pop=100, gens=250, pc=0.9, eta_c=20.0, eta_m=20.0):
                     rng_ = F[fr[o[-1]], m] - F[fr[o[0]], m]
                     if rng_ > 0:
                         cds[o[1:-1]] += (F[fr[o[2:]], m] - F[fr[o[:-2]], m]) / rng_
-                take = np.argsort(-cds)[:N - len(sel)]
+                take = np.argsort(-cds)[: N - len(sel)]
                 sel += [fr[t] for t in take]
                 break
         P = R[sel]
     return f(P)
 
+
 F = nsga2(zdt1)
 ref = np.linspace(0, 1, 1000)
-refF = np.stack([ref, 1 - np.sqrt(ref)], axis=1)     # ZDT1 真实前沿
+refF = np.stack([ref, 1 - np.sqrt(ref)], axis=1)  # ZDT1 真实前沿
 igd = np.min(np.sqrt(((F[:, None] - refF[None]) ** 2).sum(-1)), axis=0).mean()
-print("IGD = %.5f" % igd)          # ≈ 0.0048
+print("IGD = %.5f" % igd)  # ≈ 0.0048
 print("前沿 f1 覆盖: [%.3f, %.3f]" % (F[:, 0].min(), F[:, 0].max()))
 ```
 

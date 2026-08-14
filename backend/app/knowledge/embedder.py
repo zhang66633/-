@@ -12,7 +12,6 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
@@ -25,9 +24,11 @@ def _invalidate_retriever_cache() -> None:
     """知识库内容变更后使共享检索器缓存（loader 解析 + BM25）失效。懒导入避免循环依赖。"""
     try:
         from .retriever import invalidate_shared_retriever
+
         invalidate_shared_retriever()
     except Exception:
         pass  # 检索器未初始化（如首次建索引期）时静默
+
 
 # ── per-file hash tracking metadata file ────────────────────────────────
 
@@ -128,9 +129,7 @@ class KBEmbedder:
             Total number of documents in the index after completion.
         """
         if self.embeddings is None:
-            raise RuntimeError(
-                self._unavailable_reason or "embedding 未配置，无法构建向量索引"
-            )
+            raise RuntimeError(self._unavailable_reason or "embedding 未配置，无法构建向量索引")
         if incremental and self.persist_dir.exists():
             return self._incremental_update()
         else:
@@ -179,13 +178,12 @@ class KBEmbedder:
         docs_by_file, file_to_ids = self._scan_all_files()
         old_hashes = self._load_hashes()
 
-        new_files: Dict[str, Set[str]] = {}  # path → {doc_id,...}
-        changed_files: Dict[str, Set[str]] = {}
-        deleted_sources: List[str] = []  # YAML paths that no longer exist
-        deleted_ids: List[str] = []      # doc IDs to remove
+        new_files: dict[str, set[str]] = {}  # path → {doc_id,...}
+        changed_files: dict[str, set[str]] = {}
+        deleted_sources: list[str] = []  # YAML paths that no longer exist
 
         # Detect changes
-        all_seen_ids: Set[str] = set()
+        all_seen_ids: set[str] = set()
         for yml_path, ids in file_to_ids.items():
             all_seen_ids.update(ids)
             old_hash = old_hashes.get(yml_path)
@@ -201,7 +199,7 @@ class KBEmbedder:
                 deleted_sources.append(old_path)
 
         # Find old doc IDs associated with changed/deleted files
-        stale_ids: Set[str] = set()
+        stale_ids: set[str] = set()
         stored_docs = old_hashes.get("__doc_ids__", {})
         if isinstance(stored_docs, dict):
             for old_path in list(changed_files.keys()) + deleted_sources:
@@ -224,11 +222,11 @@ class KBEmbedder:
                 pass  # ChromaDB may not support batch delete by ID in all versions
 
         # Rebuild docs for new + changed files
-        all_sources: List[str] = []
+        all_sources: list[str] = []
         all_sources.extend(new_files.keys())
         all_sources.extend(changed_files.keys())
 
-        rebuilt_docs: List[Document] = []
+        rebuilt_docs: list[Document] = []
         for yml_path in all_sources:
             rebuilt_docs.extend(self._yaml_file_to_documents(Path(yml_path)))
 
@@ -290,7 +288,9 @@ class KBEmbedder:
         cn = collection_name or self._COLLECTION_NAME
         if self._http_url:
             from urllib.parse import urlparse
+
             import chromadb
+
             if self._http_client is None:
                 parsed = urlparse(self._http_url)
                 host = parsed.hostname or "localhost"
@@ -311,9 +311,7 @@ class KBEmbedder:
     def load_existing(self) -> Chroma:
         """Load an existing ChromaDB index (raises if not yet built)."""
         if self.embeddings is None:
-            raise RuntimeError(
-                getattr(self, "_unavailable_reason", "embedding 未配置")
-            )
+            raise RuntimeError(getattr(self, "_unavailable_reason", "embedding 未配置"))
         return self._create_chroma()
 
     @staticmethod
@@ -323,9 +321,9 @@ class KBEmbedder:
 
     # ── file scanning ───────────────────────────────────────────────
 
-    def _all_yaml_to_documents(self) -> List[Document]:
+    def _all_yaml_to_documents(self) -> list[Document]:
         """Convert all YAML files in kb_root to Documents."""
-        docs: List[Document] = []
+        docs: list[Document] = []
         docs += self._cards_to_documents()
         docs += self._papers_to_documents()
         docs += self._templates_to_documents()
@@ -334,7 +332,7 @@ class KBEmbedder:
             doc.metadata = self._clean_metadata(doc.metadata)
         return docs
 
-    def _yaml_file_to_documents(self, yaml_path: Path) -> List[Document]:
+    def _yaml_file_to_documents(self, yaml_path: Path) -> list[Document]:
         """Convert a single YAML file to its Document representation(s).
 
         Delegates to the loader to determine whether the file is a method
@@ -343,6 +341,7 @@ class KBEmbedder:
         data = None
         try:
             import yaml
+
             data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
         except Exception:
             return []
@@ -352,27 +351,31 @@ class KBEmbedder:
 
         if "method_card" in data:
             from .schemas import MethodCard
+
             card = MethodCard(**data["method_card"])
             return [self._card_to_document(card)]
         elif "paper" in data:
             from .schemas import Paper
+
             paper = Paper(**data["paper"])
             return [self._paper_to_document(paper)]
         elif "template" in data:
             from .schemas import Template
+
             tpl = Template(**data["template"])
             return [self._template_to_document(tpl)]
         elif "problem" in data:
             from .schemas import Problem
+
             prob = Problem(**data["problem"])
             return [self._problem_to_document(prob)]
 
         return []
 
-    def _scan_all_files(self) -> Tuple[List[Document], Dict[str, Set[str]]]:
+    def _scan_all_files(self) -> tuple[list[Document], dict[str, set[str]]]:
         """Scan all YAML files and return (documents, {filepath: {doc_ids}})."""
         docs = self._all_yaml_to_documents()
-        file_to_ids: Dict[str, Set[str]] = {}
+        file_to_ids: dict[str, set[str]] = {}
 
         # Map each document back to its source file
         for doc in docs:
@@ -384,7 +387,7 @@ class KBEmbedder:
 
     # ── content → Document converters (with source tracking) ────────
 
-    def _cards_to_documents(self) -> List[Document]:
+    def _cards_to_documents(self) -> list[Document]:
         docs = []
         source_map = self._build_source_map("methods")
         for card in self.loader.load_all_methods():
@@ -395,7 +398,7 @@ class KBEmbedder:
             docs.append(doc)
         return docs
 
-    def _papers_to_documents(self) -> List[Document]:
+    def _papers_to_documents(self) -> list[Document]:
         docs = []
         source_map = self._build_source_map("papers")
         for paper in self.loader.load_all_papers():
@@ -406,7 +409,7 @@ class KBEmbedder:
             docs.append(doc)
         return docs
 
-    def _templates_to_documents(self) -> List[Document]:
+    def _templates_to_documents(self) -> list[Document]:
         docs = []
         source_map = self._build_source_map("templates")
         for tpl in self.loader.load_all_templates():
@@ -417,7 +420,7 @@ class KBEmbedder:
             docs.append(doc)
         return docs
 
-    def _problems_to_documents(self) -> List[Document]:
+    def _problems_to_documents(self) -> list[Document]:
         docs = []
         source_map = self._build_source_map("problems")
         for prob in self.loader.load_all_problems():
@@ -428,17 +431,18 @@ class KBEmbedder:
             docs.append(doc)
         return docs
 
-    def _build_source_map(self, subdir: str) -> Dict[str, Path]:
+    def _build_source_map(self, subdir: str) -> dict[str, Path]:
         """一次遍历 subdir 下所有 YAML，建 {doc_id: 源文件路径} 映射。
 
         替代逐文档调用 `_find_source_file` 的 O(D×F) 扫描，解析成本从
         O(文档数 × 文件数) 降到 O(文件数)，映射在整个索引构建过程中复用。
         """
         search_dir = self.kb_root / subdir
-        mapping: Dict[str, Path] = {}
+        mapping: dict[str, Path] = {}
         if not search_dir.exists():
             return mapping
         import yaml
+
         for yf in search_dir.rglob("*.yaml"):
             try:
                 data = yaml.safe_load(yf.read_text(encoding="utf-8"))
@@ -457,21 +461,25 @@ class KBEmbedder:
     @staticmethod
     def _card_to_document(card) -> Document:
         from .retriever import HybridRetriever
+
         return HybridRetriever._card_to_document(card)
 
     @staticmethod
     def _paper_to_document(paper) -> Document:
         from .retriever import HybridRetriever
+
         return HybridRetriever._paper_to_document(paper)
 
     @staticmethod
     def _template_to_document(tpl) -> Document:
         from .retriever import HybridRetriever
+
         return HybridRetriever._template_to_document(tpl)
 
     @staticmethod
     def _problem_to_document(prob) -> Document:
         from .retriever import HybridRetriever
+
         return HybridRetriever._problem_to_document(prob)
 
     # ── hash management ─────────────────────────────────────────────
@@ -492,11 +500,11 @@ class KBEmbedder:
         except Exception:
             return {}
 
-    def _save_hashes(self, documents: List[Document]) -> None:
+    def _save_hashes(self, documents: list[Document]) -> None:
         """Compute and persist hashes for all documents currently in the index."""
         # Load existing to preserve records for unchanged files
         hashes = self._load_hashes()
-        doc_map: Dict[str, List[str]] = {}  # path → [doc_id, ...]
+        doc_map: dict[str, list[str]] = {}  # path → [doc_id, ...]
 
         for doc in documents:
             src = doc.metadata.get("_source_file")

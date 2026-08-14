@@ -20,13 +20,13 @@
 
 ```python
 def genetic_algorithm(pop_size, generations):
-    pop = init_population(pop_size)        # ① 随机初始种群
+    pop = init_population(pop_size)  # ① 随机初始种群
     for gen in range(generations):
-        fitness = evaluate(pop)            # ② 计算适应度
-        parents = select(pop, fitness)     # ③ 选择:适者多繁殖
-        offspring = crossover(parents)     # ④ 交叉:交换基因片段
-        offspring = mutate(offspring)      # ⑤ 变异:随机扰动
-        pop = offspring                    #    换代(通常保留精英)
+        fitness = evaluate(pop)  # ② 计算适应度
+        parents = select(pop, fitness)  # ③ 选择:适者多繁殖
+        offspring = crossover(parents)  # ④ 交叉:交换基因片段
+        offspring = mutate(offspring)  # ⑤ 变异:随机扰动
+        pop = offspring  #    换代(通常保留精英)
     return best(pop)
 ```
 
@@ -91,16 +91,20 @@ $$F(x) = f(x) + \lambda \sum_i \max(0,\ g_i(x))^2$$
 import numpy as np
 from scipy.optimize import differential_evolution
 
+
 def objective(x):
     return x * np.sin(10 * np.pi * x) + 2
 
-POP, GEN, L = 60, 80, 22          # 种群、代数、染色体位数
+
+POP, GEN, L = 60, 80, 22  # 种群、代数、染色体位数
 LB, UB = 0.0, 4.0
-PC, PM = 0.85, 0.01               # 交叉率、变异率
+PC, PM = 0.85, 0.01  # 交叉率、变异率
+
 
 def decode(pop):
     powers = 2 ** np.arange(L - 1, -1, -1)
     return LB + (UB - LB) * (pop @ powers) / (2**L - 1)
+
 
 def run_ga(seed=0):
     rng = np.random.default_rng(seed)
@@ -109,9 +113,9 @@ def run_ga(seed=0):
     for _ in range(GEN):
         x = decode(pop)
         raw = objective(x)
-        fit = raw - raw.min() + 1e-9          # 平移到非负:轮盘赌要求 f≥0
+        fit = raw - raw.min() + 1e-9  # 平移到非负:轮盘赌要求 f≥0
         history.append(float(raw.max()))
-        elite = pop[int(fit.argmax())].copy()    # 精英保留
+        elite = pop[int(fit.argmax())].copy()  # 精英保留
         # 轮盘赌选择
         p = fit / fit.sum()
         parents = pop[rng.choice(POP, size=POP, p=p)]
@@ -120,28 +124,29 @@ def run_ga(seed=0):
         for i in range(pairs.shape[0]):
             if rng.random() < PC:
                 k = int(rng.integers(1, L))
-                pairs[i, 0, k:], pairs[i, 1, k:] = (
-                    pairs[i, 1, k:].copy(), pairs[i, 0, k:].copy())
+                pairs[i, 0, k:], pairs[i, 1, k:] = (pairs[i, 1, k:].copy(), pairs[i, 0, k:].copy())
         pop = pairs.reshape(POP, L)
         # 变异:按位翻转
-        pop ^= (rng.random((POP, L)) < PM)
-        pop[0] = elite                             # 精英顶掉第一个
+        pop ^= rng.random((POP, L)) < PM
+        pop[0] = elite  # 精英顶掉第一个
     x = decode(pop)
     best = x[np.argmax(objective(x))]
     return best, history
 
+
 best_x, history = run_ga(seed=0)
 print(f"GA 最优解: x={best_x:.4f}, f={objective(best_x):.4f}")
 
-ref = differential_evolution(lambda x: -objective(x[0]),
-                             bounds=[(0, 4)], seed=0)
+ref = differential_evolution(lambda x: -objective(x[0]), bounds=[(0, 4)], seed=0)
 print(f"差分进化: x={ref.x[0]:.4f}, f={-ref.fun:.4f}")
 
 # 收敛曲线
 import matplotlib.pyplot as plt
+
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(history, lw=2)
-ax.set_xlabel("代数"); ax.set_ylabel("当前最优值")
+ax.set_xlabel("代数")
+ax.set_ylabel("当前最优值")
 ax.set_title("GA 收敛曲线")
 ax.grid(alpha=0.3)
 fig.savefig("ga_convergence.png", dpi=200)
@@ -168,15 +173,19 @@ from scipy.optimize import minimize
 
 rng = np.random.default_rng(1)
 POP, GEN = 60, 100
-LB = np.array([0.0, 0.0]); UB = np.array([5.0, 5.0])
-LAMBDA = 100.0                       # 罚系数
+LB = np.array([0.0, 0.0])
+UB = np.array([5.0, 5.0])
+LAMBDA = 100.0  # 罚系数
+
 
 def f(v):
     return (v[0] - 2) ** 2 + (v[1] - 3) ** 2
 
-def fitness(v):                      # 罚函数:越大越好
+
+def fitness(v):  # 罚函数:越大越好
     pen = max(0.0, v[0] + v[1] - 4.0)
-    return -(f(v) + LAMBDA * pen ** 2)
+    return -(f(v) + LAMBDA * pen**2)
+
 
 pop = rng.uniform(LB, UB, size=(POP, 2))
 history = []
@@ -203,12 +212,18 @@ for _ in range(GEN):
     pop[0] = elite
 
 best = pop[np.argmax([fitness(v) for v in pop])]
-print(f"GA 最优解: ({best[0]:.4f}, {best[1]:.4f}), "
-      f"f={f(best):.4f}, 约束余量 x+y-4 = {best[0]+best[1]-4:.4f}")
+print(
+    f"GA 最优解: ({best[0]:.4f}, {best[1]:.4f}), "
+    f"f={f(best):.4f}, 约束余量 x+y-4 = {best[0] + best[1] - 4:.4f}"
+)
 
-res = minimize(f, x0=[0.0, 0.0], method="SLSQP",
-               bounds=[(0, 5), (0, 5)],
-               constraints=[{"type": "ineq", "fun": lambda v: 4 - v[0] - v[1]}])
+res = minimize(
+    f,
+    x0=[0.0, 0.0],
+    method="SLSQP",
+    bounds=[(0, 5), (0, 5)],
+    constraints=[{"type": "ineq", "fun": lambda v: 4 - v[0] - v[1]}],
+)
 print(f"SLSQP 参考: ({res.x[0]:.4f}, {res.x[1]:.4f}), f={res.fun:.4f}")
 print(f"解析解: (1.5, 2.5), f=0.5")
 ```
@@ -238,26 +253,29 @@ N = 8
 coords = rng.uniform(0, 100, size=(N, 2))
 D = np.linalg.norm(coords[:, None, :] - coords[None, :, :], axis=2)
 
+
 def route_len(route):
     return float(D[route, np.roll(route, -1)].sum())
 
+
 # 暴力枚举(8! = 40320)得到精确最优(向量化计算全部回路长度)
 perms = np.array(list(permutations(range(N))))
-exact = min(D[perms[:, :-1], perms[:, 1:]].sum(axis=1)
-            + D[perms[:, -1], perms[:, 0]])
+exact = min(D[perms[:, :-1], perms[:, 1:]].sum(axis=1) + D[perms[:, -1], perms[:, 0]])
 print(f"精确最优: {exact:.2f}")
 
 POP, GEN = 100, 300
 
+
 def ox_cross(p1, p2):
     a, b = sorted(rng.choice(N, 2, replace=False))
     c1, c2 = np.full(N, -1), np.full(N, -1)
-    c1[a:b], c2[a:b] = p1[a:b], p2[a:b]              # 拷贝父母片段
-    fill1 = [g for g in p2 if g not in p1[a:b]]      # 按对方顺序补齐
+    c1[a:b], c2[a:b] = p1[a:b], p2[a:b]  # 拷贝父母片段
+    fill1 = [g for g in p2 if g not in p1[a:b]]  # 按对方顺序补齐
     fill2 = [g for g in p1 if g not in p2[a:b]]
     pos = [i for i in range(N) if not (a <= i < b)]
     c1[pos], c2[pos] = fill1, fill2
     return c1, c2
+
 
 def swap_mutate(r):
     r = r.copy()
@@ -265,20 +283,21 @@ def swap_mutate(r):
     r[i], r[j] = r[j], r[i]
     return r
 
+
 pop = np.array([rng.permutation(N) for _ in range(POP)])
 history = []
 for _ in range(GEN):
-    fit = np.array([route_len(r) for r in pop])      # 越短越好
+    fit = np.array([route_len(r) for r in pop])  # 越短越好
     history.append(float(fit.min()))
     elite = pop[int(fit.argmin())].copy()
     parents = np.empty_like(pop)
-    for i in range(POP):                             # 锦标赛:取较短的
+    for i in range(POP):  # 锦标赛:取较短的
         cand = rng.integers(0, POP, 3)
         parents[i] = pop[cand[np.argmin(fit[cand])]]
-    for i in range(0, POP, 2):                       # OX 交叉
+    for i in range(0, POP, 2):  # OX 交叉
         if rng.random() < 0.8:
             parents[i], parents[i + 1] = ox_cross(parents[i], parents[i + 1])
-    for i in range(POP):                             # 交换变异
+    for i in range(POP):  # 交换变异
         if rng.random() < 0.25:
             parents[i] = swap_mutate(parents[i])
     pop = parents
@@ -286,8 +305,7 @@ for _ in range(GEN):
 
 best = pop[np.argmin([route_len(r) for r in pop])]
 gap = (route_len(best) - exact) / exact
-print(f"GA 最优路线长度: {route_len(best):.2f}, "
-      f"与精确最优的差距: {gap:.2%}")
+print(f"GA 最优路线长度: {route_len(best):.2f}, 与精确最优的差距: {gap:.2%}")
 print("GA 最优路线:", best.tolist())
 print("最优值演化(每 100 代):", history[::100])
 ```
@@ -362,8 +380,8 @@ D. 结果与有精英保留完全一致
 ```python
 import numpy as np
 
-def binary_ga(objective, LB, UB, L=22, POP=60, GEN=80,
-              PC=0.85, PM=0.01, seed=0):
+
+def binary_ga(objective, LB, UB, L=22, POP=60, GEN=80, PC=0.85, PM=0.01, seed=0):
     rng = np.random.default_rng(seed)
     powers = 2 ** np.arange(L - 1, -1, -1)
     decode = lambda pop: LB + (UB - LB) * (pop @ powers) / (2**L - 1)
@@ -371,7 +389,7 @@ def binary_ga(objective, LB, UB, L=22, POP=60, GEN=80,
     history = []
     for _ in range(GEN):
         raw = objective(decode(pop))
-        fit = raw - raw.min() + 1e-9     # 平移为正:轮盘赌要求非负适应度
+        fit = raw - raw.min() + 1e-9  # 平移为正:轮盘赌要求非负适应度
         history.append(float(raw.max()))
         elite = pop[int(fit.argmax())].copy()
         parents = pop[rng.choice(POP, size=POP, p=fit / fit.sum())]
@@ -379,17 +397,17 @@ def binary_ga(objective, LB, UB, L=22, POP=60, GEN=80,
         for i in range(pairs.shape[0]):
             if rng.random() < PC:
                 k = int(rng.integers(1, L))
-                pairs[i, 0, k:], pairs[i, 1, k:] = (
-                    pairs[i, 1, k:].copy(), pairs[i, 0, k:].copy())
+                pairs[i, 0, k:], pairs[i, 1, k:] = (pairs[i, 1, k:].copy(), pairs[i, 0, k:].copy())
         pop = pairs.reshape(POP, L)
-        pop ^= (rng.random((POP, L)) < PM)
+        pop ^= rng.random((POP, L)) < PM
         pop[0] = elite
     x = decode(pop)
     return x[np.argmax(objective(x))], history
 
+
 f = lambda x: x * np.sin(10 * np.pi * x) + 2
 best, hist = binary_ga(f, 0.0, 4.0)
-print(f"最优解 x={best:.4f}, f={f(best):.4f}")   # x=3.8502, f=5.8501
+print(f"最优解 x={best:.4f}, f={f(best):.4f}")  # x=3.8502, f=5.8501
 ```
 
 ## 📚 延伸阅读

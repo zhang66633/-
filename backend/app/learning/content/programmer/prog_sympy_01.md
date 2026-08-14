@@ -24,12 +24,12 @@ SymPy 操作的是**符号表达式**(精确、可推导),NumPy 操作的是**�
 ```python
 import sympy as sp
 
-x, y = sp.symbols("x y", real=True)      # 声明符号
+x, y = sp.symbols("x y", real=True)  # 声明符号
 expr = (x + y) ** 2
-print(sp.expand(expr))                    # x**2 + 2*x*y + y**2
-print(sp.factor(x**2 - 2*x + 1))          # (x - 1)**2
-print(expr.subs({x: 1, y: 2}))            # 代入 → 9
-print(sp.N(sp.pi, 30))                    # 高精度数值化
+print(sp.expand(expr))  # x**2 + 2*x*y + y**2
+print(sp.factor(x**2 - 2 * x + 1))  # (x - 1)**2
+print(expr.subs({x: 1, y: 2}))  # 代入 → 9
+print(sp.N(sp.pi, 30))  # 高精度数值化
 ```
 
 ### 2. 微积分三件套:diff / integrate / limit
@@ -40,11 +40,11 @@ import sympy as sp
 x = sp.symbols("x")
 f = sp.sin(x) * sp.exp(x)
 
-print("一阶导:", sp.diff(f, x))                    # (sin+cos)*exp
+print("一阶导:", sp.diff(f, x))  # (sin+cos)*exp
 print("二阶导:", sp.diff(f, x, 2))
-print("不定积分:", sp.integrate(x**2, x))          # x**3/3
-print("定积分:", sp.integrate(x**2, (x, 0, 1)))    # 1/3
-print("极限:", sp.limit(sp.sin(x) / x, x, 0))      # 1
+print("不定积分:", sp.integrate(x**2, x))  # x**3/3
+print("定积分:", sp.integrate(x**2, (x, 0, 1)))  # 1/3
+print("极限:", sp.limit(sp.sin(x) / x, x, 0))  # 1
 print("泰勒展开:", sp.series(sp.cos(x), x, 0, 6))  # 1 - x²/2 + x⁴/24 + O(x⁶)
 ```
 
@@ -56,15 +56,15 @@ import sympy as sp
 x = sp.symbols("x")
 
 # 解析解:多项式、线性方程组、可化简的方程
-print(sp.solve(sp.Eq(x**2 - 5*x + 6, 0), x))       # [2, 3]
+print(sp.solve(sp.Eq(x**2 - 5 * x + 6, 0), x))  # [2, 3]
 
 # 无解析解时用 nsolve(数值牛顿法,需给初值)
 eq = sp.Eq(sp.cos(x), x)
-print("nsolve:", sp.nsolve(eq, x, 0.7))             # 约 0.739
+print("nsolve:", sp.nsolve(eq, x, 0.7))  # 约 0.739
 
 # 方程组
 y = sp.symbols("y")
-print(sp.solve([x + y - 5, x - y - 1], [x, y]))    # {x: 3, y: 2}
+print(sp.solve([x + y - 5, x - y - 1], [x, y]))  # {x: 3, y: 2}
 ```
 
 `solve` 返回空列表或报错时,不是 SymPy 的锅——而是方程可能真的**没有解析解**(五次以上多项式的一般情形),换 `nsolve` 或数值方法。
@@ -75,14 +75,14 @@ print(sp.solve([x + y - 5, x - y - 1], [x, y]))    # {x: 3, y: 2}
 import sympy as sp
 
 M = sp.Matrix([[1, 2], [3, 4]])
-print("特征值:", M.eigenvals())          # {5/2 - √33/2: 1, 5/2 + √33/2: 1}
+print("特征值:", M.eigenvals())  # {5/2 - √33/2: 1, 5/2 + √33/2: 1}
 print("逆矩阵:", M.inv())
 
 t = sp.symbols("t")
 P = sp.Function("P")
 r = sp.symbols("r", positive=True)
-eq = sp.Eq(sp.diff(P(t), t), r * P(t))   # dP/dt = rP
-print(sp.dsolve(eq, P(t)))               # P(t) = C1*exp(r*t)
+eq = sp.Eq(sp.diff(P(t), t), r * P(t))  # dP/dt = rP
+print(sp.dsolve(eq, P(t)))  # P(t) = C1*exp(r*t)
 ```
 
 ### 5. lambdify:符号 → 数值的桥
@@ -93,8 +93,8 @@ import numpy as np
 
 x = sp.symbols("x")
 f = sp.sin(x) ** 2 + sp.cos(x) ** 2
-f_num = sp.lambdify(x, f, "numpy")        # 编译成 NumPy 函数
-print(f_num(np.array([0.0, 1.0, 2.0])))   # [1. 1. 1.]
+f_num = sp.lambdify(x, f, "numpy")  # 编译成 NumPy 函数
+print(f_num(np.array([0.0, 1.0, 2.0])))  # [1. 1. 1.]
 ```
 
 `lambdify` 把符号表达式转成**向量化**的数值函数,支持数组输入——推导出的复杂公式(梯度、雅可比、特解)从此可以直接参与数值计算与画图。
@@ -129,10 +129,10 @@ print(f_num(np.array([0.0, 1.0, 2.0])))   # [1. 1. 1.]
 import sympy as sp
 
 x = sp.symbols("x", real=True)
-f = x**3 - 3*x + 2
+f = x**3 - 3 * x + 2
 
-df = sp.diff(f, x)               # 一阶导 3x² - 3
-ddf = sp.diff(f, x, 2)           # 二阶导 6x
+df = sp.diff(f, x)  # 一阶导 3x² - 3
+ddf = sp.diff(f, x, 2)  # 二阶导 6x
 crit = sp.solve(sp.Eq(df, 0), x)
 
 print("f'(x) =", df)
@@ -178,9 +178,15 @@ print("特解:", solution)
 # lambdify 成数值函数,与数值解对照
 params = {r: 0.5, K: 100.0, P0: 5.0}
 P_num = sp.lambdify(t, solution.subs(params), "numpy")
-ivp = solve_ivp(lambda t_, y: 0.5 * y * (1 - y / 100.0),
-                [0, 20], [5.0], rtol=1e-9, atol=1e-11,
-                max_step=0.5, dense_output=True)
+ivp = solve_ivp(
+    lambda t_, y: 0.5 * y * (1 - y / 100.0),
+    [0, 20],
+    [5.0],
+    rtol=1e-9,
+    atol=1e-11,
+    max_step=0.5,
+    dense_output=True,
+)
 ts = np.linspace(0, 20, 100)
 err = float(np.max(np.abs(P_num(ts) - ivp.sol(ts).ravel())))
 print(f"符号解与数值解的最大偏差: {err:.2e}")
@@ -211,16 +217,16 @@ from scipy import integrate
 x = sp.symbols("x", real=True)
 f = sp.exp(-x) * sp.sin(2 * x)
 
-F = sp.integrate(f, (x, 0, sp.oo))         # 符号定积分
+F = sp.integrate(f, (x, 0, sp.oo))  # 符号定积分
 print("符号积分:", F, "=", sp.simplify(F))
 
 f_num = sp.lambdify(x, f, "numpy")
 val, err = integrate.quad(f_num, 0, np.inf)
 print(f"数值积分: {val:.6f} (误差 {err:.1e})")
 
-df = sp.simplify(sp.diff(f, x))            # 导数并化简
+df = sp.simplify(sp.diff(f, x))  # 导数并化简
 print("导数(化简后):", df)
-print("x→∞ 极限:", sp.limit(f, x, sp.oo))   # 0
+print("x→∞ 极限:", sp.limit(f, x, sp.oo))  # 0
 ```
 
 **输出解读**:
@@ -249,6 +255,7 @@ x→∞ 极限: 0
 
 ```python
 import sympy as sp
+
 x = sp.symbols("x")
 print(sp.diff(sp.sin(x) * sp.exp(x), x))
 ```
@@ -308,7 +315,7 @@ import numpy as np
 
 # 1. 符号推导
 x, y = sp.symbols("x y", real=True)
-f = x**3 - 3*x + 2
+f = x**3 - 3 * x + 2
 crit = sp.solve(sp.Eq(sp.diff(f, x), 0), x)
 print("驻点:", crit, "函数值:", [f.subs(x, c) for c in crit])
 
@@ -316,7 +323,8 @@ print("驻点:", crit, "函数值:", [f.subs(x, c) for c in crit])
 print("∫x²dx [0,1] =", sp.integrate(x**2, (x, 0, 1)))
 
 # 3. ODE 求解
-t = sp.symbols("t"); r = sp.symbols("r", positive=True)
+t = sp.symbols("t")
+r = sp.symbols("r", positive=True)
 P = sp.Function("P")
 print("dP/dt=rP 的解:", sp.dsolve(sp.Eq(sp.diff(P(t), t), r * P(t)), P(t)))
 

@@ -11,11 +11,11 @@
 from __future__ import annotations
 
 import json
-import shutil
 import logging
-from datetime import datetime, timezone
+import shutil
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from app.config import get_settings
 
@@ -134,7 +134,7 @@ class WorkingMemory:
         data = {
             "stage": stage,
             "stage_label": STAGE_LABELS.get(stage, stage),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "output_summary": output[:500],
             "output": output,
             **(extra or {}),
@@ -217,6 +217,7 @@ class WorkingMemory:
 
         try:
             from ..core.llm.factory import get_llm
+
             llm = get_llm("analysis")  # 用 analysis 模型做轻量重写
             response = llm.invoke(prompt)
             new_doc = str(response.content).strip()
@@ -269,7 +270,7 @@ class WorkingMemory:
             return
         # 清理旧备份
         backups = sorted(self.session_dir.glob("problem_doc.*.bak"))
-        for old in backups[:-(self._max_backups - 1)]:
+        for old in backups[: -(self._max_backups - 1)]:
             try:
                 old.unlink()
             except Exception:

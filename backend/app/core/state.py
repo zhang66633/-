@@ -1,17 +1,17 @@
 """AgentState — 所有智能体共享的状态定义。"""
 
-from typing import Annotated, List, Literal, Optional
-from typing_extensions import TypedDict
+from typing import Annotated, Literal
 
-from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+from typing_extensions import TypedDict
 
 
 class AgentState(TypedDict):
     """LangGraph 共享状态，所有节点读写此 State。"""
 
     # --- 消息 ---
-    messages: Annotated[List[BaseMessage], add_messages]
+    messages: Annotated[list[BaseMessage], add_messages]
 
     # --- 模式 ---
     mode: Literal["teach", "execute"]
@@ -24,42 +24,44 @@ class AgentState(TypedDict):
     data_dependency: Literal["theoretical", "given_data", "self_collect"]
 
     # --- 知识库上下文 ---
-    kb_methods: List[dict]
-    kb_papers: List[dict]
-    kb_templates: List[dict]
-    kb_problems: List[dict]
+    kb_methods: list[dict]
+    kb_papers: list[dict]
+    kb_templates: list[dict]
+    kb_problems: list[dict]
 
     # --- 动态执行计划 ---
-    execution_plan: List[str]       # 例如: ["analysis", "modeling", "solving", "verification", "writing"]
+    execution_plan: list[
+        str
+    ]  # 例如: ["analysis", "modeling", "solving", "verification", "writing"]
     current_step_index: int
     retry_count: int
     max_retries: int
 
     # --- 各 Agent 输出 ---
-    analysis_output: Optional[str]
-    model_output: Optional[str]
-    preprocessed_data: Optional[str]  # 数据预处理节点输出
-    solving_output: Optional[str]
-    verification_output: Optional[str]
-    writing_output: Optional[str]
+    analysis_output: str | None
+    model_output: str | None
+    preprocessed_data: str | None  # 数据预处理节点输出
+    solving_output: str | None
+    verification_output: str | None
+    writing_output: str | None
 
     # --- 回退控制 ---
-    verification_passed: Optional[bool]
-    verification_feedback: Optional[str]
-    rollback_target: Optional[str]
+    verification_passed: bool | None
+    verification_feedback: str | None
+    rollback_target: str | None
 
     # --- 用户 API Key 配置 ---
-    api_key_config: Optional[dict]
+    api_key_config: dict | None
 
     # --- 题目数据附件 ---
-    data_files: List[dict]          # 本题关联的数据文件信息 [{filename, columns, rows, ...}]
-    data_files_dir: str             # 数据文件在磁盘上的目录路径
+    data_files: list[dict]  # 本题关联的数据文件信息 [{filename, columns, rows, ...}]
+    data_files_dir: str  # 数据文件在磁盘上的目录路径
 
     # --- 导出文件 ---
-    export_files: Optional[List[dict]]  # 结果导出文件列表 [{type, name, url, size}]
+    export_files: list[dict] | None  # 结果导出文件列表 [{type, name, url, size}]
 
     # --- 最终输出 ---
-    final_response: Optional[str]
+    final_response: str | None
 
 
 def create_initial_state(

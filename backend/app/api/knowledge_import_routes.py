@@ -1,16 +1,11 @@
 """知识库批量导入 API — PDF 上传 → LLM 提取 → 预览 → 确认入库。"""
 
-import io
-import json
 import logging
-from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from app.auth import GitHubUser, require_contributor
-from app.config import get_settings
 from app.services.kb_extractor import KBExtractor
 
 logger = logging.getLogger(__name__)
@@ -23,12 +18,14 @@ MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
 class ConfirmRequest(BaseModel):
     """确认入库请求 — 前端审核后发回已编辑的 YAML 数据。"""
+
     type: str  # "paper" | "method"
     data: dict  # 完整 YAML 结构
     embed: bool = True  # 是否立即向量化
 
 
 # ── 论文导入 ───────────────────────────────────────────────
+
 
 @import_router.post("/paper")
 async def import_paper(
@@ -42,7 +39,7 @@ async def import_paper(
     if not file.filename:
         raise HTTPException(400, "文件名为空")
 
-    suffix = (file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "")
+    suffix = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     if suffix not in ("pdf", "txt", "md"):
         raise HTTPException(400, "仅支持 PDF/TXT/MD 文件")
 
@@ -78,6 +75,7 @@ async def import_paper(
 
 # ── 方法卡片导入 ───────────────────────────────────────────
 
+
 @import_router.post("/method")
 async def import_method(
     file: UploadFile = File(...),
@@ -112,6 +110,7 @@ async def import_method(
 
 # ── 确认入库 ───────────────────────────────────────────────
 
+
 @import_router.post("/confirm")
 async def confirm_import(
     req: ConfirmRequest,
@@ -145,6 +144,7 @@ async def confirm_import(
         # 确保下一次检索能立即看到新条目。
         try:
             from app.knowledge.retriever import invalidate_shared_retriever
+
             invalidate_shared_retriever()
         except Exception as e:  # 失效失败不影响入库结果
             logger.warning("检索缓存失效失败: %s", e)
@@ -164,6 +164,7 @@ async def confirm_import(
 
 
 # ── 文本直接提取（无文件）────────────────────────────────
+
 
 @import_router.post("/extract-text")
 async def extract_from_text(

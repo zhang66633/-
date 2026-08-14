@@ -231,15 +231,18 @@ y = np.sin(3 * X[:, 0]) + rng.normal(0, 0.15, 300)
 
 # 时间序列数据请用 train_test_split(..., shuffle=False) 按时间切分
 X_tr, X_va, y_tr, y_va = train_test_split(X, y, test_size=0.25, random_state=0)
-sc = StandardScaler().fit(X_tr)          # 只用训练集拟合标准化器!
+sc = StandardScaler().fit(X_tr)  # 只用训练集拟合标准化器!
 X_tr_s, X_va_s = sc.transform(X_tr), sc.transform(X_va)
 
 mlp = MLPRegressor(
-    hidden_layer_sizes=(32, 16),         # 两层隐藏
-    activation="relu",                   # ReLU 抗梯度消失
-    solver="adam", alpha=1e-3,           # L2 正则
-    learning_rate_init=1e-3, max_iter=500,
-    early_stopping=True, validation_fraction=0.2,  # 早停
+    hidden_layer_sizes=(32, 16),  # 两层隐藏
+    activation="relu",  # ReLU 抗梯度消失
+    solver="adam",
+    alpha=1e-3,  # L2 正则
+    learning_rate_init=1e-3,
+    max_iter=500,
+    early_stopping=True,
+    validation_fraction=0.2,  # 早停
     random_state=0,
 ).fit(X_tr_s, y_tr)
 

@@ -1,12 +1,13 @@
 """文件上传/下载 + 图片服务。"""
 
 import re
-import shutil
 import tempfile
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, HTTPException
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+
 from ..config import get_settings
 
 files_router = APIRouter()
@@ -25,6 +26,7 @@ def _validate_path_segment(value: str, label: str) -> str:
 
 # ── File upload / download ───────────────────────────────────────
 
+
 def _get_uploads_dir() -> Path:
     settings = get_settings()
     uploads = settings.project_root / "data" / "uploads"
@@ -35,8 +37,19 @@ def _get_uploads_dir() -> Path:
 # 上传限制
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20MB
 ALLOWED_EXTENSIONS = {
-    ".csv", ".xlsx", ".xls", ".txt", ".pdf", ".json",
-    ".py", ".mat", ".dat", ".tsv", ".md", ".docx", ".doc",
+    ".csv",
+    ".xlsx",
+    ".xls",
+    ".txt",
+    ".pdf",
+    ".json",
+    ".py",
+    ".mat",
+    ".dat",
+    ".tsv",
+    ".md",
+    ".docx",
+    ".doc",
 }
 
 
@@ -91,7 +104,9 @@ async def download_file(file_id: str):
     if not matches:
         raise HTTPException(status_code=404, detail="文件不存在")
     stored_path = matches[0]
-    return FileResponse(str(stored_path), media_type="application/octet-stream", filename=stored_path.name)
+    return FileResponse(
+        str(stored_path), media_type="application/octet-stream", filename=stored_path.name
+    )
 
 
 # ── Image serving ─────────────────────────────────────────────────
@@ -126,4 +141,3 @@ async def get_task_file(task_id: str, filename: str):
         raise HTTPException(status_code=404, detail="文件不存在")
     media_type = "image/png" if file_path.suffix.lower() == ".png" else "application/octet-stream"
     return FileResponse(str(file_path), media_type=media_type, filename=filename)
-

@@ -39,12 +39,15 @@ $$\min \ c^T x \quad \text{s.t.} \quad A_{ub}x \leq b_{ub},\ A_{eq}x = b_{eq},\ 
 ```python
 from scipy.optimize import linprog
 
-c = [-3, -5]                    # min -3x1-5x2 ⇔ max 3x1+5x2
-res = linprog(c,
-              A_ub=[[1, 3], [2, 1]], b_ub=[9, 8],   # ≤ 约束
-              bounds=[(0, None), (0, None)],        # x1,x2 ≥ 0
-              method="highs")
-print(res.x, -res.fun)          # [3. 2.] 19.0
+c = [-3, -5]  # min -3x1-5x2 ⇔ max 3x1+5x2
+res = linprog(
+    c,
+    A_ub=[[1, 3], [2, 1]],
+    b_ub=[9, 8],  # ≤ 约束
+    bounds=[(0, None), (0, None)],  # x1,x2 ≥ 0
+    method="highs",
+)
+print(res.x, -res.fun)  # [3. 2.] 19.0
 ```
 
 - **`method="highs"`**:开源 HiGHS 求解器,精度高速度快,是 scipy 1.6+ 的默认项,竞赛直接用它
@@ -68,10 +71,10 @@ from scipy.optimize import minimize
 # 不等式约束:fun(x) >= 0 为可行!<= 要变号
 # 想表达 x + y <= 10,就写 fun(x) = 10 - x - y
 constraints = [
-    {"type": "ineq", "fun": lambda x: 10 - x[0] - x[1]},   # x+y ≤ 10
-    {"type": "eq",   "fun": lambda x: x[0]**2 + x[1] - 5}, # x1²+x2 = 5
+    {"type": "ineq", "fun": lambda x: 10 - x[0] - x[1]},  # x+y ≤ 10
+    {"type": "eq", "fun": lambda x: x[0] ** 2 + x[1] - 5},  # x1²+x2 = 5
 ]
-bounds = [(0, None), (0, None)]      # 每个变量都要给上下界
+bounds = [(0, None), (0, None)]  # 每个变量都要给上下界
 ```
 
 `bounds` 是所有变量的**逐变量**界;`constraints` 是「跨变量」的等式/不等式。SLSQP 要求 `bounds` 与 `constraints` 同时提供或同时省略。
@@ -84,11 +87,13 @@ bounds = [(0, None), (0, None)]      # 每个变量都要给上下界
 import numpy as np
 from scipy.optimize import differential_evolution
 
+
 def f(x):
-    return -(x[0] * np.sin(10 * np.pi * x[0]) + 2)   # 求最大 → 取负求最小
+    return -(x[0] * np.sin(10 * np.pi * x[0]) + 2)  # 求最大 → 取负求最小
+
 
 res = differential_evolution(f, bounds=[(0, 4)], seed=0, tol=1e-6)
-print(res.x, -res.fun)          # [3.8503] 5.8501
+print(res.x, -res.fun)  # [3.8503] 5.8501
 ```
 
 代价是调用目标函数数千次——适合「目标函数本身便宜」的中小规模问题。大规模组合问题用遗传算法自实现(见《遗传算法自实现》单元)或启发式库。
@@ -121,11 +126,10 @@ from scipy.optimize import linprog
 
 # max 3x1 + 5x2  ⇔  min -3x1 - 5x2
 c = [-3, -5]
-A_ub = [[1, 3], [2, 1]]        # 机加工、装配
+A_ub = [[1, 3], [2, 1]]  # 机加工、装配
 b_ub = [9, 8]
 
-res = linprog(c, A_ub=A_ub, b_ub=b_ub,
-              bounds=[(0, None), (0, None)], method="highs")
+res = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=[(0, None), (0, None)], method="highs")
 
 print("最优解:", res.x)
 print("最大利润:", -res.fun)
@@ -160,16 +164,15 @@ import numpy as np
 from scipy.optimize import minimize
 
 V = 1000.0
-S = lambda x: 2 * np.pi * x[0]**2 + 2 * np.pi * x[0] * x[1]
+S = lambda x: 2 * np.pi * x[0] ** 2 + 2 * np.pi * x[0] * x[1]
 
-constraints = [{"type": "eq", "fun": lambda x: np.pi * x[0]**2 * x[1] - V}]
-bounds = [(0.1, 50), (0.1, 100)]     # r、h 必须为正
+constraints = [{"type": "eq", "fun": lambda x: np.pi * x[0] ** 2 * x[1] - V}]
+bounds = [(0.1, 50), (0.1, 100)]  # r、h 必须为正
 
-res = minimize(S, x0=[5.0, 15.0], method="SLSQP",
-               bounds=bounds, constraints=constraints)
+res = minimize(S, x0=[5.0, 15.0], method="SLSQP", bounds=bounds, constraints=constraints)
 r, h = res.x
 
-r_exact = (V / (2 * np.pi))**(1/3)
+r_exact = (V / (2 * np.pi)) ** (1 / 3)
 h_exact = 2 * r_exact
 print(f"数值解: r={r:.4f}, h={h:.4f}, S_min={res.fun:.3f}")
 print(f"解析解: r={r_exact:.4f}, h={h_exact:.4f}, S_min={S([r_exact, h_exact]):.3f}")
@@ -203,21 +206,23 @@ local = minimize(lambda x: -f(x[0]), x0=[1.5], method="BFGS")
 print(f"局部最优(BFGS, 初值1.5): x={local.x[0]:.3f}, f={-local.fun:.3f}")
 
 # 全局:差分进化,整个 [0,4] 撒种群
-global_ = differential_evolution(lambda x: -f(x[0]), bounds=[(0, 4)],
-                                 seed=0)
+global_ = differential_evolution(lambda x: -f(x[0]), bounds=[(0, 4)], seed=0)
 print(f"全局最优(差分进化): x={global_.x[0]:.4f}, f={-global_.fun:.4f}")
 
 # 画出全貌,验证「多峰」
 import matplotlib.pyplot as plt
+
 xs = np.linspace(0, 4, 2000)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(xs, f(xs), lw=1.5)
-ax.scatter([local.x[0]], [-local.fun], s=60, c="tab:orange",
-           label=f"局部 {local.x[0]:.2f}")
-ax.scatter([global_.x[0]], [-global_.fun], s=60, c="tab:red",
-           marker="*", label=f"全局 {global_.x[0]:.2f}")
-ax.set_xlabel("x"); ax.set_ylabel("f(x)")
-ax.legend(); ax.grid(alpha=0.3)
+ax.scatter([local.x[0]], [-local.fun], s=60, c="tab:orange", label=f"局部 {local.x[0]:.2f}")
+ax.scatter(
+    [global_.x[0]], [-global_.fun], s=60, c="tab:red", marker="*", label=f"全局 {global_.x[0]:.2f}"
+)
+ax.set_xlabel("x")
+ax.set_ylabel("f(x)")
+ax.legend()
+ax.grid(alpha=0.3)
 fig.savefig("multimodal.png", dpi=200)
 ```
 
@@ -245,8 +250,10 @@ fig.savefig("multimodal.png", dpi=200)
 
 ```python
 from scipy.optimize import linprog
-res = linprog([-3, -5], A_ub=[[1, 3], [2, 1]], b_ub=[9, 8],
-              bounds=[(0, None), (0, None)], method="highs")
+
+res = linprog(
+    [-3, -5], A_ub=[[1, 3], [2, 1]], b_ub=[9, 8], bounds=[(0, None), (0, None)], method="highs"
+)
 print(res.x, -res.fun)
 ```
 
@@ -304,27 +311,27 @@ import numpy as np
 from scipy.optimize import linprog, minimize, differential_evolution
 
 # ---- 1. 线性规划:max 3x1+5x2, s.t. x1+3x2≤9, 2x1+x2≤8 ----
-res_lp = linprog([-3, -5], A_ub=[[1, 3], [2, 1]], b_ub=[9, 8],
-                 bounds=[(0, None)] * 2, method="highs")
+res_lp = linprog(
+    [-3, -5], A_ub=[[1, 3], [2, 1]], b_ub=[9, 8], bounds=[(0, None)] * 2, method="highs"
+)
 assert res_lp.success
 print("LP:", res_lp.x, "目标:", -res_lp.fun)
 
 # ---- 2. 带约束非线性规划 ----
 res_nlp = minimize(
-    lambda x: 2 * np.pi * x[0]**2 + 2 * np.pi * x[0] * x[1],
+    lambda x: 2 * np.pi * x[0] ** 2 + 2 * np.pi * x[0] * x[1],
     x0=[5.0, 15.0],
     method="SLSQP",
     bounds=[(0.1, 50), (0.1, 100)],
-    constraints=[{"type": "eq",
-                  "fun": lambda x: np.pi * x[0]**2 * x[1] - 1000.0}],
+    constraints=[{"type": "eq", "fun": lambda x: np.pi * x[0] ** 2 * x[1] - 1000.0}],
 )
 assert res_nlp.success
 print("NLP:", res_nlp.x.round(4), "目标:", round(res_nlp.fun, 3))
 
 # ---- 3. 全局优化(多峰) ----
 res_global = differential_evolution(
-    lambda x: -(x[0] * np.sin(10 * np.pi * x[0]) + 2),
-    bounds=[(0, 4)], seed=0)
+    lambda x: -(x[0] * np.sin(10 * np.pi * x[0]) + 2), bounds=[(0, 4)], seed=0
+)
 print("全局:", res_global.x.round(4), "目标:", round(-res_global.fun, 4))
 ```
 

@@ -98,10 +98,14 @@ import numpy as np
 import cvxpy as cp
 
 mu = np.array([0.12, 0.10, 0.15, 0.08])
-Sigma = np.array([[0.10, 0.02, 0.01, 0.00],
-                  [0.02, 0.08, 0.01, 0.01],
-                  [0.01, 0.01, 0.20, 0.02],
-                  [0.00, 0.01, 0.02, 0.05]])
+Sigma = np.array(
+    [
+        [0.10, 0.02, 0.01, 0.00],
+        [0.02, 0.08, 0.01, 0.01],
+        [0.01, 0.01, 0.20, 0.02],
+        [0.00, 0.01, 0.02, 0.05],
+    ]
+)
 
 x = cp.Variable(4)
 risk = cp.quad_form(x, Sigma)
@@ -144,7 +148,7 @@ rng = np.random.default_rng(1)
 m, n = 30, 60
 A = rng.normal(size=(m, n))
 x_true = np.zeros(n)
-x_true[[3, 17, 42]] = [1.5, -2.0, 1.0]      # 稀疏真值:3 个非零元
+x_true[[3, 17, 42]] = [1.5, -2.0, 1.0]  # 稀疏真值:3 个非零元
 b = A @ x_true
 
 x = cp.Variable(n)
@@ -183,20 +187,20 @@ import cvxpy as cp
 
 rng = np.random.default_rng(3)
 n_w, n_c = 4, 5
-f = np.array([100.0, 120.0, 90.0, 110.0])         # 开仓固定成本
+f = np.array([100.0, 120.0, 90.0, 110.0])  # 开仓固定成本
 c = rng.integers(5, 30, size=(n_w, n_c)).astype(float)  # 运输单价
-demand = np.array([8.0, 12.0, 10.0, 9.0, 11.0])   # 客户需求
-M = demand.sum()                                   # 大 M 上限
+demand = np.array([8.0, 12.0, 10.0, 9.0, 11.0])  # 客户需求
+M = demand.sum()  # 大 M 上限
 
-y = cp.Variable(n_w, boolean=True)                 # 是否开仓
-x = cp.Variable((n_w, n_c), nonneg=True)           # 运输量
+y = cp.Variable(n_w, boolean=True)  # 是否开仓
+x = cp.Variable((n_w, n_c), nonneg=True)  # 运输量
 total = f @ y + cp.sum(cp.multiply(c, x))
 constraints = [
-    cp.sum(x, axis=0) == demand,                   # 每个客户需求满足
-    cp.sum(x, axis=1) <= M * y,                    # 不开仓则运输量为 0
+    cp.sum(x, axis=0) == demand,  # 每个客户需求满足
+    cp.sum(x, axis=1) <= M * y,  # 不开仓则运输量为 0
 ]
 prob = cp.Problem(cp.Minimize(total), constraints)
-prob.solve(solver=cp.SCIPY)   # 通过 scipy 的 HiGHS 求解 MIP;也可用 CBC/Gurobi
+prob.solve(solver=cp.SCIPY)  # 通过 scipy 的 HiGHS 求解 MIP;也可用 CBC/Gurobi
 
 print("状态:", prob.status)
 print("开仓方案(1=开):", y.value.astype(int))
@@ -240,11 +244,12 @@ D. cp.Problem(cp.Minimize(c @ x), [x >= 0])
 ```python
 import cvxpy as cp
 import numpy as np
+
 x = cp.Variable(2)
 prob = cp.Problem(cp.Minimize(cp.sum_squares(x - np.array([1.0, 2.0]))))
-print(x.value)      # ①
+print(x.value)  # ①
 prob.solve()
-print(x.value)      # ②
+print(x.value)  # ②
 ```
 
 两处输出分别是:
@@ -289,16 +294,14 @@ n = 4
 mu = np.array([0.12, 0.10, 0.15, 0.08])
 Sigma = np.diag([0.10, 0.08, 0.20, 0.05])
 x = cp.Variable(n)
-prob_qp = cp.Problem(cp.Minimize(cp.quad_form(x, Sigma)),
-                     [cp.sum(x) == 1, x >= 0, mu @ x >= 0.11])
+prob_qp = cp.Problem(cp.Minimize(cp.quad_form(x, Sigma)), [cp.sum(x) == 1, x >= 0, mu @ x >= 0.11])
 prob_qp.solve()
 print("QP 最优权重:", x.value.round(4))
 
 # ---- LP:最小化成本,多面体约束 ----
 c = np.array([3.0, 1.0, 2.0])
 y = cp.Variable(3, nonneg=True)
-prob_lp = cp.Problem(cp.Minimize(c @ y),
-                     [cp.sum(y) == 1, y <= 1])
+prob_lp = cp.Problem(cp.Minimize(c @ y), [cp.sum(y) == 1, y <= 1])
 prob_lp.solve()
 print("LP 最优解:", y.value.round(4))
 
@@ -306,7 +309,7 @@ print("LP 最优解:", y.value.round(4))
 f = np.array([100.0, 90.0, 110.0])
 z = cp.Variable(3, boolean=True)
 prob_mip = cp.Problem(cp.Minimize(f @ z), [cp.sum(z) >= 2])
-prob_mip.solve(solver=cp.SCIPY)   # 或 cp.CBC / cp.GUROBI
+prob_mip.solve(solver=cp.SCIPY)  # 或 cp.CBC / cp.GUROBI
 print("MIP 开仓方案:", z.value.astype(int), "成本:", prob_mip.value)
 ```
 

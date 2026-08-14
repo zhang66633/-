@@ -235,38 +235,37 @@ D. $w = (0.4,\ 0.333,\ 0.267)$
 import numpy as np
 from math import prod
 
+
 def tf_inv(a):
-    return (1/a[2], 1/a[1], 1/a[0])
+    return (1 / a[2], 1 / a[1], 1 / a[0])
+
 
 # 上三角模糊判断 (i,j) -> (l,m,u),主对角线 (1,1,1)
 F = {(1, 2): (2, 3, 4), (1, 3): (4, 5, 6), (2, 3): (1, 2, 3)}
 n = 3
-M = [[(1., 1., 1.)] * n for _ in range(n)]
+M = [[(1.0, 1.0, 1.0)] * n for _ in range(n)]
 for (i, j), v in F.items():
-    M[i-1][j-1] = v
-    M[j-1][i-1] = tf_inv(v)
+    M[i - 1][j - 1] = v
+    M[j - 1][i - 1] = tf_inv(v)
 
 # Buckley 几何平均法
-geo = [tuple(prod(M[i][k][t] for k in range(n)) ** (1/n) for t in range(3))
-       for i in range(n)]
+geo = [tuple(prod(M[i][k][t] for k in range(n)) ** (1 / n) for t in range(3)) for i in range(n)]
 l_sum = sum(g[0] for g in geo)
 m_sum = sum(g[1] for g in geo)
 u_sum = sum(g[2] for g in geo)
-w_fuzzy = [(g[0]/u_sum, g[1]/m_sum, g[2]/l_sum) for g in geo]
+w_fuzzy = [(g[0] / u_sum, g[1] / m_sum, g[2] / l_sum) for g in geo]
 
 # 去模糊化(重心法)并归一化
-w = np.array([(l+m+u)/3 for l, m, u in w_fuzzy])
+w = np.array([(l + m + u) / 3 for l, m, u in w_fuzzy])
 w = w / w.sum()
 print("模糊权重:", [tuple(round(x, 3) for x in t) for t in w_fuzzy])
 # [(0.429, 0.648, 0.958), (0.135, 0.23, 0.38), (0.082, 0.122, 0.209)]
-print("去模糊化权重:", np.round(w, 3))    # [0.637 0.233 0.129]
+print("去模糊化权重:", np.round(w, 3))  # [0.637 0.233 0.129]
 
 # 0.1-0.9 模糊互补矩阵
-Fm = np.array([[0.5, 0.6, 0.7],
-               [0.4, 0.5, 0.6],
-               [0.3, 0.4, 0.5]])
+Fm = np.array([[0.5, 0.6, 0.7], [0.4, 0.5, 0.6], [0.3, 0.4, 0.5]])
 w2 = (2 * Fm.sum(axis=1) - 1) / (n * (n - 1))
-print("模糊互补矩阵权重:", np.round(w2, 3))   # [0.433 0.333 0.233]
+print("模糊互补矩阵权重:", np.round(w2, 3))  # [0.433 0.333 0.233]
 ```
 
 ## 📚 延伸阅读

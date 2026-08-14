@@ -26,16 +26,17 @@ from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 
 X, y = make_classification(n_samples=300, n_features=6, random_state=0)
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-pipe = Pipeline([
-    ("scaler", StandardScaler()),                    # 变换器:有 fit/transform
-    ("model", LogisticRegression(max_iter=2000)),    # 估计器:有 fit/predict
-])
-pipe.fit(X_train, y_train)        # 内部:scaler 在训练集 fit_transform,再训模型
+pipe = Pipeline(
+    [
+        ("scaler", StandardScaler()),  # 变换器:有 fit/transform
+        ("model", LogisticRegression(max_iter=2000)),  # 估计器:有 fit/predict
+    ]
+)
+pipe.fit(X_train, y_train)  # 内部:scaler 在训练集 fit_transform,再训模型
 print("测试准确率:", f"{pipe.score(X_test, y_test):.3f}")
-pipe.predict(X_test)              # 与训练时完全相同的预处理路径
+pipe.predict(X_test)  # 与训练时完全相同的预处理路径
 ```
 
 ### 2. ColumnTransformer:分列定制
@@ -51,25 +52,43 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 rng = np.random.default_rng(0)
-df = pd.DataFrame({
-    "年龄": rng.normal(35, 10, 100).round(1),
-    "收入": rng.normal(8, 3, 100).round(2),
-    "学历": rng.choice(["高中", "本科", "硕士"], 100),
-    "城市": rng.choice(["北京", "上海", "广州"], 100),
-})
-df.loc[:4, "年龄"] = np.nan                     # 注入少量缺失
+df = pd.DataFrame(
+    {
+        "年龄": rng.normal(35, 10, 100).round(1),
+        "收入": rng.normal(8, 3, 100).round(2),
+        "学历": rng.choice(["高中", "本科", "硕士"], 100),
+        "城市": rng.choice(["北京", "上海", "广州"], 100),
+    }
+)
+df.loc[:4, "年龄"] = np.nan  # 注入少量缺失
 
-preprocessor = ColumnTransformer([
-    ("num", Pipeline([
-        ("impute", SimpleImputer(strategy="median")),   # 数值:中位数填充
-        ("scale", StandardScaler()),                    #       再标准化
-    ]), ["年龄", "收入"]),
-    ("cat", Pipeline([
-        ("impute", SimpleImputer(strategy="most_frequent")),  # 类别:众数填充
-        ("onehot", OneHotEncoder(handle_unknown="ignore",
-                                 sparse_output=False)),        #       再独热
-    ]), ["学历", "城市"]),
-])
+preprocessor = ColumnTransformer(
+    [
+        (
+            "num",
+            Pipeline(
+                [
+                    ("impute", SimpleImputer(strategy="median")),  # 数值:中位数填充
+                    ("scale", StandardScaler()),  #       再标准化
+                ]
+            ),
+            ["年龄", "收入"],
+        ),
+        (
+            "cat",
+            Pipeline(
+                [
+                    ("impute", SimpleImputer(strategy="most_frequent")),  # 类别:众数填充
+                    (
+                        "onehot",
+                        OneHotEncoder(handle_unknown="ignore", sparse_output=False),
+                    ),  #       再独热
+                ]
+            ),
+            ["学历", "城市"],
+        ),
+    ]
+)
 X_processed = preprocessor.fit_transform(df)
 print("新列名:", preprocessor.get_feature_names_out())
 ```
@@ -83,8 +102,9 @@ from sklearn.preprocessing import FunctionTransformer
 import numpy as np
 
 log_shift = FunctionTransformer(
-    lambda X: np.log1p(np.abs(X)),          # log(1+|x|),偏态数据取对数
-    feature_names_out="one-to-one")
+    lambda X: np.log1p(np.abs(X)),  # log(1+|x|),偏态数据取对数
+    feature_names_out="one-to-one",
+)
 ```
 
 更复杂、需要学习数据统计量的变换(如「填充用训练集均值」),就写一个带 `fit`/`transform` 的类——这正是 sklearn 变换器的接口约定。
@@ -104,10 +124,15 @@ X, y = make_regression(n_samples=300, n_features=6, noise=10, random_state=0)
 X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 
 pipe = Pipeline([("scaler", StandardScaler()), ("model", Ridge())])
-grid = GridSearchCV(pipe,
-                    {"model__alpha": [0.1, 1.0, 10.0],       # 模型参数
-                     "scaler__with_mean": [True, False]},    # 预处理参数也可调
-                    cv=5, scoring="r2")
+grid = GridSearchCV(
+    pipe,
+    {
+        "model__alpha": [0.1, 1.0, 10.0],  # 模型参数
+        "scaler__with_mean": [True, False],
+    },  # 预处理参数也可调
+    cv=5,
+    scoring="r2",
+)
 grid.fit(X_train, y_train)
 print(grid.best_params_, round(grid.best_score_, 3))
 ```
@@ -126,13 +151,12 @@ from sklearn.model_selection import train_test_split
 
 X, y = make_classification(n_samples=300, n_features=6, random_state=0)
 X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
-pipe = Pipeline([("scaler", StandardScaler()),
-                 ("model", LogisticRegression(max_iter=2000))])
+pipe = Pipeline([("scaler", StandardScaler()), ("model", LogisticRegression(max_iter=2000))])
 pipe.fit(X_train, y_train)
 
-joblib.dump(pipe, "model_pipeline.pkl")      # 保存整条流水线
+joblib.dump(pipe, "model_pipeline.pkl")  # 保存整条流水线
 loaded = joblib.load("model_pipeline.pkl")
-print("复现得分:", f"{loaded.score(X_test, y_test):.3f}")   # 与训练现场一致
+print("复现得分:", f"{loaded.score(X_test, y_test):.3f}")  # 与训练现场一致
 ```
 
 只保存模型而丢掉预处理,预测时新数据会走「另一套」缩放/编码——经典翻车点。**流水线整体序列化**,训练与预测环境才真正一致。
@@ -172,28 +196,43 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 rng = np.random.default_rng(0)
 n = 200
-df = pd.DataFrame({
-    "年龄": rng.normal(35, 10, n).round(1),
-    "收入": rng.normal(8, 3, n).round(2),
-    "学历": rng.choice(["高中", "本科", "硕士"], n),
-    "城市": rng.choice(["北京", "上海", "广州"], n),
-})
-df.loc[rng.integers(0, n, 20), "年龄"] = np.nan    # 注入缺失
+df = pd.DataFrame(
+    {
+        "年龄": rng.normal(35, 10, n).round(1),
+        "收入": rng.normal(8, 3, n).round(2),
+        "学历": rng.choice(["高中", "本科", "硕士"], n),
+        "城市": rng.choice(["北京", "上海", "广州"], n),
+    }
+)
+df.loc[rng.integers(0, n, 20), "年龄"] = np.nan  # 注入缺失
 df.loc[rng.integers(0, n, 15), "学历"] = np.nan
 
 num_cols = ["年龄", "收入"]
 cat_cols = ["学历", "城市"]
-preprocessor = ColumnTransformer([
-    ("num", Pipeline([
-        ("impute", SimpleImputer(strategy="median")),
-        ("scale", StandardScaler()),
-    ]), num_cols),
-    ("cat", Pipeline([
-        ("impute", SimpleImputer(strategy="most_frequent")),
-        ("onehot", OneHotEncoder(handle_unknown="ignore",
-                                 sparse_output=False)),
-    ]), cat_cols),
-])
+preprocessor = ColumnTransformer(
+    [
+        (
+            "num",
+            Pipeline(
+                [
+                    ("impute", SimpleImputer(strategy="median")),
+                    ("scale", StandardScaler()),
+                ]
+            ),
+            num_cols,
+        ),
+        (
+            "cat",
+            Pipeline(
+                [
+                    ("impute", SimpleImputer(strategy="most_frequent")),
+                    ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+                ]
+            ),
+            cat_cols,
+        ),
+    ]
+)
 
 X_processed = preprocessor.fit_transform(df)
 print("处理后形状:", X_processed.shape)
@@ -229,38 +268,52 @@ from sklearn.linear_model import LogisticRegression
 
 rng = np.random.default_rng(0)
 n = 120
-X = np.column_stack([rng.normal(0, 1, (n, 40)),   # 40 个噪声特征
-                     rng.normal(0, 1, (n, 2))])   # 2 个信息特征
+X = np.column_stack(
+    [
+        rng.normal(0, 1, (n, 40)),  # 40 个噪声特征
+        rng.normal(0, 1, (n, 2)),
+    ]
+)  # 2 个信息特征
 y = (X[:, 40] + X[:, 41] > 0).astype(int)
 
 # 实验 A:标准化泄漏(均值/方差是稳定统计量,泄漏影响很小)
 Xs = StandardScaler().fit_transform(X)
-a_wrong = cross_val_score(LogisticRegression(max_iter=2000), Xs, y,
-                          cv=5, scoring="accuracy")
+a_wrong = cross_val_score(LogisticRegression(max_iter=2000), Xs, y, cv=5, scoring="accuracy")
 a_right = cross_val_score(
-    Pipeline([("scaler", StandardScaler()),
-              ("model", LogisticRegression(max_iter=2000))]),
-    X, y, cv=5, scoring="accuracy")
-print(f"实验A 标准化: 错误 {a_wrong.mean():.3f} vs "
-      f"正确 {a_right.mean():.3f}, "
-      f"虚高 {(a_wrong.mean() - a_right.mean()) * 100:.2f} 个百分点")
+    Pipeline([("scaler", StandardScaler()), ("model", LogisticRegression(max_iter=2000))]),
+    X,
+    y,
+    cv=5,
+    scoring="accuracy",
+)
+print(
+    f"实验A 标准化: 错误 {a_wrong.mean():.3f} vs "
+    f"正确 {a_right.mean():.3f}, "
+    f"虚高 {(a_wrong.mean() - a_right.mean()) * 100:.2f} 个百分点"
+)
+
 
 # 实验 B:特征选择泄漏(选择器在噪声特征上过拟合,泄漏影响大)
 def make_selector():
     return SelectFromModel(
-        RandomForestClassifier(n_estimators=200, random_state=0),
-        max_features=10, threshold=-np.inf)
+        RandomForestClassifier(n_estimators=200, random_state=0), max_features=10, threshold=-np.inf
+    )
+
 
 X_sel = make_selector().fit(X, y).transform(X)
-b_wrong = cross_val_score(LogisticRegression(max_iter=2000), X_sel, y,
-                          cv=5, scoring="accuracy")
+b_wrong = cross_val_score(LogisticRegression(max_iter=2000), X_sel, y, cv=5, scoring="accuracy")
 b_right = cross_val_score(
-    Pipeline([("sel", make_selector()),
-              ("model", LogisticRegression(max_iter=2000))]),
-    X, y, cv=5, scoring="accuracy")
-print(f"实验B 特征选择: 错误 {b_wrong.mean():.3f} vs "
-      f"正确 {b_right.mean():.3f}, "
-      f"虚高 {(b_wrong.mean() - b_right.mean()) * 100:.2f} 个百分点")
+    Pipeline([("sel", make_selector()), ("model", LogisticRegression(max_iter=2000))]),
+    X,
+    y,
+    cv=5,
+    scoring="accuracy",
+)
+print(
+    f"实验B 特征选择: 错误 {b_wrong.mean():.3f} vs "
+    f"正确 {b_right.mean():.3f}, "
+    f"虚高 {(b_wrong.mean() - b_right.mean()) * 100:.2f} 个百分点"
+)
 ```
 
 **输出解读**:
@@ -282,34 +335,33 @@ print(f"实验B 特征选择: 错误 {b_wrong.mean():.3f} vs "
 import numpy as np
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import (FunctionTransformer, StandardScaler,
-                                   PolynomialFeatures)
+from sklearn.preprocessing import FunctionTransformer, StandardScaler, PolynomialFeatures
 from sklearn.linear_model import Ridge
 import joblib
 
 rng = np.random.default_rng(0)
-X = rng.lognormal(0, 0.8, size=(400, 5))        # 偏态特征(对数正态)
+X = rng.lognormal(0, 0.8, size=(400, 5))  # 偏态特征(对数正态)
 coef = np.array([3.0, -2.0, 1.5, 0.5, -1.0])
 y = np.log1p(X) @ coef + rng.normal(0, 0.2, 400)  # 真实关系:对数变换后线性
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-pipe = Pipeline([
-    ("log", FunctionTransformer(np.log1p, feature_names_out="one-to-one")),
-    ("poly", PolynomialFeatures(degree=2, include_bias=False)),
-    ("scale", StandardScaler()),
-    ("model", Ridge()),
-])
+pipe = Pipeline(
+    [
+        ("log", FunctionTransformer(np.log1p, feature_names_out="one-to-one")),
+        ("poly", PolynomialFeatures(degree=2, include_bias=False)),
+        ("scale", StandardScaler()),
+        ("model", Ridge()),
+    ]
+)
 
-grid = GridSearchCV(pipe,
-                    {"poly__degree": [1, 2],
-                     "model__alpha": [0.1, 1.0, 10.0]},
-                    cv=5, scoring="r2")
+grid = GridSearchCV(
+    pipe, {"poly__degree": [1, 2], "model__alpha": [0.1, 1.0, 10.0]}, cv=5, scoring="r2"
+)
 grid.fit(X_train, y_train)
 print("最优参数:", grid.best_params_)
 print("测试集 R²:", f"{grid.score(X_test, y_test):.3f}")
 
-joblib.dump(grid.best_estimator_, "model_pipeline.pkl")   # 保存整条流水线
+joblib.dump(grid.best_estimator_, "model_pipeline.pkl")  # 保存整条流水线
 loaded = joblib.load("model_pipeline.pkl")
 print("加载后复现 R²:", f"{loaded.score(X_test, y_test):.3f}")
 print("流水线步骤:", [name for name, _ in loaded.steps])
@@ -399,35 +451,50 @@ import joblib
 
 # ① 读数据(真实竞赛中: df = pd.read_csv("附件数据.csv"))
 rng = np.random.default_rng(0)
-df = pd.DataFrame({
-    "数值1": rng.normal(0, 1, 300),
-    "数值2": rng.normal(5, 2, 300),
-    "类别": rng.choice(["A", "B", "C"], 300),
-})
+df = pd.DataFrame(
+    {
+        "数值1": rng.normal(0, 1, 300),
+        "数值2": rng.normal(5, 2, 300),
+        "类别": rng.choice(["A", "B", "C"], 300),
+    }
+)
 df["目标列"] = df["数值1"] * 2 + df["数值2"] * 0.5 + rng.normal(0, 0.5, 300)
-target = df.pop("目标列")                              # ② 拆出目标
+target = df.pop("目标列")  # ② 拆出目标
 num_cols = df.select_dtypes(include=np.number).columns.tolist()
 cat_cols = df.select_dtypes(include="object").columns.tolist()
 
-pre = ColumnTransformer([                             # ③ 分列预处理
-    ("num", Pipeline([("imp", SimpleImputer(strategy="median")),
-                      ("sc", StandardScaler())]), num_cols),
-    ("cat", Pipeline([("imp", SimpleImputer(strategy="most_frequent")),
-                      ("ohe", OneHotEncoder(handle_unknown="ignore",
-                                            sparse_output=False))]), cat_cols),
-])
-pipe = Pipeline([("pre", pre),
-                 ("model", RandomForestRegressor(random_state=0))])
+pre = ColumnTransformer(
+    [  # ③ 分列预处理
+        (
+            "num",
+            Pipeline([("imp", SimpleImputer(strategy="median")), ("sc", StandardScaler())]),
+            num_cols,
+        ),
+        (
+            "cat",
+            Pipeline(
+                [
+                    ("imp", SimpleImputer(strategy="most_frequent")),
+                    ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+                ]
+            ),
+            cat_cols,
+        ),
+    ]
+)
+pipe = Pipeline([("pre", pre), ("model", RandomForestRegressor(random_state=0))])
 
-grid = GridSearchCV(pipe,                             # ④ 流水线内调参
-                    {"model__n_estimators": [100, 200],
-                     "model__max_depth": [5, 10, None]},
-                    cv=5, scoring="r2")
+grid = GridSearchCV(
+    pipe,  # ④ 流水线内调参
+    {"model__n_estimators": [100, 200], "model__max_depth": [5, 10, None]},
+    cv=5,
+    scoring="r2",
+)
 grid.fit(df, target)
 print("最优参数:", grid.best_params_)
 print("CV 得分:", f"{grid.best_score_:.3f}")
 
-joblib.dump(grid.best_estimator_, "final_pipeline.pkl")   # ⑤ 整线保存
+joblib.dump(grid.best_estimator_, "final_pipeline.pkl")  # ⑤ 整线保存
 ```
 
 ## 📚 延伸阅读

@@ -245,31 +245,34 @@ D. 无法判断,因为 $n = 4$ 样本太少
 ```python
 import numpy as np
 
+
 def gm11(x0, steps=3):
     """GM(1,1) 建模:输入非负单调序列 x0,返回参数、拟合值、预测值与精度指标。"""
     x0 = np.asarray(x0, dtype=float)
-    x1 = np.cumsum(x0)                          # 累加生成 AGO
-    z = 0.5 * (x1[1:] + x1[:-1])                # 紧邻均值(背景值)
+    x1 = np.cumsum(x0)  # 累加生成 AGO
+    z = 0.5 * (x1[1:] + x1[:-1])  # 紧邻均值(背景值)
     B = np.column_stack([-z, np.ones_like(z)])
     Y = x0[1:]
-    a, b = np.linalg.lstsq(B, Y, rcond=None)[0] # 最小二乘 (a, b)
+    a, b = np.linalg.lstsq(B, Y, rcond=None)[0]  # 最小二乘 (a, b)
 
     k = np.arange(0, len(x0) + steps)
-    x1_hat = (x0[0] - b / a) * np.exp(-a * k) + b / a   # 时间响应式
-    x0_hat = np.diff(np.r_[x0[0], x1_hat])              # 累减还原
+    x1_hat = (x0[0] - b / a) * np.exp(-a * k) + b / a  # 时间响应式
+    x0_hat = np.diff(np.r_[x0[0], x1_hat])  # 累减还原
 
-    fit, pred = x0_hat[:len(x0)], x0_hat[len(x0):]
+    fit, pred = x0_hat[: len(x0)], x0_hat[len(x0) :]
     res = x0 - fit
-    S1 = x0.std(); S2 = res.std()
+    S1 = x0.std()
+    S2 = res.std()
     C = S2 / S1
     P = (np.abs(res - res.mean()) < 0.6745 * S1).mean()
-    rel = np.abs(res[1:]) / x0[1:]              # 第一点残差恒为 0,不参与
+    rel = np.abs(res[1:]) / x0[1:]  # 第一点残差恒为 0,不参与
     return a, b, fit, pred, C, P, rel.mean()
 
+
 a, b, fit, pred, C, P, mape = gm11([5, 7, 10, 14], steps=3)
-print(f"a = {a:.4f}, b = {b:.4f}")             # a=-0.3409, b=4.1398
-print(f"拟合 = {fit.round(3)}  预测 = {pred.round(3)}")   # 预测 19.367, ...
-print(f"C = {C:.3f}  P = {P:.3f}  平均相对误差 = {mape*100:.2f}%")
+print(f"a = {a:.4f}, b = {b:.4f}")  # a=-0.3409, b=4.1398
+print(f"拟合 = {fit.round(3)}  预测 = {pred.round(3)}")  # 预测 19.367, ...
+print(f"C = {C:.3f}  P = {P:.3f}  平均相对误差 = {mape * 100:.2f}%")
 ```
 
 > 使用注意:①输入必须为正且单调;②输出是**累减还原后**的原始量纲;③预测步数超过 3 时,考虑用「新陈代谢」方式滚动更新数据再预测。

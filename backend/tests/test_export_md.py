@@ -3,14 +3,15 @@
 运行: 在 backend/ 目录下 `python -m pytest tests/test_export_md.py -q`
       或直接 `python tests/test_export_md.py`。
 """
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.api.export_routes import (  # noqa: E402
-    _parse_inline,
     _is_table_separator,
+    _parse_inline,
 )
 
 

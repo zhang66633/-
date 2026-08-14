@@ -1,7 +1,7 @@
 """Application configuration loaded from environment variables."""
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,7 +12,7 @@ class LLMConfig(BaseSettings):
     provider: Literal["anthropic", "openai"] = "openai"
     model: str = "deepseek-chat"
     api_key: str = ""
-    base_url: Optional[str] = None
+    base_url: str | None = None
     temperature: float = 0.3
     max_tokens: int = 8192
 
@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     writing_max_tokens: int = 393216
     # 求解阶段含代码+推导+图表说明，多轮tool loop每轮都可能产生大量输出。
     solving_max_tokens: int = 393216
+
+    # 写作阶段并行生成章节的并发路数（竞赛演示加速：串行 15+ 次调用 → 并行）
+    writing_parallelism: int = 3
 
     # ---- DeepSeek Proxy ----
     deepseek_base_url: str = "https://api.deepseek.com"
@@ -111,7 +114,7 @@ class Settings(BaseSettings):
         provider = classify_provider(model)
         if provider == "anthropic":
             api_key = self.anthropic_api_key
-            base_url: Optional[str] = None
+            base_url: str | None = None
         else:
             api_key = self.openai_api_key
             base_url = (

@@ -10,9 +10,8 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS learning_events (
@@ -36,7 +35,7 @@ CREATE TABLE IF NOT EXISTS achievements (
 
 
 def _utcnow() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class LearningStore:
@@ -70,9 +69,9 @@ class LearningStore:
         self,
         unit_id: str,
         event_type: str,
-        score: Optional[float] = None,
+        score: float | None = None,
         user_id: str = "default",
-        created_at: Optional[str] = None,
+        created_at: str | None = None,
     ) -> None:
         with self._lock:
             with self._get_conn() as conn:
@@ -112,9 +111,7 @@ class LearningStore:
 
     # ── 成就 ────────────────────────────────────────────
 
-    def unlock_achievement(
-        self, achievement_id: str, user_id: str = "default"
-    ) -> bool:
+    def unlock_achievement(self, achievement_id: str, user_id: str = "default") -> bool:
         """解锁成就(幂等);返回 True 表示本次新解锁。"""
         with self._lock:
             with self._get_conn() as conn:
@@ -158,7 +155,7 @@ class LearningStore:
                 conn.commit()
 
 
-_store: Optional[LearningStore] = None
+_store: LearningStore | None = None
 
 
 def get_learning_store() -> LearningStore:

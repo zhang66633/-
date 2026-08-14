@@ -23,10 +23,9 @@
 import networkx as nx
 
 G = nx.Graph()
-G.add_node("北京", population=2186)          # 节点可带属性
+G.add_node("北京", population=2186)  # 节点可带属性
 G.add_edges_from([("北京", "上海"), ("上海", "广州")])
-G.add_weighted_edges_from([("北京", "上海", 1213),
-                           ("上海", "广州", 1458)])   # 边可带权重
+G.add_weighted_edges_from([("北京", "上海", 1213), ("上海", "广州", 1458)])  # 边可带权重
 print("节点数:", G.number_of_nodes(), "边数:", G.number_of_edges())
 ```
 
@@ -36,16 +35,22 @@ print("节点数:", G.number_of_nodes(), "边数:", G.number_of_edges())
 import networkx as nx
 
 G = nx.Graph()
-G.add_weighted_edges_from([
-    ("A", "B", 2), ("A", "C", 5), ("B", "C", 1), ("B", "D", 4), ("C", "D", 2),
-])
+G.add_weighted_edges_from(
+    [
+        ("A", "B", 2),
+        ("A", "C", 5),
+        ("B", "C", 1),
+        ("B", "D", 4),
+        ("C", "D", 2),
+    ]
+)
 
 path = nx.dijkstra_path(G, "A", "D", weight="weight")
 length = nx.dijkstra_path_length(G, "A", "D", weight="weight")
-print("路径:", path, "长度:", length)     # ['A', 'B', 'C', 'D'] 5
+print("路径:", path, "长度:", length)  # ['A', 'B', 'C', 'D'] 5
 
 # 无权(所有边长度 1)用 BFS
-print(nx.shortest_path(G, "A", "D"))     # 不传 weight 即无权
+print(nx.shortest_path(G, "A", "D"))  # 不传 weight 即无权
 ```
 
 - **单源**:`dijkstra_path(G, source, target, weight=)`
@@ -59,18 +64,19 @@ import networkx as nx
 
 # 最小生成树:连通所有点的最小总成本
 G = nx.Graph()
-G.add_weighted_edges_from([("A", "B", 3), ("A", "C", 4),
-                           ("B", "C", 1), ("B", "D", 5), ("C", "D", 2)])
+G.add_weighted_edges_from(
+    [("A", "B", 3), ("A", "C", 4), ("B", "C", 1), ("B", "D", 5), ("C", "D", 2)]
+)
 mst = nx.minimum_spanning_tree(G)
 print("MST 边:", [(u, v, d["weight"]) for u, v, d in mst.edges(data=True)])
 
 # 最大流:容量网络从源到汇的最大流量
 D = nx.DiGraph()
-D.add_weighted_edges_from([("s", "a", 10), ("s", "b", 5),
-                           ("a", "b", 3), ("a", "t", 8), ("b", "t", 7)],
-                          weight="capacity")
+D.add_weighted_edges_from(
+    [("s", "a", 10), ("s", "b", 5), ("a", "b", 3), ("a", "t", 8), ("b", "t", 7)], weight="capacity"
+)
 flow_value, flow_dict = nx.maximum_flow(D, "s", "t", capacity="capacity")
-print("最大流:", flow_value)             # 15
+print("最大流:", flow_value)  # 15
 ```
 
 ### 4. 连通性与中心性
@@ -83,8 +89,8 @@ print("连通分量数:", nx.number_connected_components(G))
 print("最大连通片规模:", max(len(c) for c in nx.connected_components(G)))
 
 # 中心性:谁是关键节点?
-dc = nx.degree_centrality(G)            # 度中心性:连接了多少邻居
-bc = nx.betweenness_centrality(G)       # 介数中心性:多少条最短路径经过它
+dc = nx.degree_centrality(G)  # 度中心性:连接了多少邻居
+bc = nx.betweenness_centrality(G)  # 介数中心性:多少条最短路径经过它
 print("度中心性最高节点:", max(dc, key=dc.get))
 print("介数中心性最高节点:", max(bc, key=bc.get))
 ```
@@ -96,10 +102,9 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 G = nx.erdos_renyi_graph(15, 0.25, seed=1)
-pos = nx.spring_layout(G, seed=42)      # 力导向布局,固定种子使图可复现
+pos = nx.spring_layout(G, seed=42)  # 力导向布局,固定种子使图可复现
 fig, ax = plt.subplots(figsize=(7, 5))
-nx.draw(G, pos, ax=ax, node_size=400, node_color="steelblue",
-        with_labels=True, font_color="white")
+nx.draw(G, pos, ax=ax, node_size=400, node_color="steelblue", with_labels=True, font_color="white")
 ax.set_title("随机网络结构")
 fig.savefig("network.png", dpi=200)
 ```
@@ -134,11 +139,18 @@ fig.savefig("network.png", dpi=200)
 import networkx as nx
 
 G = nx.Graph()
-G.add_weighted_edges_from([
-    ("A", "B", 120), ("A", "C", 150), ("B", "D", 100),
-    ("C", "D", 80), ("B", "E", 200), ("D", "E", 90),
-    ("C", "F", 110), ("E", "F", 70),
-])
+G.add_weighted_edges_from(
+    [
+        ("A", "B", 120),
+        ("A", "C", 150),
+        ("B", "D", 100),
+        ("C", "D", 80),
+        ("B", "E", 200),
+        ("D", "E", 90),
+        ("C", "F", 110),
+        ("E", "F", 70),
+    ]
+)
 
 path = nx.dijkstra_path(G, "A", "F", weight="weight")
 length = nx.dijkstra_path_length(G, "A", "F", weight="weight")
@@ -167,16 +179,23 @@ A 到各城市最短距离: {'A': 0, 'B': 120, 'C': 150, 'D': 220, 'E': 310, 'F'
 import networkx as nx
 
 G = nx.DiGraph()
-G.add_weighted_edges_from([
-    ("源", "A", 16), ("源", "B", 13),
-    ("A", "B", 10), ("B", "A", 4),
-    ("A", "C", 12), ("B", "D", 14),
-    ("C", "D", 9), ("C", "汇", 20), ("D", "汇", 7),
-], weight="capacity")
+G.add_weighted_edges_from(
+    [
+        ("源", "A", 16),
+        ("源", "B", 13),
+        ("A", "B", 10),
+        ("B", "A", 4),
+        ("A", "C", 12),
+        ("B", "D", 14),
+        ("C", "D", 9),
+        ("C", "汇", 20),
+        ("D", "汇", 7),
+    ],
+    weight="capacity",
+)
 
 val, flow = nx.maximum_flow(G, "源", "汇", capacity="capacity")
-bottlenecks = [(u, v) for u, v, d in G.edges(data=True)
-               if flow[u][v] == d["capacity"]]
+bottlenecks = [(u, v) for u, v, d in G.edges(data=True) if flow[u][v] == d["capacity"]]
 print("最大流量:", val)
 print("瓶颈(满载)管道:", bottlenecks)
 
@@ -204,17 +223,23 @@ print("最小割容量:", cut_val, "割集:", partition)
 import networkx as nx
 
 G = nx.Graph()
-G.add_weighted_edges_from([
-    ("校区A", "校区B", 8), ("校区A", "校区C", 5),
-    ("校区B", "校区C", 10), ("校区B", "校区D", 2),
-    ("校区C", "校区D", 3), ("校区C", "校区E", 7),
-    ("校区D", "校区E", 4),
-])
+G.add_weighted_edges_from(
+    [
+        ("校区A", "校区B", 8),
+        ("校区A", "校区C", 5),
+        ("校区B", "校区C", 10),
+        ("校区B", "校区D", 2),
+        ("校区C", "校区D", 3),
+        ("校区C", "校区E", 7),
+        ("校区D", "校区E", 4),
+    ]
+)
 mst = nx.minimum_spanning_tree(G)
 cost = sum(d["weight"] for _, _, d in mst.edges(data=True))
-print("最小生成树边:", [(u, v, w) for u, v, w in
-                      sorted((u, v, d["weight"])
-                             for u, v, d in mst.edges(data=True))])
+print(
+    "最小生成树边:",
+    [(u, v, w) for u, v, w in sorted((u, v, d["weight"]) for u, v, d in mst.edges(data=True))],
+)
 print("总成本:", cost, "万元")
 
 # 鲁棒性:反复移除当前度数最高的节点,记录最大连通片规模
@@ -253,13 +278,22 @@ print("移除度数最高节点后,最大连通片规模变化:", sizes)
 
 ```python
 import networkx as nx
+
 G = nx.Graph()
-G.add_weighted_edges_from([
-    ("A", "B", 120), ("A", "C", 150), ("B", "D", 100),
-    ("C", "D", 80), ("B", "E", 200), ("D", "E", 90),
-    ("C", "F", 110), ("E", "F", 70),
-], weight="length")            # 里程存进 "length" 属性
-print(nx.dijkstra_path_length(G, "A", "F"))   # 忘了传 weight="length"
+G.add_weighted_edges_from(
+    [
+        ("A", "B", 120),
+        ("A", "C", 150),
+        ("B", "D", 100),
+        ("C", "D", 80),
+        ("B", "E", 200),
+        ("D", "E", 90),
+        ("C", "F", 110),
+        ("E", "F", 70),
+    ],
+    weight="length",
+)  # 里程存进 "length" 属性
+print(nx.dijkstra_path_length(G, "A", "F"))  # 忘了传 weight="length"
 ```
 
 输出是:
@@ -310,8 +344,7 @@ import networkx as nx
 
 # ---- 最短路径 ----
 G = nx.Graph()
-G.add_weighted_edges_from([("A", "B", 120), ("A", "C", 150),
-                           ("C", "F", 110), ("E", "F", 70)])
+G.add_weighted_edges_from([("A", "B", 120), ("A", "C", 150), ("C", "F", 110), ("E", "F", 70)])
 print("最短路径:", nx.dijkstra_path(G, "A", "F", weight="weight"))
 
 # ---- 最小生成树 ----
@@ -320,9 +353,9 @@ print("MST 总权重:", sum(d["weight"] for _, _, d in mst.edges(data=True)))
 
 # ---- 最大流 + 最小割 ----
 D = nx.DiGraph()
-D.add_weighted_edges_from([("s", "a", 10), ("s", "b", 5),
-                           ("a", "b", 3), ("a", "t", 8), ("b", "t", 7)],
-                          weight="capacity")
+D.add_weighted_edges_from(
+    [("s", "a", 10), ("s", "b", 5), ("a", "b", 3), ("a", "t", 8), ("b", "t", 7)], weight="capacity"
+)
 val, flow = nx.maximum_flow(D, "s", "t", capacity="capacity")
 cut, part = nx.minimum_cut(D, "s", "t", capacity="capacity")
 print("最大流:", val, "最小割:", cut)
@@ -331,8 +364,7 @@ print("最大流:", val, "最小割:", cut)
 H = G.copy()
 hub = max(H.degree, key=lambda t: t[1])[0]
 H.remove_node(hub)
-print("移除枢纽后最大连通片:",
-      max(len(c) for c in nx.connected_components(H)))
+print("移除枢纽后最大连通片:", max(len(c) for c in nx.connected_components(H)))
 ```
 
 ## 📚 延伸阅读

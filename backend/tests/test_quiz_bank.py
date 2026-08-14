@@ -2,14 +2,20 @@
 
 运行: 在 backend/ 目录下 `python -m pytest tests/test_quiz_bank.py -q`
 """
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.learning.quiz_bank import (  # noqa: E402
-    categories_summary, get_by_unit, get_question, list_questions, public_view,
-    question_no, total_count,
+    categories_summary,
+    get_by_unit,
+    get_question,
+    list_questions,
+    public_view,
+    question_no,
+    total_count,
 )
 from app.services.practice_store import PracticeStore  # noqa: E402
 
@@ -50,7 +56,7 @@ def test_every_unit_has_questions():
     # 每个学习单元都应有自测题(一库两用: 单元页自测)
     from app.learning.unit_content import ALL_UNITS
 
-    for role, units in ALL_UNITS.items():
+    for _role, units in ALL_UNITS.items():
         for u in units:
             qs = get_by_unit(u.unit_id)
             assert len(qs) >= 1, f"{u.unit_id} 缺少选择题"

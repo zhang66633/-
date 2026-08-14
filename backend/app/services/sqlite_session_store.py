@@ -14,9 +14,8 @@ import json
 import logging
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
 
 from app.config import get_settings
 
@@ -58,7 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_conversations_user_mode
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class SqliteSessionStore:
@@ -116,6 +115,7 @@ class SqliteSessionStore:
     ) -> dict:
         """创建新会话，返回会话 dict。"""
         import uuid
+
         conv_id = f"conv_{uuid.uuid4().hex[:12]}"
         now = _now()
         with self._lock:
@@ -138,7 +138,7 @@ class SqliteSessionStore:
     def list_conversations(
         self,
         user_id: str = "default",
-        mode: Optional[str] = None,
+        mode: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[dict]:
@@ -161,7 +161,7 @@ class SqliteSessionStore:
                     ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_conversation(self, conv_id: str, user_id: Optional[str] = None) -> Optional[dict]:
+    def get_conversation(self, conv_id: str, user_id: str | None = None) -> dict | None:
         """获取单个会话；提供 user_id 时校验属主（不匹配视为不存在）。"""
         with self._lock:
             with self._get_conn() as conn:
@@ -176,7 +176,9 @@ class SqliteSessionStore:
                     ).fetchone()
         return dict(row) if row else None
 
-    def update_conversation(self, conv_id: str, user_id: Optional[str] = None, **fields) -> Optional[dict]:
+    def update_conversation(
+        self, conv_id: str, user_id: str | None = None, **fields
+    ) -> dict | None:
         """更新会话字段（title, mode 等）；提供 user_id 时校验属主。"""
         allowed = {"title", "mode", "updated_at"}
         updates = {k: v for k, v in fields.items() if k in allowed}
@@ -199,7 +201,7 @@ class SqliteSessionStore:
                 conn.commit()
         return self.get_conversation(conv_id, user_id=user_id)
 
-    def delete_conversation(self, conv_id: str, user_id: Optional[str] = None) -> bool:
+    def delete_conversation(self, conv_id: str, user_id: str | None = None) -> bool:
         """删除会话及其所有消息（CASCADE）；提供 user_id 时校验属主。"""
         with self._lock:
             with self._get_conn() as conn:
@@ -209,15 +211,13 @@ class SqliteSessionStore:
                         (conv_id, user_id),
                     )
                 else:
-                    cur = conn.execute(
-                        "DELETE FROM conversations WHERE id = ?", (conv_id,)
-                    )
+                    cur = conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
                 conn.commit()
                 return cur.rowcount > 0
 
     # ── 消息 CRUD ────────────────────────────────────────
 
-    def add_message(self, conv_id: str, msg: dict) -> Optional[dict]:
+    def add_message(self, conv_id: str, msg: dict) -> dict | None:
         """追加一条消息。msg 需含 id, msg_type, created_at 字段。"""
         # 自动填充 created_at
         if "created_at" not in msg:
@@ -316,11 +316,16 @@ class SqliteSessionStore:
                 ).fetchall()
         return [_deserialize_msg(r) for r in rows]
 
-    def update_message(self, msg_id: str, **fields) -> Optional[dict]:
+    def update_message(self, msg_id: str, **fields) -> dict | None:
         """更新单条消息字段（流式更新 content / status / thinking 等）。"""
         allowed = {
-            "content", "tool_input", "tool_output", "status",
-            "thinking", "answered", "streaming",
+            "content",
+            "tool_input",
+            "tool_output",
+            "status",
+            "thinking",
+            "answered",
+            "streaming",
         }
         updates = {k: v for k, v in fields.items() if k in allowed}
         if not updates:
@@ -349,22 +354,16 @@ class SqliteSessionStore:
 
         with self._lock:
             with self._get_conn() as conn:
-                conn.execute(
-                    f"UPDATE messages SET {set_clause} WHERE id = ?", values
-                )
+                conn.execute(f"UPDATE messages SET {set_clause} WHERE id = ?", values)
                 conn.commit()
-                row = conn.execute(
-                    "SELECT * FROM messages WHERE id = ?", (msg_id,)
-                ).fetchone()
+                row = conn.execute("SELECT * FROM messages WHERE id = ?", (msg_id,)).fetchone()
         return _deserialize_msg(row) if row else None
 
     def delete_messages(self, conv_id: str) -> int:
         """删除会话下的所有消息。"""
         with self._lock:
             with self._get_conn() as conn:
-                cur = conn.execute(
-                    "DELETE FROM messages WHERE conversation_id = ?", (conv_id,)
-                )
+                cur = conn.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))
                 conn.commit()
                 return cur.rowcount
 
@@ -414,7 +413,7 @@ def _deserialize_msg(row: sqlite3.Row) -> dict:
 
 # ── 全局单例 ──────────────────────────────────────────
 
-_store: Optional[SqliteSessionStore] = None
+_store: SqliteSessionStore | None = None
 
 
 def get_sqlite_store() -> SqliteSessionStore:

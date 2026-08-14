@@ -195,17 +195,17 @@ D. 只看第一个特征值是否大于 1 即可
 import numpy as np
 
 # 1. 手工 PCA 复现例题 1 (numpy 全流程)
-X = np.array([[3., 2.], [2., 3.], [-1., 0.], [0., -1.]])
-Xc = X - X.mean(axis=0)                        # 中心化
-S = Xc.T @ Xc / len(Xc)                        # 协方差矩阵
-w, V = np.linalg.eigh(S)                       # 特征分解
-idx = np.argsort(w)[::-1]                      # 特征值降序
+X = np.array([[3.0, 2.0], [2.0, 3.0], [-1.0, 0.0], [0.0, -1.0]])
+Xc = X - X.mean(axis=0)  # 中心化
+S = Xc.T @ Xc / len(Xc)  # 协方差矩阵
+w, V = np.linalg.eigh(S)  # 特征分解
+idx = np.argsort(w)[::-1]  # 特征值降序
 w, V = w[idx], V[:, idx]
-scores = Xc @ V                                # 主成分得分
+scores = Xc @ V  # 主成分得分
 print("协方差矩阵 S:\n", S)
-print("特征值:", w)                            # [4.5 0.5]
-print("PC1 方向:", V[:, 0])                    # [0.7071 0.7071]
-print("方差解释率:", w / w.sum())              # [0.9 0.1]
+print("特征值:", w)  # [4.5 0.5]
+print("PC1 方向:", V[:, 0])  # [0.7071 0.7071]
+print("方差解释率:", w / w.sum())  # [0.9 0.1]
 print("得分:\n", np.round(scores, 4))
 
 # 2. sklearn 做鸢尾花 PCA (例题 2)
@@ -213,7 +213,7 @@ from sklearn.datasets import load_iris
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-X_iris = StandardScaler().fit_transform(load_iris().data)   # 先标准化
+X_iris = StandardScaler().fit_transform(load_iris().data)  # 先标准化
 pca = PCA(n_components=2).fit(X_iris)
 print("解释率:", np.round(pca.explained_variance_ratio_, 4))  # [0.7296 0.2285]
 print("累计:", round(pca.explained_variance_ratio_.sum(), 4))  # 0.9581

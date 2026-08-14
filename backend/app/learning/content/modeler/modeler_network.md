@@ -185,31 +185,32 @@ D. 只有容量全为 1 时最优流才是整数流
 ```python
 from collections import deque, defaultdict
 
+
 def edmonds_karp(edges, s, t):
     """Edmonds-Karp: BFS 找最短增广路径。edges = [(u, v, cap)]"""
-    G = defaultdict(lambda: defaultdict(int))       # 容量
+    G = defaultdict(lambda: defaultdict(int))  # 容量
     for u, v, c in edges:
         G[u][v] = c
-    f = defaultdict(lambda: defaultdict(int))       # 流量 (含反向边, 斜对称)
+    f = defaultdict(lambda: defaultdict(int))  # 流量 (含反向边, 斜对称)
     total = 0
     while True:
-        parent = {s: None}                          # BFS 找 s->t 增广路
+        parent = {s: None}  # BFS 找 s->t 增广路
         q = deque([s])
         while q and t not in parent:
             u = q.popleft()
-            for v in set(G[u]) | set(f[u]):         # 正向 + 反向剩余
+            for v in set(G[u]) | set(f[u]):  # 正向 + 反向剩余
                 if G[u][v] - f[u][v] > 0 and v not in parent:
                     parent[v] = u
                     q.append(v)
         if t not in parent:
-            break                                   # 无增广路 -> 已最优
+            break  # 无增广路 -> 已最优
         v, path, bottleneck = t, [], float("inf")
-        while parent[v] is not None:                # 回溯找瓶颈
+        while parent[v] is not None:  # 回溯找瓶颈
             u = parent[v]
             path.append((u, v))
             bottleneck = min(bottleneck, G[u][v] - f[u][v])
             v = u
-        for u, v in path:                           # 增广: 正向+, 反向-
+        for u, v in path:  # 增广: 正向+, 反向-
             f[u][v] += bottleneck
             f[v][u] -= bottleneck
         total += bottleneck
@@ -224,13 +225,23 @@ def edmonds_karp(edges, s, t):
     cut_edges = [(u, v, G[u][v]) for u in seen for v in G[u] if v not in seen]
     return total, f, seen, cut_edges
 
+
 # 例题 1 网络
-edges = [("s","v1",16),("s","v2",13),("v1","v3",12),("v2","v1",4),
-         ("v2","v4",14),("v3","v2",9),("v3","t",20),("v4","v3",7),("v4","t",4)]
+edges = [
+    ("s", "v1", 16),
+    ("s", "v2", 13),
+    ("v1", "v3", 12),
+    ("v2", "v1", 4),
+    ("v2", "v4", 14),
+    ("v3", "v2", 9),
+    ("v3", "t", 20),
+    ("v4", "v3", 7),
+    ("v4", "t", 4),
+]
 total, f, S, cut = edmonds_karp(edges, "s", "t")
-print("最大流 =", total)                 # 23
-print("最小割 S 集 =", sorted(S))        # ['s', 'v1', 'v2', 'v4']
-print("割边 =", cut, "| 割容量 =", sum(c for _, _, c in cut))   # 23
+print("最大流 =", total)  # 23
+print("最小割 S 集 =", sorted(S))  # ['s', 'v1', 'v2', 'v4']
+print("割边 =", cut, "| 割容量 =", sum(c for _, _, c in cut))  # 23
 print("关键边流量:", {k: dict(v) for k, v in f.items() if any(v.values())})
 ```
 

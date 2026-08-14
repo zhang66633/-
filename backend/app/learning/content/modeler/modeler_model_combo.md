@@ -206,7 +206,7 @@ D. $w = (1/3,\ 1/3,\ 1/3)$
 import numpy as np
 
 # ---- 并联最优权重(误差协方差已知) ----
-Sigma = np.array([[1.0, 0.5], [0.5, 3.0]])   # 方差 1 和 3,协方差 0.5
+Sigma = np.array([[1.0, 0.5], [0.5, 3.0]])  # 方差 1 和 3,协方差 0.5
 ones = np.ones(2)
 w = np.linalg.inv(Sigma) @ ones / (ones @ np.linalg.inv(Sigma) @ ones)
 print("最优权重:", np.round(w, 3))
@@ -220,13 +220,13 @@ B = np.array([2.8, 2.9, 3.0])
 y = np.array([2.4, 2.8, 3.2])
 
 # SSE(w) = ||w*A + (1-w)*B - y||^2,展开为 aw^2 + bw + c
-a = np.sum((A - B)**2)
+a = np.sum((A - B) ** 2)
 b = 2 * np.sum((A - B) * (B - y))
 w_star = -b / (2 * a)
 pred = w_star * A + (1 - w_star) * B
 print(f"最优权重 w* = {w_star:.4f}")
-print("等权 MSE:", np.mean((0.5*A + 0.5*B - y)**2))
-print("Stacking MSE:", np.mean((pred - y)**2))
+print("等权 MSE:", np.mean((0.5 * A + 0.5 * B - y) ** 2))
+print("Stacking MSE:", np.mean((pred - y) ** 2))
 
 # ---- 误差相关性与方差下降的关系 ----
 sigma2 = 1.0

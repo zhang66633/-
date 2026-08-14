@@ -1,15 +1,15 @@
 """Auth dependencies — FastAPI Depends() callables for route protection."""
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from fastapi import Depends, HTTPException, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import get_settings
-from .github import GitHubUser, ALLOWED_CONTRIBUTORS
+
+from .github import ALLOWED_CONTRIBUTORS, GitHubUser
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ JWT_EXPIRE_DAYS = 7
 def create_jwt(user: GitHubUser) -> str:
     """Create a signed JWT for the authenticated user (7-day expiry)."""
     settings = get_settings()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user.id),
         "login": user.login,
@@ -62,7 +62,7 @@ def decode_jwt(token: str) -> GitHubUser | None:
 
 async def get_current_user(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> GitHubUser | None:
     """Extract the current user from the Authorization header.
 
@@ -78,7 +78,7 @@ async def get_current_user(
 
 async def require_auth(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> GitHubUser:
     """Require a valid JWT token.  Raises 401 if missing or invalid."""
     if credentials is None:
