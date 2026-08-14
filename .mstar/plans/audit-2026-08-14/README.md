@@ -69,11 +69,11 @@
 
 ## Remaining follow-ups (not planned in this batch)
 
-- **发现 31（god files 拆分）**：依赖测试基线稳定 + 单独重构轮次，本轮未动（L 工作量、MED 风险）；测试基线现已就位（010），可择机立项。
-- **发现 32 的后半（export_routes.py markdown 剥离器与 marked 不一致）**：低风险低收益，未改；如导出质量投诉再立项。
-- **biome 424 项既有 lint 问题**：未在本轮修复（范围外），`pnpm lint` 已接线，可逐步消化或加 baseline。
-- **poetry.lock**：本机无 poetry；在装有 poetry 的环境执行 `poetry lock` 后入库。
-- **手工知识库 CRUD 的检索失效钩子**：B 子代理记录的遗留（reindex/import 已接，手工 create/update/delete 未接）。
+- **发现 31（god files 拆分）**：4/5 完成——① RRF/MMR/bigram 排序数学 → `knowledge/ranking.py` 纯函数模块；② 学习单元内容库 → `learning/unit_content.py`（1564 行数据与逻辑分离，path_generator.py 剩 55 行）；③ 知识库路由 → `api/knowledge_shared.py` + `knowledge_search_routes.py` + `knowledge_crud_routes.py` + 聚合器（TestClient 端到端验证）；④ 编排器辅助层 → `core/node_helpers.py`（195 行纯函数，nodes.py 1498→1311 行，向后兼容导入保留）。剩余：`frontend/src/pages/knowledge/index.vue`（814 行组件拆分）与 nodes.py 的完整 agent-per-file 拆分（需先补节点级测试，风险最高，建议独立轮次）。
+- **发现 32 后半（export_routes 解析器）**：DONE——解析器重写对齐 marked 核心语法（列表/表格/链接/公式/转义），`_parse_inline` 纯函数 + `tests/test_export_md.py` 5 项通过。
+- **手工知识库 CRUD 的检索失效钩子**：DONE——单点化到 `KBEmbedder.add_document/remove_document` 内懒失效（reindex/import/CRUD 全覆盖）。
+- **biome 424 项既有 lint 问题**：自动修复 314 项（format/organizeImports 等）；`noExplicitAny`（~100 处）按决策降级为 warn（biome.json），其余非-any 错误由前端 lint 修复批处理——完成后 `pnpm lint` 零 error。
+- **poetry.lock**：本机无 poetry 且沙箱阻断 pip 安装；在装有 poetry 的环境执行 `poetry lock` 后入库。
 - **pnpm approve-builds**：fresh install 需 `onlyBuiltDependencies`（已写入 package.json）；本机 esbuild 二进制因沙箱 EPERM 无法重建，用户环境正常 `pnpm install` 即可。
 
 ## Findings considered and rejected
