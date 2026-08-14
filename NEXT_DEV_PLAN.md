@@ -15,7 +15,7 @@
 | 论文工作台（chat/teach/solution/knowledge/apikeys/settings） | ✅ | SSE 对话、多智能体流水线、知识库 CRUD、OAuth 登录 |
 | 学习中心（learn/learn:unitId/practice/qa/progress） | ✅ | 三栏学习单元、训练场、答疑室、成长档案 |
 | 7 智能体 + persona | ✅ | 名字/emoji/教学风格 |
-| 学习内容（61 单元 / 62 条 CONTENT_LIBRARY） | ✅ | 7 大方法类别 |
+| 学习内容（61 单元,文件化 content/<角色>/<unit>.md + 富化模板） | ✅ | 7 大方法类别 |
 | 知识库混合检索（向量+BM25+RRF+MMR+LLM精排） | ✅ | 排序数学已抽 `knowledge/ranking.py` 并修双重反转 |
 | 贝叶斯知识追踪 + 艾宾浩斯遗忘 | ✅ | 衰减已幂等化（`peak_mastery` 派生） |
 | 沙箱代码执行 | ✅ | Docker 默认硬隔离 + 无 Docker 回退告警 |

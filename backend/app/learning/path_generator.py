@@ -50,11 +50,14 @@ def generate_learning_path(
             if diff not in diffs:
                 continue
             units = diffs[diff]
+            # 路径列表只做导航,不携带全文: content_md 置空,按需走 /units/{id} 详情接口
+            # (内容文件化后单篇 10KB+,38 篇全文会让路径响应膨胀到 ~500KB)
+            nav_units = [u.model_copy(update={"content_md": ""}) for u in units]
             phases.append(LearningPhase(
                 name=f"{cat_labels.get(cat, cat)} · {diff_labels.get(diff, diff)}",
                 description=f"{cat_labels.get(cat, cat)}的{diff_labels.get(diff, diff)}级内容",
                 duration_weeks=2 if len(units) <= 3 else 3,
-                units=units,
+                units=nav_units,
             ))
 
     return LearningPath(
