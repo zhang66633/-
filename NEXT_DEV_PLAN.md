@@ -66,36 +66,58 @@
 
 ---
 
-## 三、双人开发分工（代码分区，互不重叠）
+## 三、双人开发分工（域切分，文件级互不重叠）
 
-> 核心原则：**按目录垂直切分**，每人只改自己名下的目录/文件；跨层功能通过「接口契约先行」协作，谁都不进对方目录。
+> 核心原则：**按「业务域」切分**，每人只改自己名下的目录/文件；跨域依赖「只用不改」；跨层功能「接口契约先行」。
 >
-> 默认分配：**开发者 A = 后端 + 部署**，**开发者 B = 前端 + UI**。如需对调，改本行并同步告知对方。
+> 分配（方案 A）：**开发者 A = 建模管线（后端）**，**开发者 B = 学习平台（后端服务层）+ 前端全部**。
 
-### 3.1 开发者 A —— 后端 + 部署 + 接口契约
+### 3.1 开发者 A —— 建模管线（core / sandbox / knowledge / tools）
 
 **独占目录（B 不得改动）**：
 
 ```
-backend/app/**            # 全部后端（api/core/knowledge/learning/sandbox/tools/services/auth）
-backend/tests/**
+backend/app/core/**        # 编排（nodes/workflow/state/router/prompts/llm/node_helpers）
+backend/app/sandbox/**     # 代码沙箱
+backend/app/knowledge/**   # 知识库检索（loader/embedder/retriever/ranking/schemas/chain/…）
+backend/app/tools/**       # 工具（math/kb/interaction/web_search/base）
+backend/app/api/chat_routes.py
+backend/app/api/tasks.py
+backend/app/api/files.py
+backend/app/api/export_routes.py
+backend/app/api/knowledge_routes.py          # 含 knowledge_shared/search/crud 拆分件
+backend/app/api/knowledge_import_routes.py
+backend/app/api/apikeys.py
+backend/app/api/ws.py
+backend/app/api/schemas/request.py            # 建模/对话相关请求模型
 backend/scripts/**
-backend/knowledge_base/** # 知识库 YAML 源数据
-backend/pyproject.toml
-backend/pytest.ini
+backend/knowledge_base/**                      # 知识库 YAML 源数据
 docker-compose.yml
 nginx.conf
 backend/Dockerfile*
+backend/pyproject.toml
+backend/pytest.ini
+backend/tests/test_*（建模/检索/路径/SSRF/oauth/导出/nodes 相关）
 ```
 
-**A 负责的方向**：#1 docker 部署、#2 论文质检后端 API、#3 LaTeX 导出、#4 成就持久化后端、#5 导师模式后端、#6 DDA。
+**A 负责的方向**：#1 docker 部署、#2 论文质检后端 API、#3 LaTeX 导出、#6 DDA（如需动 learning 内代码则与 B 协调）。
 
-### 3.2 开发者 B —— 前端 + UI/UX
+### 3.2 开发者 B —— 学习平台服务层 + 前端全部
 
 **独占目录（A 不得改动）**：
 
 ```
-frontend/src/**           # 全部前端（pages/components/stores/composables/apis/utils/config）
+backend/app/learning/**    # 学习系统（schemas/path_generator/unit_content/knowledge_graph/mastery_tracker）
+backend/app/services/**    # 服务层（session/sqlite_session_store/working_memory/episodic_memory/
+                           #         achievement_service/result_packager/kb_extractor/redis_pubsub）
+backend/app/auth/**        # 认证（github/dependencies/schemas）
+backend/app/api/learning_routes.py
+backend/app/api/profile_routes.py
+backend/app/api/session_routes.py
+backend/app/api/schemas/response.py            # 学习/画像/会话相关响应模型
+backend/tests/test_*（学习/session 相关）
+
+frontend/src/**            # 全部前端（pages/components/stores/composables/apis/utils/config）
 frontend/package.json
 frontend/pnpm-lock.yaml
 frontend/biome.json
@@ -104,25 +126,40 @@ frontend/vite.config.ts
 frontend/tsconfig*.json
 ```
 
-**B 负责的方向**：#2 论文质检前端展示、#4 成就 `/progress` 展示、#5 导师模式前端、#7 noExplicitAny 清理、#8 智能体插话/对话导出前端。
+**B 负责的方向**：#2 论文质检前端展示、#4 成就持久化（后端 services + `/progress` 前端）、#5 导师模式（后端 + 前端）、#7 noExplicitAny 清理、#8 智能体插话/对话导出前端。
 
-### 3.3 共享文件（改动须对方知会，禁止静默改）
+### 3.3 跨域依赖规则（只用不改）
+
+本代码库存在少量跨域引用，一律「**消费方只读，改动归 owner**」：
+
+| 依赖方向 | owner |
+|----------|-------|
+| A 的 `core/nodes.py`、`api/tasks.py` 用到 `services/session.py`、`services/redis_pubsub.py`、`services/result_packager.py` | B |
+| A 的 `api/knowledge_import_routes.py` 用到 `services/kb_extractor.py` | B |
+| B 的 `services/episodic_memory.py`、`working_memory.py` 用到 `knowledge/`（向量库/嵌入） | A |
+
+若 A 需要改 B 的服务接口，或 B 需要改 A 的 knowledge 接口：**先在本文档「接口契约」登记变更 → owner 实施 → 消费方更新**，不在对方目录直接改代码。
+
+### 3.4 共享文件（改动须对方知会，禁止静默改）
 
 | 文件 | 规则 |
 |------|------|
+| `backend/app/config.py` / `backend/app/main.py` | 双方都可能加配置键/中间件，改动先沟通 |
+| `backend/app/api/router.py` | 路由聚合器（A 加管线路由、B 加学习路由，极小文件低冲突） |
+| `backend/app/api/schemas/__init__.py` | 双方共用 |
 | `RULES.md` / `AGENTS.md` / `.gitignore` | 只能由提议方改动并同步告知对方 |
 | `NEXT_DEV_PLAN.md`（本文档） | 每次分工/状态变更由双方共同更新 |
-| 根文档（README/PLAN/RESOURCES_AND_ROADMAP） | A 改后端相关、B 改前端相关，冲突时沟通 |
+| 根文档（README/PLAN/RESOURCES_AND_ROADMAP） | A 改后端相关、B 改前端/学习相关，冲突时沟通 |
 
-### 3.4 跨层功能的协作协议（避免「代码重复」）
+### 3.5 跨层功能的协作协议（避免「代码重复」）
 
 对于同时涉及前后端的功能（质检、成就、导师模式），按此顺序：
 
-1. **A 先定义接口契约**：在 `backend/app/api/` 实现路由的同时，把请求/响应 JSON 结构写进本文档「接口契约」小节（或 `docs/api/`），并给出可 `curl` 的 mock 响应示例。
-2. **B 照契约并行开发前端**：不等待 A 完成，用契约里的 JSON 结构写 `frontend/src/apis/` 调用层 + 页面，先用本地 mock 数据联调。
+1. **后端 owner 先定义接口契约**：在实现路由的同时，把请求/响应 JSON 结构写进本文档「接口契约」小节，并给出可 `curl` 的 mock 响应示例。
+2. **前端（B）照契约并行开发**：不等待后端完成，用契约里的 JSON 结构写 `frontend/src/apis/` 调用层 + 页面，先用本地 mock 数据联调。
 3. **合流**：双方各自提交，联调只发生在「接口路径 + 字段名」这个契约层，不产生代码重叠。
 
-**铁律**：同一功能的前后端代码分属两人目录，天然不重复；唯一共享的「契约文本」由 A 负责起草、B 负责引用，不作为可执行代码重复实现。
+**铁律**：同一功能的前后端代码分属两人目录，天然不重复；唯一共享的「契约文本」由后端 owner 起草、前端引用，不作为可执行代码重复实现。
 
 ---
 
