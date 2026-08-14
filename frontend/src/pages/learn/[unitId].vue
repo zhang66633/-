@@ -12,6 +12,8 @@
           <div v-if="headings.length === 0" class="px-3 py-4 text-[11px] text-muted-foreground text-center">暂无目录</div>
         </div>
       </div>
+      <!-- 收起态占位,保证按钮不跳到顶部 -->
+      <div v-else class="flex-1" />
       <button class="flex shrink-0 items-center justify-center border-t py-2 hover:bg-accent/50 transition-colors" @click="leftOpen = !leftOpen" :title="leftOpen ? '折叠侧栏' : '展开侧栏'">
         <PanelLeftOpen v-if="leftOpen" class="h-3.5 w-3.5 text-muted-foreground" />
         <PanelLeft v-else class="h-3.5 w-3.5 text-muted-foreground" />

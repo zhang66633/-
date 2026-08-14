@@ -24,7 +24,7 @@
       <div v-for="group in visibleGroups" :key="group.label" class="mt-1">
         <!-- 静态小节标签(图标+汉字,不支持折叠,组内条目始终可见) -->
         <p class="flex items-center gap-2 w-full px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider"
-          :class="group.label === learnGroup.label && activeGroup === learnGroup.label ? 'text-primary' : 'text-muted-foreground/60'">
+          :class="activeGroup === group.label ? 'text-primary' : 'text-muted-foreground/60'">
           <component :is="group.icon" class="h-3.5 w-3.5 shrink-0" />
           {{ group.label }}
         </p>

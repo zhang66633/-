@@ -36,7 +36,6 @@
               <RouterLink to="/learn" class="text-primary hover:underline">去学习工位开始吧</RouterLink>
             </span>
             <span class="font-mono text-xs text-muted-foreground">连续学习 {{ streak }} 天</span>
-            <span class="font-mono text-xs text-muted-foreground">已完成 {{ completedUnits }}/{{ totalUnits }} 单元</span>
           </div>
         </div>
 
@@ -56,42 +55,6 @@
         <!-- 数字大屏 -->
         <div class="mt-6">
           <StatHero :stats="progress.stats ?? {}" />
-        </div>
-
-        <!-- 学习进度 -->
-        <div class="mt-6 rounded-md border border-border bg-card p-5">
-          <p class="mb-2 text-sm font-medium">
-            学习进度
-            <span class="ml-2 font-mono text-xs text-muted-foreground">
-              {{ completedUnits }}/{{ totalUnits }} 单元 · {{ progressPct }}%
-            </span>
-          </p>
-          <div class="h-2 overflow-hidden rounded-full bg-muted">
-            <div
-              class="h-full rounded-full bg-primary transition-all duration-500"
-              :style="{ width: progressPct + '%' }"
-            />
-          </div>
-        </div>
-
-        <!-- 已掌握知识点(角色掌握度) -->
-        <div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-          <SkillRadar :skills="roleSkills" />
-          <div class="rounded-md border border-border bg-card p-5">
-            <p class="font-display text-base font-medium mb-4">各角色掌握度</p>
-            <div v-for="s in roleSkills" :key="s.name" class="mb-3 last:mb-0">
-              <div class="mb-1 flex items-center justify-between text-xs">
-                <span class="text-muted-foreground">{{ s.name }}</span>
-                <span class="font-mono">{{ s.value }}%</span>
-              </div>
-              <div class="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  class="h-full rounded-full bg-primary transition-all duration-500"
-                  :style="{ width: s.value + '%' }"
-                />
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- 学习日历热力图 -->
@@ -128,8 +91,6 @@
 import AchievementWall from "@/components/progress/AchievementWall.vue";
 import CalendarHeatmap from "@/components/progress/CalendarHeatmap.vue";
 import ReviewList from "@/components/progress/ReviewList.vue";
-// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
-import SkillRadar from "@/components/progress/SkillRadar.vue";
 import StatHero from "@/components/progress/StatHero.vue";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStaggerReveal } from "@/composables/useStaggerReveal";
@@ -163,27 +124,6 @@ const todayEntry = computed(() =>
   ),
 );
 const streak = computed(() => progress.value?.stats?.streak_days ?? 0);
-
-// ── 学习进度 ──
-const totalUnits = computed(() => progress.value?.stats?.total_units ?? 0);
-const completedUnits = computed(
-  () => progress.value?.stats?.completed_units ?? 0,
-);
-const progressPct = computed(() =>
-  totalUnits.value > 0
-    ? Math.round((completedUnits.value / totalUnits.value) * 100)
-    : 0,
-);
-
-// ── 已掌握知识点(角色掌握度,复用孤儿组件 SkillRadar) ──
-const roleSkills = computed(() => {
-  const roles = progress.value?.roles ?? {};
-  return [
-    { name: "建模", value: Math.round(Number(roles.modeler) || 0) },
-    { name: "编程", value: Math.round(Number(roles.programmer) || 0) },
-    { name: "论文", value: Math.round(Number(roles.writer) || 0) },
-  ];
-});
 
 const reviewItems = computed(() => {
   const list = progress.value?.needs_review ?? [];

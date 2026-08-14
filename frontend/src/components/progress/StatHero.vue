@@ -30,9 +30,8 @@ const props = defineProps<{
     streak_days?: number;
     unlocked_achievements?: number;
     total_achievements?: number;
-    completed_units?: number;
-    total_units?: number;
     wrong_questions?: number;
+    mastered_questions?: number;
   };
 }>();
 
@@ -50,7 +49,7 @@ const tiles = computed(() => [
     label: "累计刷题",
     display: anim.total.display.value,
     suffix: "",
-    sub: `完成单元 ${props.stats.completed_units ?? 0}/${props.stats.total_units ?? 61}`,
+    sub: `已掌握 ${props.stats.mastered_questions ?? 0} 道题`,
   },
   {
     label: "正确率",

@@ -31,7 +31,7 @@ def test_empty_state(tmp_path):
     _use_tmp_stores(tmp_path)
     svc = _fresh_service()
     results = svc.check_all("default")
-    assert len(results) == len(ACHIEVEMENT_DEFS) == 12
+    assert len(results) == len(ACHIEVEMENT_DEFS) == 10
     for r in results:
         assert r["unlocked"] is False
         assert r["progress"] == 0
@@ -45,21 +45,19 @@ def test_progress_and_unlock(tmp_path):
     ls, ps = _use_tmp_stores(tmp_path)
     svc = _fresh_service()
 
-    # 5 次作答(3 对 2 错)+ 完成 1 个单元
+    # 5 次作答(3 对 2 错)
     for i, ok in enumerate([True, False, True, True, False]):
         ps.record_answer(f"modeler_lp_01_q{i % 3 + 1}", 0, ok, round_id="r1")
-    ls.add_event("modeler_lp_01", "learn", 1.0)
 
     results = {r["id"]: r for r in svc.check_all("default")}
     assert results["first_practice"]["unlocked"] is True
-    assert results["first_unit"]["unlocked"] is True
     assert results["quiz_10"]["progress"] == 5
     assert results["quiz_10"]["unlocked"] is False
     assert results["categories_5"]["progress"] >= 1
 
     # 新解锁的成就 is_new=True
     new_ones = [r["id"] for r in svc.check_all("default") if r["is_new"]]
-    assert set(new_ones) == {"first_practice", "first_unit"}
+    assert set(new_ones) == {"first_practice"}
 
     # ack 后不再 new
     svc.ack_all("default")

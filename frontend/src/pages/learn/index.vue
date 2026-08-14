@@ -120,12 +120,12 @@ const hubQuickActions = [
           class="h-full"
         >
           <template #main>
-            <!-- 左侧技能树(可折叠,折叠按钮固定在底部) -->
+            <!-- 左侧技能树(可折叠,折叠按钮两态固定在底部) -->
             <div
               class="h-full shrink-0 border-r flex flex-col transition-all duration-200"
               :class="treeOpen ? 'w-64' : 'w-10'"
             >
-              <div v-show="treeOpen" class="flex-1 overflow-y-auto p-4 min-h-0">
+              <div v-if="treeOpen" class="flex-1 overflow-y-auto p-4 min-h-0">
                 <SkillGraph
                   :categories="store.skillTree"
                   :title="`${roleLabel}技能树`"
@@ -134,6 +134,8 @@ const hubQuickActions = [
                   @select="handleUnitSelect"
                 />
               </div>
+              <!-- 收起态占位,保证按钮不跳到顶部 -->
+              <div v-else class="flex-1" />
               <button
                 class="flex shrink-0 items-center justify-center border-t py-2 transition-colors hover:bg-accent/50"
                 :title="treeOpen ? '折叠技能树' : '展开技能树'"

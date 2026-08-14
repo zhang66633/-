@@ -1,8 +1,11 @@
-"""成就计算服务 — 12 项三档成就,带进度/目标,解锁状态持久化。
+"""成就计算服务 — 10 项三档成就,带进度/目标,解锁状态持久化。
 
 数据源: learning_store(学习事件)+ practice_store(作答流水/错题本),
 全部 SQLite 持久化,重启不丢。check_all 判定后新解锁写入 achievements 表
 (acknowledged=0 表示未读,前端弹彩带庆祝后调 ack)。
+
+注: 单元打卡功能已移除,依赖 learn 事件的成就(学有所成/持之以恒)已删,
+所有成就目标现均由训练场练习数据驱动。
 """
 
 from __future__ import annotations
@@ -18,10 +21,6 @@ ACHIEVEMENT_DEFS = [
     {
         "id": "first_practice", "name": "初出茅庐", "tier": "bronze",
         "desc": "完成第一次练习", "icon": "🌱", "check": "first_practice",
-    },
-    {
-        "id": "first_unit", "name": "学有所成", "tier": "bronze",
-        "desc": "完成第一个学习单元", "icon": "📖", "check": "first_unit",
     },
     {
         "id": "quiz_10", "name": "小试牛刀", "tier": "bronze",
@@ -44,10 +43,6 @@ ACHIEVEMENT_DEFS = [
         "id": "categories_5", "name": "博采众长", "tier": "silver",
         "desc": "在 5 个不同类别中答对过题目", "icon": "🧭", "check": "categories_5",
     },
-    {
-        "id": "unit_10", "name": "持之以恒", "tier": "silver",
-        "desc": "完成 10 个学习单元", "icon": "🏛️", "check": "unit_10",
-    },
     # ── 🥇 金 ──────────────────────────────────────────
     {
         "id": "quiz_300", "name": "题库战神", "tier": "gold",
@@ -59,7 +54,7 @@ ACHIEVEMENT_DEFS = [
     },
     {
         "id": "all_rounder", "name": "全能选手", "tier": "gold",
-        "desc": "三个角色都完成过学习单元", "icon": "🌟", "check": "all_rounder",
+        "desc": "三个角色的题目都刷过", "icon": "🌟", "check": "all_rounder",
     },
     {
         "id": "perfect_10", "name": "十全十美", "tier": "gold",
@@ -69,7 +64,7 @@ ACHIEVEMENT_DEFS = [
 
 _TARGETS = {
     "quiz_count_10": 10, "quiz_count_100": 100, "quiz_count_300": 300,
-    "streak_7": 7, "streak_30": 30, "categories_5": 5, "unit_10": 10,
+    "streak_7": 7, "streak_30": 30, "categories_5": 5,
     "all_rounder": 3, "perfect_10": 10, "fix_3": 3,
 }
 
@@ -126,19 +121,12 @@ class AchievementService:
                 return 1 if any(
                     r["event_type"] == "practice" for r in persisted
                 ) or pstats["total_answers"] > 0 else 0
-            if check == "first_unit":
-                return 1 if any(r["event_type"] == "learn" for r in persisted) else 0
             if check in ("quiz_count_10", "quiz_count_100", "quiz_count_300"):
                 return pstats["total_answers"]
             if check in ("streak_7", "streak_30"):
                 return streak
             if check == "categories_5":
                 return pstore.get_correct_categories(user_id)
-            if check == "unit_10":
-                return len({
-                    r["unit_id"] for r in persisted
-                    if r["event_type"] == "learn"
-                })
             if check == "all_rounder":
                 unit_ids = {r["unit_id"] for r in persisted}
                 roles = {get_question(u)["role"] for u in unit_ids if get_question(u)}

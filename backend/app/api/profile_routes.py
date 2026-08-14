@@ -144,7 +144,6 @@ async def get_progress():
         },
         "weekly": _weekly_message(
             streak_days=streak_days,
-            completed_units=completed_units,
             total_answers=pstats["total_answers"],
             wrong_questions=pstats["wrong_questions"],
             new_achievements=[a for a in achievements if a["is_new"]],
@@ -255,19 +254,16 @@ def _build_calendar(active_dates: set[str]) -> list[dict]:
 
 def _weekly_message(
     streak_days: int,
-    completed_units: int,
     total_answers: int,
     wrong_questions: int,
     new_achievements: list[dict],
 ) -> dict:
-    """管家周播报(人格化文案,后端拼好)。"""
+    """管家周播报(人格化文案,后端拼好;单元打卡已移除,不再提及完成单元)。"""
     parts = []
     if streak_days > 0:
         parts.append(f"已经连续学习 {streak_days} 天")
     if total_answers > 0:
         parts.append(f"累计刷了 {total_answers} 道题")
-    if completed_units > 0:
-        parts.append(f"完成 {completed_units} 个学习单元")
     if new_achievements:
         parts.append(f"新解锁 {len(new_achievements)} 枚勋章 🎉")
     elif wrong_questions > 0:
