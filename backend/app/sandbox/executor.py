@@ -70,12 +70,15 @@ def _make_preexec_fn(max_memory_mb: int, timeout: int):
         return None
 
     def _set_limits():
-        mem_bytes = max_memory_mb * 1024 * 1024
-        resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
+        # 虚拟地址空间给足（numpy/OpenBLAS 会映射大量 VA，RLIMIT_AS 太紧会 import 即崩）；
+        # 真实内存上限由 _run_subprocess 的 psutil 进程树 RSS 监控守护
+        va_bytes = max_memory_mb * 4 * 1024 * 1024
+        resource.setrlimit(resource.RLIMIT_AS, (va_bytes, va_bytes))
         resource.setrlimit(resource.RLIMIT_CPU, (timeout, timeout))
         file_limit = 50 * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_FSIZE, (file_limit, file_limit))
-        resource.setrlimit(resource.RLIMIT_NPROC, (0, 0))
+        # 必须允许线程：OpenBLAS/matplotlib 要起工作线程；硬进程隔离靠 docker 模式
+        resource.setrlimit(resource.RLIMIT_NPROC, (128, 128))
 
     return _set_limits
 
@@ -102,6 +105,10 @@ def _clean_env() -> dict:
     env.pop("HTTPS_PROXY", None)
     env.pop("http_proxy", None)
     env.pop("https_proxy", None)
+    # 限制 BLAS 线程数：降低线程开销与内存峰值（numpy/scipy/matplotlib 共享）
+    env["OPENBLAS_NUM_THREADS"] = "2"
+    env["OMP_NUM_THREADS"] = "2"
+    env["MKL_NUM_THREADS"] = "2"
     return env
 
 
@@ -305,6 +312,12 @@ class SandboxExecutor:
             "MPLCONFIGDIR=/tmp/matplotlib",
             "-e",
             "PYTHONDONTWRITEBYTECODE=1",
+            "-e",
+            "OPENBLAS_NUM_THREADS=2",
+            "-e",
+            "OMP_NUM_THREADS=2",
+            "-e",
+            "MKL_NUM_THREADS=2",
             "-v",
             f"{output_subdir}:{container_output}:rw",
             SANDBOX_IMAGE,
