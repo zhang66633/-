@@ -3,6 +3,7 @@
 """
 
 import os
+import re
 import subprocess
 import sys
 import time
@@ -23,8 +24,9 @@ def check_env() -> bool:
         print("  然后编辑 backend/.env 填入 API Key")
         return False
     content = env_file.read_text(encoding="utf-8")
-    if "OPENAI_API_KEY=sk-xxx" in content or "OPENAI_API_KEY=" in content and "sk-3" not in content:
-        print("[WARN] backend/.env 可能未配置 API Key，请检查")
+    m = re.search(r"^DEEPSEEK_API_KEY=(.*)$", content, re.MULTILINE)
+    if not m or not m.group(1).strip() or "xxx" in m.group(1):
+        print("[WARN] backend/.env 未配置有效的 DEEPSEEK_API_KEY，请检查")
     return True
 
 

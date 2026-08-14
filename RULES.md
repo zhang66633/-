@@ -4,7 +4,7 @@
 
 - **前端**：Vue 3 + Vite + TypeScript + shadcn-vue + Tailwind CSS + Pinia
 - **后端**：FastAPI + LangGraph + LangChain
-- **LLM**：仅国产栈（DeepSeek / Qwen / GLM 等，不引入 Claude / GPT）
+- **LLM**：默认国产栈（DeepSeek / Qwen / GLM），Claude / GPT 经 OpenAI/Anthropic 兼容接口作为**可选**供应商（需在 `.env` 显式配置对应 Key，默认不启用）
 - **权威文档**：`PLAN.md`；`ARCHITECTURE.md` 已废弃，禁止参考
 
 ## 二、架构红线

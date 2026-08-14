@@ -14,8 +14,6 @@ for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| find ":5174" ^| find "LISTENIN
     taskkill /PID %%a /F 2>nul
 )
 
-docker stop chromadb 2>nul
-docker stop math-redis 2>nul
-
+docker compose down 2>nul
 echo Done.
 pause

@@ -146,19 +146,25 @@ MEMORY_CONTEXT_GUIDE.md 提供了 Agent Xi 项目的实战经验，以下模式�
 
 | 模式 | 来源章节 | 当前状态 | 建议 |
 |------|---------|---------|------|
-| **工作记忆（问题状态文档）** | §5.1 | ❌ 未实现 | solution 模式应维护一个持续更新的"问题状态文档"，每阶段写入 checkpoint，断点续做 |
-| **情景记忆（历史建模经验）** | §1.2 | ❌ 未实现 | 记录"上次类似题用了什么方法、效果如何"，下次遇到类似题时召回 |
-| **整体重写用户画像** | §1.1 | ❌ 未实现 | teach 模式可记录学生的知识水平、偏好、薄弱环节，个性化引导 |
-| **快照与版本控制** | §1.4 | ❌ 未实现 | 问题状态文档每次修改前保存快照，出错可回滚 |
+| **工作记忆（问题状态文档）** | §5.1 | ✅ 已实现 | `app/services/working_memory.py`：problem_doc 整体重写 + 每阶段 checkpoint JSON，支持断点续做 |
+| **情景记忆（历史建模经验）** | §1.2 | ✅ 已实现 | `app/services/episodic_memory.py`：solution 完成 → LLM 经验摘要 → embed 入 ChromaDB |
+| **整体重写用户画像** | §1.1 | ⚠️ 部分 | `app/api/profile_routes.py` 有诊断与画像接口；「整体重写」策略未实现 |
+| **快照与版本控制** | §1.4 | ✅ 已实现 | working_memory 重写前快照 `problem_doc.N.bak`，保留 10 份 |
 | **Token 预算分配** | §2.1 | ⚠️ 部分 | chat 有滑动窗口(20条)，但无 token 级预算控制；solution 流水线无上下文管理 |
 | **贪心截断** | §2.2 | ❌ 未实现 | 当前是固定条数截断，应改为 token 预算 + 贪心逆序填充 |
-| **长程任务检查点** | §3.2, §5.3 | ❌ 未实现 | solution 模式 5 阶段应各有 checkpoint JSON，支持断点续做 |
+| **长程任务检查点** | §3.2, §5.3 | ✅ 已实现 | `data/sessions/{id}/checkpoints/1_classify.json … 7_writing.json` |
 | **多 Agent 上下文隔离** | §3.4, §5.2 | ⚠️ 部分 | LangGraph state 传递了上下文，但无结构化摘要，子 Agent 可能收到过多无关信息 |
 
 ### 5.2 功能缺口
 
 | 功能 | 优先级 | 说明 |
 |------|--------|------|
+| **docker 全栈部署补全** | P1 | compose/nginx 三处断点已列入修复计划（审计 DIR-1），修通后为产品化第一步 |
+| **论文质检接入闭环** | P1 | `scripts/paper_quality_check.py`（12 项评分）已存在，待接入 /solution 完成后自动反馈（审计 DIR-2） |
+| **LaTeX 论文导出** | P1 | export_routes.py 已有 DOCX 管线 + path_generator 已产 LaTeX，加导出路由即达（审计 DIR-6） |
+| **成就系统持久化** | P2 | `services/achievement_service.py` 已实现但纯内存（重启清零），接 SQLite 后 /progress 可积累（审计 DIR-5） |
+| **导师模式** | P2 | ARCHITECTURE 明示二期；MasteryTracker 已按 user_id 隔离，成本被摊薄（审计 DIR-3） |
+| **智能体插话协作** | P3 | ARCHITECTURE Phase 4 计划，未交付（审计 DIR-4 确认） |
 | **对话导出** | P4 | 导出 chat/teach 对话为 Markdown/PDF，方便复习 |
 | **论文模板选择** | P4 | 写作 Agent 支持国赛/美赛 LaTeX 模板，输出可编译的 .tex |
 | **DOCX 导出** | P4 | 论文/对话导出为 Word 格式 |

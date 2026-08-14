@@ -28,3 +28,11 @@
 - [ ] fresh-clone 模拟：`git ls-files | grep -E "preprocessing|result_packager|components/paper|paper.css"` 全部命中
 - [ ] `pnpm install --frozen-lockfile && pnpm build` 成功；`pnpm audit --prod` 高危归零
 - [ ] `docker compose config` 通过（有 docker 时）；端口/路径一致
+
+## Implementation notes (2026-08-14)
+
+- 前端依赖清单已重写（删 5 个未用依赖、`@tailwindcss/typography` 由根目录迁入 frontend 依赖、加 typecheck/lint/format 脚本）；pnpm-lock.yaml 经 `pnpm install` 同步，根 `package-lock.json` 与根 `package.json` 删除、根 `node_modules/` 忽略。
+- 部署已修：compose 端口 5174:80 + build args 注入 VITE_API_BASE_URL/WS_URL；backend 127.0.0.1:8002:8000；redis/chromadb 仅 127.0.0.1 发布；nginx.conf `/health` 指向修复；start.py check_env 重写（正则 + 占位符检测）；stop.bat 改 `docker compose down`。
+- `poetry.lock` 未生成：本机无 poetry（Python 3.14 环境）。CI 用 `pip install -e .` 解析；建议后续在装有 poetry 的环境补 `poetry lock` 后入库。
+- `sandbox_wrapper.py` 保留入库：`Dockerfile.sandbox` 构建上下文依赖它（非一次性脚本，属沙箱镜像构建产物）。
+

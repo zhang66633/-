@@ -210,7 +210,7 @@ NB_project/
 - **知识库**: YAML 真源 + ChromaDB（向量+BM25 多路召回 + RRF + MMR + LLM rerank + 时间衰减）
 - **学习系统**: 知识图谱技能树 + 贝叶斯知识追踪 (BKT) + 艾宾浩斯遗忘曲线 + 动态难度调整 (DDA)
 - **数据文件**: xlsx/csv → parquet 预计算 + 列名标准化，沙箱秒级加载
-- **沙箱**: subprocess + socket 阻断 + rlimit（Unix）+ matplotlib Agg 自动保存 + 数据文件自动挂载
+- **沙箱**: Docker 容器默认硬隔离（`--network=none` + 内存/进程/能力限制）；无 Docker 时自动回退 subprocess 并告警（仅限可信输入）
 - **LLM**: DeepSeek（默认）/ 任意 OpenAI 兼容接口，按 agent 角色配置模型，写作节点 384K max_tokens
 - **安全**: DOMPurify（XSS）+ 路径校验 + JWT 7天过期 + 环境清洗
 - **借鉴模式**: cc-haha 的 buildTool 工厂 / maxResultSizeChars 截断 / History Snip 上下文压缩
@@ -222,4 +222,4 @@ NB_project/
 - `backend/data/`（apikeys/sessions/chroma_db/uploads）含本地运行时数据，已被 `.gitignore` 排除。
 - `backend/knowledge_base/` 的 YAML 源文件在 git 中，clone 后启动即自动建索引。
 - 默认分支为 `main`。
-- 学习系统详细设计见 [LEARNING_PLAN.md](./LEARNING_PLAN.md)，技术架构见 [ARCHITECTURE.md](./ARCHITECTURE.md)。
+- 学习系统详细设计见 [LEARNING_PLAN.md](./LEARNING_PLAN.md)；历史架构讨论见 [ARCHITECTURE.md](./ARCHITECTURE.md)（早期方案已归档，开发以 [PLAN.md](./PLAN.md) 与 [RULES.md](./RULES.md) 为准）。

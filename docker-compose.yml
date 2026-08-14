@@ -6,7 +6,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8002:8000"   # 主机 8002 → 容器 8000（对齐 README/.env 端口约定；默认仅本机监听）
     env_file:
       - ./backend/.env
     environment:
@@ -25,11 +25,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # 构建期注入：容器内静态页直连宿主机后端（同 dev 模式拓扑）
+        - VITE_API_BASE_URL=http://localhost:8002/api
+        - VITE_WS_URL=ws://localhost:8002/api/ws
     ports:
-      - "5174:5174"
-    environment:
-      - VITE_API_BASE_URL=http://backend:8000/api
-      - VITE_WS_URL=ws://backend:8000/ws
+      - "5174:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -37,7 +38,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"   # 仅本机（开发模式后端直连 redis；后端无 redis 时自动回退 fakeredis）
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -48,7 +49,7 @@ services:
   chromadb:
     image: chromadb/chroma:latest
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"   # 仅本机（开发模式后端直连向量库）
     volumes:
       - ./backend/data/chroma_db:/chroma/chroma
     environment:

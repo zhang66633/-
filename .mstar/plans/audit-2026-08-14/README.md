@@ -36,7 +36,7 @@
 | 26 | 零自动化测试 + 无 CI + biome 未接线 → 无任何一条验证命令（前置阻塞项） | tests | HIGH | L | LOW | HIGH | `backend/pyproject.toml:46-51`（pytest 未用）; `frontend/package.json:6-10` |
 | 27 | 依赖无锁文件 + 全开放下限 + alpha 依赖 + 双 lockfile + 34 个高危 advisory（经未使用的 render-jupyter-notebook-vue） | deps | MED | S | LOW | HIGH | `backend/pyproject.toml:8-44`; `frontend/package.json:11-30` |
 | 28 | docker-compose 部署路径不可用：前端 5174→80 端口错配、构建期缺 VITE_API_BASE_URL、nginx.conf 孤儿、8000/8002 分裂、redis/chromadb 无鉴权暴露；start.py 硬编码端口+check_env 运算符优先级误报；stop.bat 容器名不对 | dx | MED | M | LOW | HIGH | `docker-compose.yml:24-35`; `frontend/Dockerfile:19-22`; `nginx.conf:78-79`; `start.py:26,75-98`; `stop.bat` |
-| 29 | 文档权威冲突与漂移：README 引用已废弃 ARCHITECTURE.md；PLAN.md:3 声称 Next.js+MUI 与实盘 FastAPI+LangGraph 矛盾；RULES 国产栈红线 vs anthropic/openai 在依赖+代码+配置；roadmap 端口/状态过期、把已存在模块标「未实现」 | docs | MED | XS | LOW | HIGH | `RULES.md:8` vs `README.md:225`; `PLAN.md:3`; `config.py:111-113`; `RESOURCES_AND_ROADMAP.md:149-155` |
+| 29 | 文档权威冲突与漂移：README 引用已废弃 ARCHITECTURE.md；RULES 国产栈红线 vs anthropic/openai 在依赖+代码+配置；roadmap 端口/状态过期、把已存在模块标「未实现」 | docs | MED | XS | LOW | HIGH | `RULES.md:8` vs `README.md:225`; `config.py:111-113`; `RESOURCES_AND_ROADMAP.md:149-155` |
 | 30 | 仓库卫生：`backend/_err.txt`/`_start.bat`/`sandbox_wrapper.py` 违反 RULES 入库；`_plugins/` 未 ignore；根目录 npm 污染（package.json/package-lock.json/node_modules 遗留）；19 文件未提交 | dx | LOW | XS | LOW | HIGH | `git ls-files backend`; `git status`; 根 `package.json`（仅 @tailwindcss/typography 误装残留） |
 | 31 | 5 个 god files：knowledge_routes.py 1325 行 / nodes.py 1226 行 / path_generator.py 1158 行 / retriever.py 677 行 / knowledge/index.vue 814 行；nodes.py 未按原计划拆分 core/agents/ 五文件 | tech-debt | MED | L | MED | HIGH | `backend/app/api/knowledge_routes.py`; `core/nodes.py`; `learning/path_generator.py`; `knowledge/retriever.py`; `frontend/src/pages/knowledge/index.vue` |
 | 32 | 逻辑重复：config.py:111-120 与 providers/__init__.py:96-102 各自维护一套 provider→base_url/模型映射（已漂移）；export_routes.py 手写 markdown 剥离器与前端 marked 渲染行为不一致 | tech-debt | LOW | S | LOW | MED | `backend/app/config.py:111-120`; `core/llm/providers/__init__.py:96-102`; `api/export_routes.py` |
@@ -54,12 +54,18 @@
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | 修复路径穿越与文件接口鉴权（发现 1、4） | P1 | XS-S | none | TODO |
-| 002 | 修复论文导出打印窗口 XSS（发现 2） | P1 | S | none | TODO |
-| 003 | 修复方案模式状态机：回退死循环 + logger NameError + 取消生效（发现 9、10、12） | P1 | S-M | none | TODO |
-| 004 | 建立验证基线：测试 harness + 表征测试 + lint/typecheck + CI（发现 26） | P1 | L | none（先于任何重构） | TODO |
-| 005 | 暴露面收敛：会话/task/files 鉴权 + 绑定 127.0.0.1 + DEBUG=false 校验（发现 4、5） | P2 | S | 001 | TODO |
-| 006 | 沙箱默认 Docker + 容器加固（发现 3） | P2 | M | none | TODO |
+| 001 | 修复路径穿越与文件接口鉴权（发现 1、4） | P1 | XS-S | none | IN PROGRESS（代码完成，待测试验证） |
+| 002 | 修复论文导出打印窗口 XSS（发现 2） | P1 | S | none | IN PROGRESS（子代理 C 实施中） |
+| 003 | 修复方案模式状态机：回退死循环 + logger NameError + 取消生效（发现 9、10、12） | P1 | S-M | none | IN PROGRESS（子代理 A 实施中） |
+| 004 | 建立验证基线：测试 harness + 表征测试 + lint/typecheck + CI（发现 26） | P1 | L | none（先于任何重构） | IN PROGRESS（脚本已加，测试套件待写） |
+| 005 | 暴露面收敛：会话/task/files 鉴权 + 绑定 127.0.0.1 + DEBUG=false 校验（发现 4、5） | P2 | S | 001 | IN PROGRESS（代码完成，待测试验证） |
+| 006 | 沙箱默认 Docker + 容器加固（发现 3） | P2 | M | none | IN PROGRESS（代码完成，待验证） |
+| 007 | 检索性能与融合数学（发现 21、22、24、25） | P2 | M | none | IN PROGRESS（子代理 B 实施中） |
+| 008 | SQLite 连接复用（发现 23） | P2 | S | none | DONE（待测试） |
+| 009 | 前端批量修复（发现 8、14-20） | P2 | M | none | IN PROGRESS（子代理 C 实施中） |
+| 010 | 验证基线补齐：pytest 套件 + CI（发现 26） | P1 | L | 005/007/009 | TODO |
+| 011 | 依赖治理 + 部署修复 + 卫生（发现 27、28、30、32、33） | P2 | M | none | IN PROGRESS（卫生/依赖清单完成，部署待改） |
+| 012 | 文档权威校准（发现 29） | P2 | S | none | DONE |
 
 ## Findings considered and rejected
 

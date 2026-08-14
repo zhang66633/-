@@ -43,3 +43,25 @@ backend/paper_output/
 .DS_Store
 Thumbs.db
 .env.local
+
+# DSH 插件源码（非本项目代码，本地开发用）
+_plugins/
+
+# 根目录误装残留（依赖统一由 frontend/package.json 管理）
+/node_modules/
+/package.json
+/package-lock.json
+
+# Morning Star harness（进程本地；审计计划与知识为共享结果，显式放行）
+.mstar/**
+!.mstar/AGENTS.md
+!.mstar/knowledge/
+!.mstar/knowledge/**
+!.mstar/specs/
+!.mstar/specs/**
+!.mstar/plans/
+!.mstar/plans/**
+
+# 一次性调试脚本 / 错误转储
+backend/_err.txt
+backend/_start.bat
