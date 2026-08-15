@@ -52,23 +52,39 @@ def _extract_attachment_text(file_id: str, filename: str) -> str:
 
             import pandas as pd
 
-            def _df_to_text(df) -> str:
-                # 优先 Markdown 表格（需 tabulate），缺包时降级为 CSV 文本
+            # 表格最多展示行数：超限截断并保留形状信息，避免大表撑爆上下文
+            _MAX_DF_ROWS = 100
+
+            def _df_to_text(df, title: str = "") -> str:
+                """结构化输出：标题 + 形状（行×列）+ 前 N 行 markdown 表 + 截断提示。"""
+                shape = f"{df.shape[0]} 行 × {df.shape[1]} 列"
+                head = f"{title}【{shape}】" if title else f"【{shape}】"
+                truncated = df.shape[0] > _MAX_DF_ROWS
+                df_show = df.head(_MAX_DF_ROWS) if truncated else df
                 try:
-                    return df.to_markdown(index=False)
+                    table = df_show.to_markdown(index=False)
                 except Exception:
-                    return df.to_csv(index=False)
+                    table = df_show.to_csv(index=False)
+                tail = (
+                    f"\n…（共 {df.shape[0]} 行，仅展示前 {_MAX_DF_ROWS} 行）"
+                    if truncated
+                    else ""
+                )
+                return f"{head}\n{table}{tail}"
 
             if suffix in (".csv", ".tsv"):
                 sep = "\t" if suffix == ".tsv" else ","
-                df = pd.read_csv(_io.StringIO(data.decode("utf-8", errors="replace")), sep=sep)
-                text = _df_to_text(df)
+                df = pd.read_csv(
+                    _io.StringIO(data.decode("utf-8", errors="replace")),
+                    sep=sep,
+                )
+                text = _df_to_text(df, title=filename)
             else:
                 xls = pd.ExcelFile(_io.BytesIO(data))
                 parts = []
                 for sheet in xls.sheet_names:
                     df = pd.read_excel(xls, sheet_name=sheet)
-                    parts.append(f"### 工作表: {sheet}\n{_df_to_text(df)}")
+                    parts.append(_df_to_text(df, title=f"工作表「{sheet}」"))
                 text = "\n\n".join(parts)
         else:
             # txt / md / json / py / dat 等按文本读

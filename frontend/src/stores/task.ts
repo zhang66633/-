@@ -293,13 +293,18 @@ export const useTaskStore = defineStore("task", () => {
       } else if (outputLength > 0) {
         content = `输出 ${outputLength} 字`;
       }
+      // 兜底：部分节点（如跳过分支）无输出字段 → 完成提示，避免空内容三点假气泡
+      if (!content) {
+        content = title ? `已完成：${title}` : "已完成";
+      }
 
       appendMessage(taskId, {
         id: data.id ?? genId(),
         msg_type: "agent",
         content,
         agent_type: undefined,
-        thinking: summary || `[${title}] 分析完成`,
+        // 只有真实摘要才渲染思考块（去掉"X 分析完成"类无信息量占位）
+        thinking: summary.length > 0 ? summary : undefined,
         streaming: false,
         created_at: now(),
       } as Message);

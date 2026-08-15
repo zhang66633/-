@@ -49,6 +49,8 @@ export interface SystemMessage extends BaseMessage {
 /** 用户消息 */
 export interface UserMessage extends BaseMessage {
   msg_type: "user";
+  /** 随消息发送的附件（气泡内显示文件 chip） */
+  files?: { file_id: string; filename: string }[];
 }
 
 /** Agent 消息基类 */

@@ -400,6 +400,15 @@ async function handleUserSend(text: string, files?: ChatFileRef[]) {
     id: generateId(),
     msg_type: "user",
     content: text,
+    // 附件随用户消息持久化，气泡内显示文件 chip
+    ...(files && files.length > 0
+      ? {
+          files: files.map((f) => ({
+            file_id: f.file_id,
+            filename: f.filename,
+          })),
+        }
+      : {}),
     created_at: new Date().toISOString(),
   };
   chatSession.addMessage("solution", sessionId, userMsg);

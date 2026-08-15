@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Message } from "@/types/response";
+import type { Message, UserMessage } from "@/types/response";
+import { Paperclip } from "lucide-vue-next";
 import { computed } from "vue";
 import BubbleAvatar from "./BubbleAvatar.vue";
 
@@ -8,6 +9,7 @@ const props = defineProps<{
 }>();
 
 const content = computed(() => props.message.content ?? "");
+const files = computed(() => (props.message as UserMessage).files ?? []);
 const timestamp = computed(() => {
   if (!props.message.created_at) return "";
   return new Date(props.message.created_at).toLocaleTimeString("zh-CN", {
@@ -24,7 +26,22 @@ const timestamp = computed(() => {
         <div
           class="max-w-[85%] rounded-md rounded-br-sm px-4 py-3 text-sm leading-relaxed bg-foreground text-background"
         >
-          {{ content }}
+          <!-- 附件文件 chip（发送时携带的附件可见） -->
+          <div
+            v-if="files.length"
+            class="mb-1.5 flex flex-wrap justify-end gap-1.5"
+          >
+            <span
+              v-for="(f, i) in files"
+              :key="`${f.file_id}-${i}`"
+              class="inline-flex items-center gap-1 rounded bg-background/15 px-2 py-0.5 text-xs"
+              :title="f.filename"
+            >
+              <Paperclip class="h-3 w-3 shrink-0" />
+              <span class="max-w-40 truncate">{{ f.filename }}</span>
+            </span>
+          </div>
+          <span v-if="content">{{ content }}</span>
         </div>
         <span
           v-if="timestamp"
