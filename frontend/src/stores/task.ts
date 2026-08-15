@@ -1,7 +1,8 @@
+import { useAuthStore } from "@/stores/auth";
 import type { Message } from "@/types/response";
 import { TaskWebSocket } from "@/utils/websocket";
 import { defineStore } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 function genId() {
   return `tmsg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -316,9 +317,16 @@ export const useTaskStore = defineStore("task", () => {
     completed.value = false;
     currentStep.value = "";
 
+    // 未登录（无 token）：不发起无认证连接，避免 401 握手失败 + 重连刷屏。
+    // 登录后由下方 watch(auth.token) 自动恢复连接。
+    const token = localStorage.getItem("mma:token") || "";
+    if (!token) {
+      wsStatus.value = "disconnected";
+      return;
+    }
+
     const baseUrl =
       import.meta.env.VITE_WS_URL || `ws://${window.location.host}/api/ws`;
-    const token = localStorage.getItem("mma:token") || "";
     const wsUrl = `${baseUrl}/task/${taskId}?token=${encodeURIComponent(token)}`;
 
     ws = new TaskWebSocket(
@@ -330,6 +338,17 @@ export const useTaskStore = defineStore("task", () => {
     );
     ws.connect();
   }
+
+  // 登录后自动恢复当前任务的 WS 连接（无 token 时被跳过的场景）
+  const auth = useAuthStore();
+  watch(
+    () => auth.token,
+    (tok) => {
+      if (tok && currentTaskId.value && wsStatus.value !== "connected") {
+        connectWebSocket(currentTaskId.value);
+      }
+    },
+  );
 
   function closeWebSocket() {
     ws?.close();
