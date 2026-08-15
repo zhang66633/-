@@ -26,12 +26,12 @@
     </div>
     <button
       v-else
-      class="flex h-14 items-center justify-center border-b shrink-0 cursor-pointer"
+      class="flex h-14 items-center border-b shrink-0 cursor-pointer pl-5"
       title="展开侧栏"
       aria-label="展开侧栏"
       @click="collapsed = false"
     >
-      <div class="flex h-7 w-7 items-center justify-center border border-border rounded-sm">
+      <div class="flex h-7 w-7 items-center justify-center border border-border rounded-sm shrink-0">
         <span class="font-display text-sm font-medium leading-none">M</span>
       </div>
     </button>
@@ -126,8 +126,8 @@
       </TransitionGroup>
     </div>
 
-    <!-- 折叠态: 仅图标 -->
-    <nav v-else class="flex-1 py-4 flex flex-col items-center gap-2">
+    <!-- 折叠态: 仅图标（左对齐，与展开态图标位置一致，切换零跳动） -->
+    <nav v-else class="flex-1 py-4 flex flex-col items-start gap-2 px-3">
       <button v-for="item in collapsedNavItems" :key="item.path"
         class="flex h-8 w-8 items-center justify-center rounded-md transition-colors"
         :class="isNavActive(item.path) ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
