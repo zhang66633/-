@@ -26,8 +26,11 @@ export interface ToolResultEvent {
   id?: string;
   name: string;
   preview: string;
+  /** 协议 v2: 执行是否成功（缺失时视为成功，兼容旧后端） */
   ok?: boolean;
+  /** 耗时(毫秒) */
   duration_ms?: number;
+  /** 失败原因(成功时不带) */
   error?: string;
 }
 
@@ -45,8 +48,11 @@ export interface CodeExecEvent {
   id?: string;
   stdout?: string;
   images?: string[];
+  /** 协议 v2: 执行是否成功(done 时携带) */
   ok?: boolean;
+  /** 耗时(毫秒,done 时携带) */
   duration_ms?: number;
+  /** 失败原因 */
   error?: string;
 }
 
