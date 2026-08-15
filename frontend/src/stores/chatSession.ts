@@ -1,4 +1,5 @@
 import type { AgentSegment, Message, ToolStatus } from "@/types/response";
+import request from "@/utils/request";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
@@ -223,6 +224,7 @@ export const useChatSessionStore = defineStore(
       getSessions(mode).value.push(session);
       setActiveId(mode, id);
       trimSessions(mode);
+      void pushSessionToServer(mode, session);
       return id;
     }
 
@@ -250,6 +252,7 @@ export const useChatSessionStore = defineStore(
         const sorted = getSortedSessions(mode).value;
         setActiveId(mode, sorted[0]?.id ?? null);
       }
+      request.delete(`/conversations/${id}`).catch(() => {});
     }
 
     function renameSession(mode: SessionMode, id: string, newTitle: string) {
@@ -258,6 +261,9 @@ export const useChatSessionStore = defineStore(
       if (!session) return;
       session.title = newTitle.trim() || "新对话";
       session.updatedAt = now();
+      request
+        .patch(`/conversations/${id}`, { title: session.title })
+        .catch(() => {});
     }
 
     function addMessage(mode: SessionMode, sessionId: string, msg: Message) {
@@ -280,6 +286,7 @@ export const useChatSessionStore = defineStore(
         session.title =
           msg.content.slice(0, 30) + (msg.content.length > 30 ? "..." : "");
       }
+      scheduleServerSync(mode, sessionId);
     }
 
     /** 流式更新同一条消息（就地累加/替换 content，或更新 streaming / thinking / status 标记）。 */
@@ -312,6 +319,7 @@ export const useChatSessionStore = defineStore(
       if (patch.answered !== undefined && "answered" in msg)
         (msg as any).answered = patch.answered;
       session.updatedAt = now();
+      scheduleServerSync(mode, sessionId);
     }
 
     function clearActive(mode: SessionMode) {
@@ -324,6 +332,22 @@ export const useChatSessionStore = defineStore(
       if (session) {
         session.messages = [];
         session.updatedAt = now();
+        // 服务端无清空接口 → 删了重建同 id 会话再同步空消息
+        void (async () => {
+          try {
+            await request.delete(`/conversations/${session.id}`);
+            await request.post("/conversations", {
+              id: session.id,
+              mode,
+              title: session.title,
+            });
+            await request.post(`/conversations/${session.id}/sync`, {
+              messages: [],
+            });
+          } catch {
+            /* 静默 */
+          }
+        })();
       }
     }
 
@@ -390,6 +414,155 @@ export const useChatSessionStore = defineStore(
     /** 显式新建会话（不清空当前会话）。 */
     function newSession(mode: SessionMode): string {
       return createSession(mode);
+    }
+
+    // ── 服务端会话持久化(/api/conversations,SQLite)────────────
+    // 启动拉取合并(服务端为准)+ 变更节流同步(失败静默,本地 localStorage 仍可用)。
+    const syncTimers = new Map<string, number>();
+
+    function msgToPayload(m: Message) {
+      return {
+        id: m.id,
+        msg_type: m.msg_type,
+        content: m.content ?? null,
+        tool_name: (m as any).tool_name ?? null,
+        input: (m as any).input ?? null,
+        output: (m as any).output ?? null,
+        status: (m as any).status ?? null,
+        thinking: (m as any).thinking ?? null,
+        agent_type: (m as any).agent_type ?? null,
+        answered: (m as any).answered ?? null,
+        streaming: m.streaming ?? null,
+        created_at: m.created_at ?? null,
+      };
+    }
+
+    function payloadToMsg(p: Record<string, unknown>): Message {
+      const msg: Record<string, unknown> = {
+        id: p.id,
+        msg_type: p.msg_type,
+        content: p.content ?? null,
+        created_at: p.created_at,
+      };
+      for (const key of [
+        "tool_name",
+        "input",
+        "output",
+        "status",
+        "thinking",
+        "agent_type",
+      ]) {
+        if (p[key] !== null && p[key] !== undefined) msg[key] = p[key];
+      }
+      if (p.answered) msg.answered = true;
+      if (p.streaming) msg.streaming = true;
+      return msg as unknown as Message;
+    }
+
+    /** 整会话推送到服务端(会话创建幂等 + 消息 INSERT OR REPLACE 幂等)。 */
+    async function pushSessionToServer(
+      mode: SessionMode,
+      session: ChatSession,
+    ) {
+      try {
+        await request.post("/conversations", {
+          id: session.id,
+          mode,
+          title: session.title,
+        });
+        await request.post(`/conversations/${session.id}/sync`, {
+          messages: session.messages.map(msgToPayload),
+        });
+      } catch {
+        /* 静默: 离线/未启动后端时保持本地可用 */
+      }
+    }
+
+    /** 节流同步(流式期间 updateMessage 高频,合并到 800ms 尾调用)。 */
+    function scheduleServerSync(mode: SessionMode, sessionId: string) {
+      const key = `${mode}:${sessionId}`;
+      const prev = syncTimers.get(key);
+      if (prev !== undefined) window.clearTimeout(prev);
+      syncTimers.set(
+        key,
+        window.setTimeout(() => {
+          syncTimers.delete(key);
+          const session = getSessions(mode).value.find(
+            (s) => s.id === sessionId,
+          );
+          if (session) void pushSessionToServer(mode, session);
+        }, 800),
+      );
+    }
+
+    /** 启动时从服务端拉取该模式会话(服务端为准,本地独有会话合并并补推)。 */
+    async function syncModeFromServer(mode: SessionMode) {
+      try {
+        const res = await request.get("/conversations", {
+          params: { mode, limit: 60 },
+        });
+        const convs = (res.data?.conversations ?? []) as Array<{
+          id: string;
+          title: string;
+          mode?: string;
+          created_at: string;
+          updated_at: string;
+        }>;
+        if (convs.length === 0) {
+          // 服务端空 → 本地历史迁移上去
+          for (const s of getSessions(mode).value) {
+            void pushSessionToServer(mode, s);
+          }
+          return;
+        }
+        const localBefore = [...getSessions(mode).value];
+        const loaded: ChatSession[] = [];
+        for (const c of convs) {
+          const msgsRes = await request.get(`/conversations/${c.id}/messages`, {
+            params: { limit: 2000 },
+          });
+          const msgs = (
+            (msgsRes.data?.messages ?? []) as Array<Record<string, unknown>>
+          ).map(payloadToMsg);
+          loaded.push({
+            id: c.id,
+            title: c.title,
+            mode: (c.mode as SessionMode) ?? mode,
+            messages: msgs,
+            createdAt: c.created_at,
+            updatedAt: c.updated_at,
+          });
+        }
+        const serverIds = new Set(loaded.map((s) => s.id));
+        const localOnly = localBefore.filter((s) => !serverIds.has(s.id));
+        const list = getSessions(mode);
+        list.value = [...loaded, ...localOnly].sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        );
+        const active = getActiveId(mode).value;
+        setActiveId(
+          mode,
+          list.value.some((s) => s.id === active)
+            ? active
+            : (list.value[0]?.id ?? null),
+        );
+        for (const s of localOnly) void pushSessionToServer(mode, s);
+      } catch {
+        /* 静默: 后端不可用回退 localStorage */
+      }
+    }
+
+    // store 首次创建时后台同步四个模式(浏览器环境)
+    if (typeof window !== "undefined") {
+      for (const m of [
+        "chat",
+        "solution",
+        "learning",
+        "practice",
+      ] as SessionMode[]) {
+        void syncModeFromServer(m);
+      }
     }
 
     return {

@@ -112,11 +112,16 @@ class SqliteSessionStore:
         user_id: str = "default",
         mode: str = "chat",
         title: str = "新对话",
+        conv_id: str | None = None,
     ) -> dict:
-        """创建新会话，返回会话 dict。"""
+        """创建新会话，返回会话 dict。支持客户端指定 id(幂等: 已存在则返回现有)。"""
         import uuid
 
-        conv_id = f"conv_{uuid.uuid4().hex[:12]}"
+        if conv_id:
+            existing = self.get_conversation(conv_id, user_id=user_id)
+            if existing:
+                return existing
+        conv_id = conv_id or f"conv_{uuid.uuid4().hex[:12]}"
         now = _now()
         with self._lock:
             with self._get_conn() as conn:

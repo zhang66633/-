@@ -88,50 +88,72 @@
 
 ---
 
-## 🚀 快速开始
+## 🚀 快速开始(三步装好)
 
-### Windows 一键启动
+### 环境要求
+
+| 依赖 | 版本 | 说明 |
+|------|------|------|
+| Python | ≥ 3.11 | 后端 |
+| Node.js | ≥ 18 | 前端构建(CI 用 Node 22) |
+| pnpm | ≥ 10 | 前端包管理器(`npm i -g pnpm` 或 `corepack enable`) |
+| Docker | 可选 | 仅代码沙箱硬隔离需要;不装则自动回退本地 subprocess |
+
+### 1. 克隆
+
+```bash
+git clone https://github.com/zhang66633/NB_project.git
+cd NB_project
+```
+
+### 2. 一键安装(自动建虚拟环境、装依赖、生成 .env)
 
 ```bat
-start.bat    REM 启动后端(端口读 backend/.env) + 前端(5174)
-stop.bat     REM 停止全部
+install.bat            REM Windows
 ```
 
-### 手动启动
+```bash
+bash install.sh        # Linux / macOS(可选参数 --docker 构建沙箱镜像)
+```
 
-#### 1. 配置环境变量
+### 3. 启动
+
+```bat
+start.bat              REM Windows 一键启动前后端
+```
+
+```bash
+python start.py        # Linux / macOS
+```
+
+打开 **http://localhost:5174** → 首页「API Key」输入框粘贴你的 DeepSeek/OpenAI 兼容 Key 即可开始使用(Key 只保存在本机 `backend/data`,不上传)。
+
+### 手动启动(可选)
 
 ```bash
 cd backend
-cp .env.example .env    # 填入 DeepSeek API Key 等
-```
+cp .env.example .env    # 填 OPENAI_API_KEY 等(不填也能启动,Key 也可在网页里配置)
+python -m venv .venv && .venv/bin/pip install -e .
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002
 
-#### 2. 启动后端
-
-```bash
-cd backend
-pip install -e .
-uvicorn app.main:app --host 127.0.0.1 --port 8002
-```
-
-> Redis 非必须：无 Redis 时自动回退 fakeredis（同进程 pub/sub）。
-> 向量索引：首次启动自动检测并后台重建，无需手动 reindex。
-
-#### 3. 启动前端
-
-```bash
-cd frontend
+cd ../frontend
 pnpm install
-pnpm dev                  # http://localhost:5174
+pnpm dev                # http://localhost:5174(代理 /api → 127.0.0.1:8002)
 ```
 
-前端通过 Vite 代理将 `/api` 和 `/ws` 转发到 `127.0.0.1:8002`。
-
-### Docker Compose
+### Docker Compose(可选)
 
 ```bash
 docker-compose up
 ```
+
+### 常见问题
+
+- **没配 API Key 能用吗**: 能打开和学习,但 AI 对话/方案生成会提示先配置 Key(网页首页粘贴即可)。
+- **不登录能用吗**: 能 — 访客模式全功能可用,对话与任务都持久化在本机;GitHub 登录仅限项目贡献者(多端同步用)。
+- **数据存哪 / 会丢吗**: 对话、任务、学习记录、Key 全部落盘在 `backend/data/`(SQLite/JSON);聊天另存浏览器 localStorage 并自动同步到后端 SQLite,清缓存/换浏览器也不丢。
+- **沙箱**: 默认本地 subprocess(网络阻断);装好 Docker 后可用 `install --docker` 构建硬隔离沙箱镜像。
+- **PDF OCR 功能**需要系统安装 poppler 与 tesseract(可选)。
 
 ---
 
@@ -139,7 +161,8 @@ docker-compose up
 
 ```
 NB_project/
-├── start.bat / stop.bat         # Windows 一键启停
+├── install.bat / install.sh     # 一键安装(venv+依赖+.env)
+├── start.bat / stop.bat / start.py  # 一键启停
 ├── ARCHITECTURE.md              # 技术架构文档
 ├── LEARNING_PLAN.md             # 学习系统设计文档
 ├── docker-compose.yml
