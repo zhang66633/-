@@ -138,12 +138,12 @@
         <Home class="h-4 w-4" />
       </button>
       <div v-for="group in visibleGroups" :key="group.label" class="mt-1 shrink-0">
-        <!-- 分组标题占位行：不可见但占位，图标不因文字消失而跳动 -->
+        <!-- 分区标题：折叠态竖排 2 字短标签（高度≈展开态单行行高，空位不变大） -->
         <p
-          class="flex items-center px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider invisible select-none"
+          class="py-0.5 pl-2.5 font-mono text-[10px] tracking-wider text-muted-foreground/50 select-none [writing-mode:vertical-rl] [text-orientation:upright]"
           aria-hidden="true"
         >
-          {{ group.label }}
+          {{ group.label.slice(0, 2) }}
         </p>
         <div class="space-y-0.5">
           <button
