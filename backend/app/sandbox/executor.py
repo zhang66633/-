@@ -83,6 +83,34 @@ def _make_preexec_fn(max_memory_mb: int, timeout: int):
     return _set_limits
 
 
+def _find_tesseract() -> str | None:
+    """定位本机 tesseract 二进制（subprocess 沙箱 OCR 用）。"""
+    import shutil as _shutil
+
+    found = _shutil.which("tesseract")
+    if found:
+        return found
+    for cand in (
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    ):
+        if os.path.exists(cand):
+            return cand
+    return None
+
+
+def _find_tessdata() -> str | None:
+    """定位 OCR 语言包目录（项目内 data/tessdata，含 chi_sim/eng/osd）。"""
+    try:
+        settings = get_settings()
+        cand = settings.project_root / "data" / "tessdata"
+        if cand.exists() and any(cand.glob("*.traineddata")):
+            return str(cand)
+    except Exception:
+        pass
+    return None
+
+
 def _clean_env() -> dict:
     """构建清洗后的子进程环境变量，仅保留 Python 运行必需项。"""
     safe_keys = {
@@ -109,6 +137,16 @@ def _clean_env() -> dict:
     env["OPENBLAS_NUM_THREADS"] = "2"
     env["OMP_NUM_THREADS"] = "2"
     env["MKL_NUM_THREADS"] = "2"
+
+    # OCR 能力注入（subprocess 模式）：tesseract 二进制加入 PATH，
+    # 语言包目录经 TESSDATA_PREFIX 指向（pytesseract 默认只认这两处）。
+    _tesseract = _find_tesseract()
+    if _tesseract:
+        env["PATH"] = str(Path(_tesseract).parent) + os.pathsep + env.get("PATH", "")
+    _tessdata = _find_tessdata()
+    if _tessdata:
+        env["TESSDATA_PREFIX"] = _tessdata
+
     return env
 
 

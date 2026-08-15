@@ -40,6 +40,8 @@ dependencies = [
     "pdfplumber>=0.10.0",
     "pymupdf>=1.24.0",
     "rapidocr_onnxruntime>=1.3.0",
+    "pytesseract>=0.3.10",
+    "pdf2image>=1.17.0",
     "click>=8.0.0",
     "psutil>=5.9.0",
 ]

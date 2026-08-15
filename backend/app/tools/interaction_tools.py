@@ -100,6 +100,9 @@ class RunCodeTool(BaseTool):
         "代码中可用: numpy, scipy, matplotlib, pandas, sympy, cvxpy。"
         "matplotlib 图表会自动保存并返回路径。"
         "**数据文件已自动挂载到工作目录，直接用 pd.read_parquet('文件名') 读取，不需要传 file_ids。**"
+        "**OCR 提取文字（扫描版 PDF/图片）**：可用 rapidocr_onnxruntime（import rapidocr_onnxruntime，"
+        "纯 Python 中英文 OCR，无需外部命令）或 pytesseract（import pytesseract，已配置中英文）。"
+        "PDF 每页转图片用 pymupdf（import fitz）或 pdf2image。"
     )
     args_schema: type[BaseModel] = RunCodeInput
 
