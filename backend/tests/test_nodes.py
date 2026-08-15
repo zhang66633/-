@@ -29,6 +29,10 @@ class _FakeLLM:
     def invoke(self, messages):
         return AIMessage(content=self._text)
 
+    def stream(self, messages):
+        # 流式路径（invoke_streaming_with_retry 使用）：单 chunk 返回全文
+        yield AIMessage(content=self._text)
+
     def bind_tools(self, tools):
         return self
 

@@ -318,9 +318,14 @@ def _extract_json(text: str) -> dict | list:
 
 
 def _log_usage(task_id: str, node: str, response) -> None:
-    """记录一次 LLM 调用的 token 用量（管线成本可观测性）。"""
+    """记录一次 LLM 调用的 token 用量（管线成本可观测性）。
+
+    response 可以是 AIMessage（取 usage_metadata）或流式返回的 usage dict。
+    """
     try:
-        usage = getattr(response, "usage_metadata", None) or {}
+        usage = getattr(response, "usage_metadata", None)
+        if not usage and isinstance(response, dict):
+            usage = response
         if usage:
             logger.info(
                 "LLM 用量 [%s/%s]: in=%s out=%s total=%s",
@@ -352,6 +357,79 @@ def invoke_with_retry(llm, messages, task_id: str = "", node: str = "", retries:
             delay = 2**attempt  # 1s, 2s
             logger.warning(
                 "LLM 调用失败 [%s/%s] 第 %d 次，%.0fs 后重试: %s",
+                task_id,
+                node or "llm",
+                attempt + 1,
+                delay,
+                str(e)[:200],
+            )
+            _time.sleep(delay)
+    raise last_exc  # type: ignore[misc]
+
+
+def invoke_streaming_with_retry(
+    llm,
+    messages,
+    task_id: str = "",
+    node: str = "",
+    retries: int = 2,
+    throttle_ms: int = 100,
+):
+    """流式 LLM 调用（dsh 式方案模式流式输出）。
+
+    - 同步 llm.stream() 逐 chunk 提取文本增量，节流推送 node_delta 事件
+      （前端像 chat 一样逐字渲染节点输出，而不是完成后跳一个摘要块）
+    - 失败指数退避重试（与 invoke_with_retry 一致）
+    - 返回 (完整文本, usage_metadata dict) 供 _log_usage 计量
+    """
+    import time as _time
+
+    # 闭包与状态在循环外定义（避免 ruff B023 循环变量绑定）
+    full: list[str] = []
+    buf: list[str] = []
+    last_emit = [0.0]
+
+    def _flush() -> None:
+        if buf:
+            _pub_event(task_id, "node_delta", node, {"delta": "".join(buf)})
+            buf.clear()
+        last_emit[0] = _time.monotonic()
+
+    last_exc: Exception | None = None
+    for attempt in range(retries + 1):
+        try:
+            full.clear()
+            buf.clear()
+            last_emit[0] = 0.0
+            usage_meta: dict = {}
+
+            for chunk in llm.stream(messages):
+                delta = getattr(chunk, "content", None)
+                if isinstance(delta, list):
+                    delta = "".join(
+                        p.get("text", "") if isinstance(p, dict) else str(p)
+                        for p in delta
+                    )
+                if not delta:
+                    # 无文本的 chunk 可能携带 usage（OpenAI 流末帧）
+                    u = getattr(chunk, "usage_metadata", None)
+                    if u:
+                        usage_meta = dict(u)
+                    continue
+                full.append(delta)
+                buf.append(delta)
+                now = _time.monotonic()
+                if now - last_emit[0] >= throttle_ms / 1000 or len("".join(buf)) >= 64:
+                    _flush()
+            _flush()
+            return "".join(full), usage_meta
+        except Exception as e:  # noqa: BLE001
+            last_exc = e
+            if attempt >= retries:
+                break
+            delay = 2**attempt  # 1s, 2s
+            logger.warning(
+                "LLM 流式调用失败 [%s/%s] 第 %d 次，%.0fs 后重试: %s",
                 task_id,
                 node or "llm",
                 attempt + 1,

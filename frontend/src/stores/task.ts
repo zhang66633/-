@@ -1,8 +1,19 @@
 import { useAuthStore } from "@/stores/auth";
+import { useChatSessionStore } from "@/stores/chatSession";
 import type { Message } from "@/types/response";
 import { TaskWebSocket } from "@/utils/websocket";
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
+
+// 流式节点白名单：这些节点的 LLM 输出逐字渲染（node_delta 事件驱动），
+// 与 chat 模式体验一致；其余节点（分类/检索/计划/导出/写作）保持摘要式。
+const STREAMING_NODES = new Set([
+  "analysis_agent",
+  "modeling_agent",
+  "solving_agent",
+  "verification_agent",
+  "data_preprocessing_agent",
+]);
 
 function genId() {
   return `tmsg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -32,6 +43,13 @@ export const useTaskStore = defineStore("task", () => {
   >({});
   // 验证回退信息（verification FAIL 时记录，时间线显示"回退重试"）
   const rollbackInfo = ref<{ target: string; count: number } | null>(null);
+  // 流式节点当前消息：node 名 → agent 消息 id（node_start 创建 → node_delta 累积 → node_end 收尾）
+  const streamingNodeMsg = ref<Record<string, string>>({});
+  // 工具消息归属：toolMsgId → 宿主 agent 消息 id（工具卡片内联进对应 agent 回复）
+  const toolHostMap = ref<Record<string, string>>({});
+
+  // 工具内联复用 chat 模式的附件/片段流机制（同一 store，Bubble 渲染层零改动）
+  const chatSession = useChatSessionStore();
 
   const messages = computed<Message[]>(() => {
     if (!currentTaskId.value) return [];
@@ -72,8 +90,23 @@ export const useTaskStore = defineStore("task", () => {
   ) {
     const bucket = messagesByTask.value[taskId];
     if (!bucket) return null;
+    return findToolInList(bucket, toolCallId, toolName);
+  }
+
+  /** 工具消息 → 宿主 agent 消息 id（内联场景）。 */
+  function findToolHost(toolCallId?: string): string | null {
+    if (!toolCallId) return null;
+    return toolHostMap.value[toolCallId] ?? null;
+  }
+
+  /** 在工具消息列表中按 tool_call_id 精确/退化匹配。 */
+  function findToolInList(
+    list: Message[],
+    toolCallId?: string,
+    toolName?: string,
+  ): Message | null {
     if (toolCallId) {
-      const hit = [...bucket]
+      const hit = [...list]
         .reverse()
         .find(
           (m) =>
@@ -83,7 +116,7 @@ export const useTaskStore = defineStore("task", () => {
     }
     if (toolName) {
       return (
-        [...bucket]
+        [...list]
           .reverse()
           .find(
             (m) =>
@@ -211,10 +244,45 @@ export const useTaskStore = defineStore("task", () => {
       return;
     }
 
-    // 工具调用：先发 running（协议 v2.1：两段式，同一卡片执行态 → 结果回填）
+    // 流式节点开始：创建 agent 消息占位（node_delta 逐字累积，体验对齐 chat 模式）
+    if (event === "node_start") {
+      const node = data?.node;
+      if (node && STREAMING_NODES.has(node) && !streamingNodeMsg.value[node]) {
+        const msgId = genId();
+        streamingNodeMsg.value = {
+          ...streamingNodeMsg.value,
+          [node]: msgId,
+        };
+        appendMessage(taskId, {
+          id: msgId,
+          msg_type: "agent",
+          content: "",
+          streaming: true,
+          created_at: now(),
+        } as Message);
+      }
+      return;
+    }
+
+    // 流式文本增量：累积到对应节点消息（dsh 式逐字渲染）
+    if (event === "node_delta") {
+      const node = data?.node;
+      const delta: string = data.data?.delta ?? "";
+      if (!delta) return;
+      const msgId = streamingNodeMsg.value[node];
+      if (!msgId) return;
+      const bucket = messagesByTask.value[taskId];
+      const cur = bucket?.find((m) => m.id === msgId);
+      const acc = ((cur?.content as string) ?? "") + delta;
+      updateMessage(taskId, msgId, { content: acc } as Partial<Message>);
+      return;
+    }
+
+    // 工具调用：挂到当前流式节点消息（内联进 agent 回复，与 chat 模式一致）
     if (event === "tool_call") {
-      appendMessage(taskId, {
-        id: data.id ?? genId(),
+      const hostId = Object.values(streamingNodeMsg.value).pop() ?? null;
+      const toolMsg: Message = {
+        id: genId(),
         msg_type: "tool",
         tool_name: data.data?.tool_name ?? "run_code",
         input: data.data?.input ?? null,
@@ -222,13 +290,47 @@ export const useTaskStore = defineStore("task", () => {
         status: "running",
         tool_call_id: data.data?.tool_call_id,
         created_at: now(),
-      } as Message);
+      };
+      if (hostId) {
+        // 内联：挂到宿主 agent 消息的附件/片段流（Bubble 渲染层复用 chat 机制）
+        chatSession.attachTool(hostId, toolMsg);
+        chatSession.appendSegment(hostId, {
+          kind: "tool",
+          toolId: toolMsg.id,
+        });
+        toolHostMap.value = { ...toolHostMap.value, [toolMsg.id]: hostId };
+      } else {
+        appendMessage(taskId, toolMsg);
+      }
       return;
     }
 
     // 工具结果（协议 v2.1：按 id 回填同一卡片，修复"调用在后、输出在前"的割裂）
     if (event === "tool_result") {
       const d = data.data ?? {};
+      // 内联路径：工具卡片挂在宿主 agent 消息的附件里（chatSession 机制）
+      const hostId = findToolHost(d.tool_call_id);
+      if (hostId) {
+        const tools = chatSession.getToolAttachments(hostId);
+        const target = findToolInList(tools, d.tool_call_id, d.tool_name);
+        if (target) {
+          target.output = [
+            {
+              name: d.tool_name,
+              preview: d.preview ?? "",
+              images: d.images ?? [],
+              xlsx_files: d.xlsx_files ?? [],
+              csv_files: d.csv_files ?? [],
+              html_files: d.html_files ?? [],
+            },
+          ];
+          target.status = d.ok === false ? "error" : "success";
+          target.error = d.ok === false ? d.error : undefined;
+          target.duration_ms = d.duration_ms;
+        }
+        return;
+      }
+      // 独立消息路径（旧事件/无宿主时兜底）
       const target = findToolMessage(taskId, d.tool_call_id, d.tool_name);
       if (!target) return;
       updateMessage(taskId, target.id, {
@@ -252,29 +354,37 @@ export const useTaskStore = defineStore("task", () => {
     // 代码执行态（run_code 的 running/done 帧，与 chat 通道协议一致）
     if (event === "code_exec") {
       const d = data.data ?? {};
-      const target = findToolMessage(taskId, d.id, "run_code");
+      const hostId = findToolHost(d.id);
+      let target: Message | null = null;
+      if (hostId) {
+        target =
+          findToolInList(
+            chatSession.getToolAttachments(hostId),
+            d.id,
+            "run_code",
+          ) ?? null;
+      }
+      if (!target) {
+        target = findToolMessage(taskId, d.id, "run_code");
+      }
       if (!target) return;
       if (d.status === "running") {
-        updateMessage(taskId, target.id, {
-          output: [{ name: "run_code", preview: "代码执行中…" }],
-          status: "running",
-        } as Partial<Message>);
+        target.output = [{ name: "run_code", preview: "代码执行中…" }];
+        target.status = "running";
       } else if (d.status === "done") {
         const parts = [];
         if (d.stdout) parts.push(`输出:\n${d.stdout}`);
         if (d.images?.length) parts.push(`图表: ${d.images.length} 张`);
-        updateMessage(taskId, target.id, {
-          output: [
-            {
-              name: "run_code",
-              preview: parts.join("\n") || "执行完成",
-              images: d.images ?? [],
-            },
-          ],
-          status: d.ok === false ? "error" : "success",
-          error: d.ok === false ? d.error : undefined,
-          duration_ms: d.duration_ms,
-        } as Partial<Message>);
+        target.output = [
+          {
+            name: "run_code",
+            preview: parts.join("\n") || "执行完成",
+            images: d.images ?? [],
+          },
+        ];
+        target.status = d.ok === false ? "error" : "success";
+        target.error = d.ok === false ? d.error : undefined;
+        target.duration_ms = d.duration_ms;
       }
       return;
     }
@@ -282,6 +392,32 @@ export const useTaskStore = defineStore("task", () => {
     // 节点完成：追加一条 agent 消息，思考内容放入 thinking 字段
     // 这样 BubbleAgent + ThinkingBlock 可以渲染可折叠的思考过程
     if (event === "node_end") {
+      const node = data?.node;
+      // 流式节点收尾：内容已由 node_delta 逐字累积，只结束 streaming 态。
+      // 求解/预处理有工具循环：循环文本一次性补推、最终报告用 summary 兜底
+      const streamMsgId = streamingNodeMsg.value[node];
+      if (streamMsgId) {
+        const bucket = messagesByTask.value[taskId];
+        const cur = bucket?.find((m) => m.id === streamMsgId);
+        const curContent = (cur?.content as string) ?? "";
+        if (!curContent) {
+          const summary: string = (data.data?.summary ?? "").trim();
+          updateMessage(taskId, streamMsgId, {
+            content: summary || "已完成",
+            streaming: false,
+          } as Partial<Message>);
+        } else {
+          updateMessage(taskId, streamMsgId, {
+            streaming: false,
+          } as Partial<Message>);
+        }
+        const rest = { ...streamingNodeMsg.value };
+        delete rest[node];
+        streamingNodeMsg.value = rest;
+        currentStep.value = data.data?.stage ?? currentStep.value;
+        return;
+      }
+
       const stage = data.data?.stage ?? "";
       const title = data.data?.title ?? stage;
       const summary: string = (data.data?.summary ?? "").trim();

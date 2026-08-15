@@ -32,6 +32,7 @@ from .node_helpers import (  # noqa: F401  (god-files 拆分 #31：辅助函数�
     _pub_event,
     _save_working_memory,
     get_cancel_event,
+    invoke_streaming_with_retry,
     invoke_with_retry,
     logger,
     parse_code_result,
@@ -488,15 +489,17 @@ def analysis_agent_node(state: AgentState) -> dict:
             problem_type=state["problem_type"],
         )
 
-    response = llm.invoke(
+    # 流式输出：逐 chunk 推 node_delta 事件（前端像 chat 一样逐字渲染）
+    analysis_output, usage = invoke_streaming_with_retry(
+        llm,
         [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
-        ]
+        ],
+        task_id=task_id,
+        node="analysis_agent",
     )
-    _log_usage(task_id, "analysis", response)
-
-    analysis_output = str(response.content)
+    _log_usage(task_id, "analysis", usage)
 
     _pub_event(
         task_id,
@@ -577,15 +580,17 @@ def modeling_agent_node(state: AgentState) -> dict:
             {"stage": "revise_with_feedback", "feedback_length": len(str(feedback)[:2000])},
         )
 
-    response = llm.invoke(
+    # 流式输出：逐 chunk 推 node_delta 事件（前端像 chat 一样逐字渲染）
+    model_output, usage = invoke_streaming_with_retry(
+        llm,
         [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
-        ]
+        ],
+        task_id=task_id,
+        node="modeling_agent",
     )
-    _log_usage(task_id, "modeling", response)
-
-    model_output = str(response.content)
+    _log_usage(task_id, "modeling", usage)
 
     _pub_event(
         task_id,
@@ -630,21 +635,23 @@ def solving_agent_node(state: AgentState) -> dict:
 
     model_text = state.get("model_output") or "无模型"
 
-    # ── teach 模式：保持原有引导式输出 ──
+    # ── teach 模式：保持原有引导式输出（流式）──
     if state["mode"] == "teach":
         system_prompt = SOLVING_TEACH_SYSTEM_PROMPT.format(model_info=model_text[:3000])
         user_prompt = SOLVING_TEACH_USER_TEMPLATE.format(
             problem=state["problem_raw"],
             model=model_text[:3000],
         )
-        response = llm.invoke(
+        final_output, usage = invoke_streaming_with_retry(
+            llm,
             [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt),
-            ]
+            ],
+            task_id=task_id,
+            node="solving_agent",
         )
-        _log_usage(task_id, "solving_teach", response)
-        final_output = str(response.content)
+        _log_usage(task_id, "solving_teach", usage)
         _pub_event(
             task_id,
             "node_end",
@@ -735,6 +742,10 @@ def solving_agent_node(state: AgentState) -> dict:
         response = invoke_with_retry(llm_with_tools, messages, task_id=task_id, node="solving_tool")
         _log_usage(task_id, "solving_tool", response)
         messages.append(response)
+        # 每轮 LLM 解说文本推给前端（与流式节点的 node_delta 同通道，逐轮累积）
+        round_text = getattr(response, "content", "") or ""
+        if round_text:
+            _pub_event(task_id, "node_delta", "solving_agent", {"delta": str(round_text)})
 
         tool_calls = getattr(response, "tool_calls", None) or []
         if not tool_calls:
@@ -974,18 +985,17 @@ def verification_agent_node(state: AgentState) -> dict:
             solving=state.get("solving_output", "无")[:2000],
         )
 
-    response = invoke_with_retry(
+    # 流式输出：逐 chunk 推 node_delta 事件（前端像 chat 一样逐字渲染）
+    full_text, usage = invoke_streaming_with_retry(
         llm,
         [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
         task_id=task_id,
-        node="verification",
+        node="verification_agent",
     )
-
-    full_text = str(response.content)
+    _log_usage(task_id, "verification", usage)
 
     # 提取 JSON 判定块（_extract_verdict_json：兼容嵌套/围栏/前后散文，替换旧正则）
     ver_json = _extract_verdict_json(full_text)
-    _log_usage(task_id, "verification", response)
 
     passed = ver_json.get("verdict", "PASS") == "PASS"
     # 回退目标：仅 FAIL 时读取判定块；白名单仅 modeling/solving（两者都会消费回退标志），
@@ -1418,6 +1428,15 @@ def data_preprocessing_agent_node(state: AgentState) -> dict:
         )
         _log_usage(task_id, "preprocessing_tool", response)
         messages.append(response)
+        # 每轮 LLM 解说文本推给前端（与流式节点的 node_delta 同通道，逐轮累积）
+        round_text = getattr(response, "content", "") or ""
+        if round_text:
+            _pub_event(
+                task_id,
+                "node_delta",
+                "data_preprocessing_agent",
+                {"delta": str(round_text)},
+            )
 
         tool_calls = getattr(response, "tool_calls", None) or []
         if not tool_calls:
