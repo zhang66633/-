@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/stores/auth";
 import { useChatSessionStore } from "@/stores/chatSession";
-import type { Message } from "@/types/response";
+import type { Message, ToolMessage } from "@/types/response";
 import { TaskWebSocket } from "@/utils/websocket";
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
@@ -105,7 +105,7 @@ export const useTaskStore = defineStore("task", () => {
     list: Message[],
     toolCallId?: string,
     toolName?: string,
-  ): Message | null {
+  ): ToolMessage | null {
     if (toolCallId) {
       const hit = [...list]
         .reverse()
@@ -113,18 +113,18 @@ export const useTaskStore = defineStore("task", () => {
           (m) =>
             m.msg_type === "tool" && (m as any).tool_call_id === toolCallId,
         );
-      if (hit) return hit;
+      if (hit) return hit as ToolMessage;
     }
     if (toolName) {
       return (
-        [...list]
+        ([...list]
           .reverse()
           .find(
             (m) =>
               m.msg_type === "tool" &&
               (m as any).tool_name === toolName &&
               ((m as any).status === "running" || !(m as any).output),
-          ) ?? null
+          ) as ToolMessage | undefined) ?? null
       );
     }
     return null;
