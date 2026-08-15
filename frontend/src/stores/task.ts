@@ -114,6 +114,11 @@ export const useTaskStore = defineStore("task", () => {
         ? data.data.plan
         : [];
       if (plan.length) planSteps.value = plan;
+      // plan 事件即"计划制定"步骤完成（该节点不发 node_end）
+      nodeStates.value = {
+        ...nodeStates.value,
+        plan_execution: { status: "done" },
+      };
     } else if (event === "node_start") {
       if (node) {
         nodeStates.value = {

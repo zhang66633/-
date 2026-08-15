@@ -249,6 +249,9 @@ watch(
 // ── 动态轨迹时间线（协议 v2.1：plan 事件驱动步骤，node_start/node_end 驱动状态）──
 // plan 的 step key → 展示信息
 const STEP_META: Record<string, { label: string; description: string }> = {
+  classify: { label: "问题分类", description: "识别问题类型与复杂度" },
+  retrieve: { label: "知识检索", description: "检索方法/论文/真题" },
+  plan: { label: "计划制定", description: "生成动态执行计划" },
   analysis: { label: "问题分析", description: "识别问题类型，理解题意" },
   modeling: { label: "模型构建", description: "选择并建立数学模型" },
   data_preprocessing: {
@@ -260,8 +263,11 @@ const STEP_META: Record<string, { label: string; description: string }> = {
   export_results: { label: "结果导出", description: "打包结构化文件" },
   writing: { label: "论文写作", description: "生成结构化论文" },
 };
-// 默认计划（plan 事件未到达/回放失败时兜底，等价于旧的写死 7 步）
+// 前期固定三步（分类→检索→计划，任何任务都执行）
+const PRE_STEPS = ["classify", "retrieve", "plan"];
+// 默认计划（plan 事件未到达/回放失败时兜底）
 const DEFAULT_PLAN = [
+  ...PRE_STEPS,
   "analysis",
   "modeling",
   "data_preprocessing",
@@ -270,11 +276,11 @@ const DEFAULT_PLAN = [
   "export_results",
   "writing",
 ];
-// node 名 → plan step key（node_start/node_end 事件的 node 字段映射）
+// node 名 → 时间线 step key（node_start/node_end 事件的 node 字段映射）
 const NODE_TO_STEP: Record<string, string> = {
-  classify_problem: "analysis",
-  retrieve_knowledge: "analysis",
-  plan_execution: "analysis",
+  classify_problem: "classify",
+  retrieve_knowledge: "retrieve",
+  plan_execution: "plan",
   analysis_agent: "analysis",
   modeling_agent: "modeling",
   data_preprocessing_agent: "data_preprocessing",
@@ -301,7 +307,13 @@ const writingDescription = computed(() => {
 });
 
 const agentSteps = computed<ProgressStep[]>(() => {
-  const plan = taskStore.planSteps.length ? taskStore.planSteps : DEFAULT_PLAN;
+  // 动态计划前置固定三步（分类→检索→计划），时间线全程透明
+  const plan = taskStore.planSteps.length
+    ? [
+        ...PRE_STEPS,
+        ...taskStore.planSteps.filter((k) => !PRE_STEPS.includes(k)),
+      ]
+    : DEFAULT_PLAN;
   const states = taskStore.nodeStates;
   const rollback = taskStore.rollbackInfo;
 
