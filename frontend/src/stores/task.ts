@@ -26,6 +26,12 @@ export const useTaskStore = defineStore("task", () => {
   const sectionsDone = ref(0);
   // 动态执行计划（plan 事件；波次 2 用真实计划渲染时间线，替换写死步骤）
   const planSteps = ref<string[]>([]);
+  // 节点状态（node_start/node_end 驱动）：node 名 → active/done/skipped + 描述
+  const nodeStates = ref<
+    Record<string, { status: "active" | "done" | "skipped"; detail?: string }>
+  >({});
+  // 验证回退信息（verification FAIL 时记录，时间线显示"回退重试"）
+  const rollbackInfo = ref<{ target: string; count: number } | null>(null);
 
   const messages = computed<Message[]>(() => {
     if (!currentTaskId.value) return [];
@@ -98,15 +104,96 @@ export const useTaskStore = defineStore("task", () => {
     return new Date().toISOString();
   }
 
-  function handleProgressEvent(taskId: string, data: Record<string, any>) {
+  /** 事件 → 时间线状态更新（plan / node_start / node_end / task_end）。
+   * WS 实时事件与 GET /tasks/{id}/events 回放共用同一实现。 */
+  function applyEventState(data: Record<string, any>) {
     const event = data?.event;
-
-    // 动态执行计划（协议 v2.1：前端按真实计划渲染时间线）
+    const node = data?.node;
     if (event === "plan") {
       const plan: string[] = Array.isArray(data.data?.plan)
         ? data.data.plan
         : [];
       if (plan.length) planSteps.value = plan;
+    } else if (event === "node_start") {
+      if (node) {
+        nodeStates.value = {
+          ...nodeStates.value,
+          [node]: { status: "active" },
+        };
+      }
+    } else if (event === "node_end") {
+      if (node) {
+        const d = data.data ?? {};
+        nodeStates.value = {
+          ...nodeStates.value,
+          [node]: {
+            status: d.skipped ? "skipped" : "done",
+            detail: d.desc ?? "",
+          },
+        };
+        // 验证 FAIL → 记录回退（时间线显示"回退重试"）；PASS → 清除
+        if (node === "verification_agent") {
+          if (d.passed === false) {
+            rollbackInfo.value = {
+              target: d.rollback_target ?? "modeling",
+              count: (rollbackInfo.value?.count ?? 0) + 1,
+            };
+          } else if (d.passed === true) {
+            rollbackInfo.value = null;
+          }
+        }
+      }
+    } else if (event === "task_end") {
+      // 任务结束：active 节点兜底置为 done（断连/丢事件时不残留"进行中"）
+      const cleaned: Record<
+        string,
+        { status: "active" | "done" | "skipped"; detail?: string }
+      > = {};
+      for (const [k, v] of Object.entries(nodeStates.value)) {
+        cleaned[k] = v.status === "active" ? { ...v, status: "done" } : v;
+      }
+      nodeStates.value = cleaned;
+    }
+  }
+
+  /** 拉取任务持久化事件流，重放时间线状态（刷新/切页恢复动态轨迹）。 */
+  async function fetchTaskEvents(taskId: string) {
+    try {
+      const { getTaskEvents } = await import("@/apis/commonApi");
+      const res = await getTaskEvents(taskId);
+      const data = res.data?.data ?? res.data;
+      const events: Array<Record<string, any>> = data?.events ?? [];
+      planSteps.value = [];
+      nodeStates.value = {};
+      rollbackInfo.value = null;
+      let sawTaskEnd = false;
+      for (const ev of events) {
+        applyEventState(ev);
+        if (ev.event === "task_end") sawTaskEnd = true;
+      }
+      // 回放后置任务态：有 task_end → 已完成；否则仍在跑
+      if (sawTaskEnd) {
+        isRunning.value = false;
+        completed.value = true;
+        currentStep.value = "已完成";
+      } else {
+        isRunning.value = true;
+        completed.value = false;
+      }
+    } catch {
+      /* 回放失败不阻塞（退化为默认计划时间线） */
+    }
+  }
+
+  function handleProgressEvent(taskId: string, data: Record<string, any>) {
+    const event = data?.event;
+
+    // 动态时间线状态（plan/node_start/node_end/task_end）——与消息卡片无关，
+    // 抽成 applyEventState 供 WS 实时事件与 events 回放共用
+    applyEventState(data);
+
+    // 动态执行计划（协议 v2.1：前端按真实计划渲染时间线）
+    if (event === "plan") {
       return;
     }
 
@@ -364,12 +451,15 @@ export const useTaskStore = defineStore("task", () => {
     writingStage,
     sectionsDone,
     planSteps,
+    nodeStates,
+    rollbackInfo,
     currentTaskId,
     connectWebSocket,
     closeWebSocket,
     setCurrentTask,
     appendMessage,
     updateMessage,
+    fetchTaskEvents,
   };
 });
 // ⚠️ 故意不持久化 taskStore：messagesByTask 含 LLM 全文太大、且不能与 isRunning/

@@ -10,10 +10,10 @@
           class="relative flex cursor-pointer items-start gap-2 rounded-lg border px-3.5 py-2.5 text-left transition-all duration-150"
           :class="isSelected(qi, oi)
             ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-            : answered
+            : isLocked
               ? 'border-border bg-card opacity-60'
               : 'border-border bg-card hover:border-muted-foreground/30 hover:bg-accent/40'"
-          :disabled="answered"
+          :disabled="isLocked"
           @click="toggleSelect(qi, oi, q.multiSelect)"
         >
           <span
@@ -30,7 +30,7 @@
       </div>
     </div>
     <button
-      v-if="!answered"
+      v-if="!isLocked"
       :disabled="!allAnswered"
       class="h-10 cursor-pointer rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-all duration-150 hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
       @click="confirm"
@@ -60,6 +60,10 @@ const sendHandler = inject<((text: string) => void) | null>(
   null,
 );
 
+// 本地确认态：提交后锁定卡片（防重复提交；answered 来自消息持久化状态）
+const confirmed = ref(false);
+const isLocked = computed(() => props.answered || confirmed.value);
+
 // 每个问题的选中状态: Map<questionIndex, Set<optionIndex>>
 const selections = ref<Map<number, Set<number>>>(new Map());
 
@@ -68,7 +72,7 @@ function isSelected(qi: number, oi: number): boolean {
 }
 
 function toggleSelect(qi: number, oi: number, multiSelect?: boolean) {
-  if (props.answered) return;
+  if (isLocked.value) return;
   const s = new Map(selections.value);
   if (!s.has(qi)) s.set(qi, new Set());
   const opts = new Set(s.get(qi) ?? []);
@@ -90,7 +94,7 @@ const allAnswered = computed(() => {
 });
 
 function confirm() {
-  if (!allAnswered.value || props.answered) return;
+  if (!allAnswered.value || isLocked.value) return;
 
   // 格式化为自然语言
   const lines: string[] = [];
@@ -106,6 +110,7 @@ function confirm() {
   // 通过注入的 send handler 发送消息(ChatArea 已正确 provide)
   if (sendHandler) {
     sendHandler(text);
+    confirmed.value = true;
   }
 }
 </script>

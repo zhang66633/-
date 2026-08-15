@@ -35,87 +35,126 @@
           Task ID: {{ currentTaskId }}
         </div>
 
-        <!-- 文件区：上传的附件 + 生成的图表 -->
+        <!-- 交付物面板（dsh 式 deliverables：图表 / 数据文件 / 文档导出统一 dock） -->
         <div v-if="currentTaskId" class="mt-4">
-          <p class="text-xs font-medium text-foreground mb-2">📁 文件区</p>
-          <div v-if="taskFiles.length === 0" class="text-[11px] text-muted-foreground">
-            暂无文件（上传的题目/数据与生成的图表会显示在这里）
-          </div>
-          <div v-else class="space-y-1.5">
-            <div
-              v-for="f in taskFiles"
-              :key="f.url"
-              class="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs hover:bg-accent transition-colors"
-            >
-              <!-- 生成的图表显示缩略图 -->
-              <img
-                v-if="f.type === 'figure'"
-                :src="f.url"
-                class="h-8 w-8 object-cover rounded border shrink-0"
-                loading="lazy"
-              />
-              <FileSpreadsheet v-else-if="f.type === 'xlsx' || f.name.endsWith('.xlsx')" class="h-4 w-4 text-green-500 shrink-0" />
-              <Table v-else-if="f.type === 'csv' || f.name.endsWith('.csv')" class="h-4 w-4 text-blue-500 shrink-0" />
-              <FileText v-else-if="f.type === 'html' || f.name.endsWith('.html')" class="h-4 w-4 text-orange-500 shrink-0" />
-              <Archive v-else-if="f.type === 'zip' || f.name.endsWith('.zip')" class="h-4 w-4 text-purple-500 shrink-0" />
-              <Paperclip v-else class="h-4 w-4 text-muted-foreground shrink-0" />
-              <span class="flex-1 truncate" :title="f.name">{{ f.name }}</span>
-              <a
-                :href="f.url"
-                :download="f.name"
-                class="text-muted-foreground hover:text-foreground shrink-0"
-                title="下载"
+          <p class="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-1">
+            <Package class="h-3.5 w-3.5 text-primary" />
+            交付物
+          </p>
+
+          <!-- 图表组：缩略图网格，点击放大预览 -->
+          <template v-if="figureFiles.length">
+            <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60 mt-3 mb-1.5">
+              图表 {{ figureFiles.length }}
+            </p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button
+                v-for="f in figureFiles"
+                :key="f.url"
+                class="group relative aspect-square overflow-hidden rounded-md border border-border hover:border-primary/50 transition-colors"
+                :title="f.name"
+                @click="previewImage = f.url"
               >
-                <Download class="h-3.5 w-3.5" />
-              </a>
+                <img :src="f.url" class="h-full w-full object-cover" loading="lazy" />
+              </button>
             </div>
-          </div>
-        </div>
-
-        <!-- 下载按钮：任务完成后显示 -->
-        <div v-if="taskStore.completed && currentTaskId" class="mt-4 space-y-2">
-          <p class="text-xs font-medium text-foreground mb-2">📥 下载文档</p>
-          <button
-            class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
-            @click="downloadExport('md')"
-          >
-            <FileText class="h-4 w-4" /> Markdown (.md)
-          </button>
-          <button
-            class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
-            @click="downloadExport('docx')"
-          >
-            <FileDown class="h-4 w-4" /> Word (.docx)
-          </button>
-
-          <template v-if="hasExportFiles">
-            <p class="text-xs font-medium text-foreground mb-2 mt-4">📊 下载数据</p>
-            <button
-              v-if="hasXlsxFile"
-              class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
-              @click="downloadExport('xlsx')"
-            >
-              <FileSpreadsheet class="h-4 w-4" /> Excel (.xlsx)
-            </button>
-            <button
-              v-if="hasCsvFile"
-              class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
-              @click="downloadExport('csv')"
-            >
-              <Table class="h-4 w-4" /> CSV (.csv)
-            </button>
           </template>
 
-          <p class="text-xs font-medium text-foreground mb-2 mt-4">📦 打包下载</p>
-          <button
-            class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
-            @click="downloadPackage"
+          <!-- 数据文件组 -->
+          <template v-if="dataFiles.length">
+            <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60 mt-3 mb-1.5">
+              数据文件
+            </p>
+            <div class="space-y-1">
+              <div
+                v-for="f in dataFiles"
+                :key="f.url"
+                class="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs hover:bg-accent transition-colors"
+              >
+                <FileSpreadsheet v-if="f.name.endsWith('.xlsx') || f.name.endsWith('.xls')" class="h-4 w-4 text-green-500 shrink-0" />
+                <Table v-else-if="f.name.endsWith('.csv')" class="h-4 w-4 text-blue-500 shrink-0" />
+                <FileText v-else-if="f.name.endsWith('.html')" class="h-4 w-4 text-orange-500 shrink-0" />
+                <Archive v-else-if="f.name.endsWith('.zip')" class="h-4 w-4 text-purple-500 shrink-0" />
+                <Paperclip v-else class="h-4 w-4 text-muted-foreground shrink-0" />
+                <span class="flex-1 truncate" :title="f.name">{{ f.name }}</span>
+                <a
+                  :href="f.url"
+                  :download="f.name"
+                  class="text-muted-foreground hover:text-foreground shrink-0"
+                  title="下载"
+                >
+                  <Download class="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+          </template>
+
+          <!-- 文档导出组（任务完成后） -->
+          <template v-if="taskStore.completed">
+            <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60 mt-3 mb-1.5">
+              文档导出
+            </p>
+            <div class="space-y-1.5">
+              <button
+                class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+                @click="downloadExport('md')"
+              >
+                <FileText class="h-4 w-4" /> Markdown (.md)
+              </button>
+              <button
+                class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+                @click="downloadExport('docx')"
+              >
+                <FileDown class="h-4 w-4" /> Word (.docx)
+              </button>
+              <button
+                v-if="hasXlsxFile"
+                class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+                @click="downloadExport('xlsx')"
+              >
+                <FileSpreadsheet class="h-4 w-4" /> Excel (.xlsx)
+              </button>
+              <button
+                v-if="hasCsvFile"
+                class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+                @click="downloadExport('csv')"
+              >
+                <Table class="h-4 w-4" /> CSV (.csv)
+              </button>
+              <button
+                class="flex items-center gap-2 w-full rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+                @click="downloadPackage"
+              >
+                <Archive class="h-4 w-4" /> 完整结果包 (.zip)
+              </button>
+            </div>
+          </template>
+
+          <!-- 空状态 -->
+          <div
+            v-if="taskFiles.length === 0 && !taskStore.completed"
+            class="mt-2 text-[11px] text-muted-foreground"
           >
-            <Archive class="h-4 w-4" /> 完整结果包 (.zip)
-          </button>
+            上传的题目/数据与生成的图表将显示在这里
+          </div>
         </div>
       </div>
     </Transition>
+
+    <!-- 图表大图预览 -->
+    <div
+      v-if="previewImage"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 cursor-zoom-out"
+      @click="previewImage = null"
+    >
+      <img :src="previewImage" class="max-h-full max-w-full rounded-md shadow-xl" />
+      <button
+        class="absolute top-4 right-4 inline-flex h-8 items-center gap-1 rounded-md bg-white/10 px-3 text-xs text-white hover:bg-white/20 transition-colors"
+        @click="previewImage = null"
+      >
+        <X class="h-3.5 w-3.5" /> 关闭
+      </button>
+    </div>
 
     <!-- 论文阅读器（全屏浮层） -->
     <PaperViewer
@@ -129,7 +168,12 @@
 
 <script setup lang="ts">
 import type { ChatFileRef } from "@/apis/chatApi";
-import { cancelTask, createTask, getTaskFiles } from "@/apis/commonApi";
+import {
+  cancelTask,
+  createTask,
+  getTask,
+  getTaskFiles,
+} from "@/apis/commonApi";
 import ChatArea from "@/components/ChatArea.vue";
 import ProgressTimeline, {
   type ProgressStep,
@@ -144,9 +188,11 @@ import {
   FileDown,
   FileSpreadsheet,
   FileText,
+  Package,
   PanelRight,
   Paperclip,
   Table,
+  X,
 } from "lucide-vue-next";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
@@ -200,35 +246,44 @@ watch(
   },
 );
 
-const stepDefs: ProgressStep[] = [
-  {
-    id: "1",
-    label: "问题分析",
-    description: "识别问题类型，理解题意",
-    status: "wait",
-  },
-  {
-    id: "2",
-    label: "模型构建",
-    description: "选择并建立数学模型",
-    status: "wait",
-  },
-  {
-    id: "3",
+// ── 动态轨迹时间线（协议 v2.1：plan 事件驱动步骤，node_start/node_end 驱动状态）──
+// plan 的 step key → 展示信息
+const STEP_META: Record<string, { label: string; description: string }> = {
+  analysis: { label: "问题分析", description: "识别问题类型，理解题意" },
+  modeling: { label: "模型构建", description: "选择并建立数学模型" },
+  data_preprocessing: {
     label: "数据预处理",
     description: "EDA 探索与数据清洗",
-    status: "wait",
   },
-  {
-    id: "4",
-    label: "求解计算",
-    description: "生成并执行求解代码",
-    status: "wait",
-  },
-  { id: "5", label: "验证分析", description: "检验模型鲁棒性", status: "wait" },
-  { id: "6", label: "结果导出", description: "打包结构化文件", status: "wait" },
-  { id: "7", label: "论文写作", description: "生成结构化论文", status: "wait" },
+  solving: { label: "求解计算", description: "生成并执行求解代码" },
+  verification: { label: "验证分析", description: "检验模型鲁棒性" },
+  export_results: { label: "结果导出", description: "打包结构化文件" },
+  writing: { label: "论文写作", description: "生成结构化论文" },
+};
+// 默认计划（plan 事件未到达/回放失败时兜底，等价于旧的写死 7 步）
+const DEFAULT_PLAN = [
+  "analysis",
+  "modeling",
+  "data_preprocessing",
+  "solving",
+  "verification",
+  "export_results",
+  "writing",
 ];
+// node 名 → plan step key（node_start/node_end 事件的 node 字段映射）
+const NODE_TO_STEP: Record<string, string> = {
+  classify_problem: "analysis",
+  retrieve_knowledge: "analysis",
+  plan_execution: "analysis",
+  analysis_agent: "analysis",
+  modeling_agent: "modeling",
+  data_preprocessing_agent: "data_preprocessing",
+  solving_agent: "solving",
+  verification_agent: "verification",
+  export_results_agent: "export_results",
+  writing_agent: "writing",
+  format_response: "writing",
+};
 
 // 写作阶段的动态描述：并行生成章节 + 完成计数（node_progress 事件驱动）
 const writingDescription = computed(() => {
@@ -246,54 +301,44 @@ const writingDescription = computed(() => {
 });
 
 const agentSteps = computed<ProgressStep[]>(() => {
-  const current = taskStore.currentStep;
-  if (taskStore.completed) {
-    return stepDefs.map((s) => ({ ...s, status: "done" }));
-  }
-  if (!current) {
-    return stepDefs;
-  }
-  const order = stepDefs.map((s) => s.label);
-  let activeIdx = order.indexOf(current);
-  if (current === "已完成") {
-    return stepDefs.map((s) => ({ ...s, status: "done" }));
-  }
-  if (activeIdx === -1) {
-    if (
-      current.includes("分析") ||
-      current.includes("检索") ||
-      current.includes("计划")
-    )
-      activeIdx = 0;
-    else if (current.includes("模型") || current.includes("建模"))
-      activeIdx = 1;
-    else if (current.includes("预处理") || current.includes("数据"))
-      activeIdx = 2;
-    else if (current.includes("求解") || current.includes("计算"))
-      activeIdx = 3;
-    else if (current.includes("验证")) activeIdx = 4;
-    else if (current.includes("导出") || current.includes("打包"))
-      activeIdx = 5;
-    else if (
-      current.includes("写作") ||
-      current.includes("整合") ||
-      current.includes("输出")
-    )
-      activeIdx = 6;
-  }
-  return stepDefs.map((s, i) => ({
-    ...s,
-    // 写作步骤展示并行生成动态描述
-    description: s.id === "7" ? writingDescription.value : s.description,
-    status:
-      activeIdx === -1
-        ? "wait"
-        : i < activeIdx
-          ? "done"
-          : i === activeIdx
-            ? "active"
-            : "wait",
-  }));
+  const plan = taskStore.planSteps.length ? taskStore.planSteps : DEFAULT_PLAN;
+  const states = taskStore.nodeStates;
+  const rollback = taskStore.rollbackInfo;
+
+  return plan.map((key, i) => {
+    const meta = STEP_META[key] ?? { label: key, description: "" };
+    const relatedNodes = Object.entries(NODE_TO_STEP)
+      .filter(([, k]) => k === key)
+      .map(([n]) => n);
+
+    let status: ProgressStep["status"] = "wait";
+    // 回退重跑：目标步骤回到执行态
+    if (rollback && rollback.target === key && taskStore.isRunning) {
+      status = "active";
+    } else if (relatedNodes.some((n) => states[n]?.status === "active")) {
+      status = "active";
+    } else if (relatedNodes.some((n) => states[n]?.status === "done")) {
+      status = "done";
+    } else if (
+      relatedNodes.length > 0 &&
+      relatedNodes.every((n) => states[n]?.status === "skipped")
+    ) {
+      status = "skipped";
+    }
+
+    let description = meta.description;
+    if (key === "writing" && status === "active") {
+      description = writingDescription.value;
+    }
+    if (key === "data_preprocessing" && status === "skipped") {
+      description = "无数据文件，已跳过";
+    }
+    if (rollback && rollback.target === key && status === "active") {
+      description = `验证未通过，第 ${rollback.count} 次回退重试`;
+    }
+
+    return { id: `${i}-${key}`, label: meta.label, description, status };
+  });
 });
 
 const displayMessages = computed<Message[]>(() => {
@@ -461,7 +506,23 @@ const hasXlsxFile = computed(() =>
 const hasCsvFile = computed(() =>
   taskFiles.value.some((f) => f.name.endsWith(".csv")),
 );
-const hasExportFiles = computed(() => hasXlsxFile.value || hasCsvFile.value);
+
+// ── 交付物面板分组 ──
+const IMAGE_SUFFIX_RE = /\.(png|jpg|jpeg|gif|webp)$/i;
+/** 图表文件（缩略图网格展示） */
+const figureFiles = computed(() =>
+  taskFiles.value.filter(
+    (f) => f.type === "figure" || IMAGE_SUFFIX_RE.test(f.name),
+  ),
+);
+/** 数据/结果文件（列表展示） */
+const dataFiles = computed(() =>
+  taskFiles.value.filter(
+    (f) => f.type !== "figure" && !IMAGE_SUFFIX_RE.test(f.name),
+  ),
+);
+/** 图表大图预览 */
+const previewImage = ref<string | null>(null);
 
 // ---- 论文阅读器 ----
 const showPaperViewer = ref(false);
@@ -502,8 +563,24 @@ onMounted(() => {
       chatSession.sortedSolutionSessions[0].id,
     );
   }
-  // 当前页面内的 task_id 不持久化（与 taskStore.messagesByTask 一致），刷新后
-  // 用户需重新触发任务；路由切页通过 chatSession 持久化保留历史消息。
+  // 刷新恢复：task_id 持久化在 session 上 → 回放事件流重建动态时间线 + 交付物；
+  // 任务仍在跑则重连 WS 恢复实时进度。
+  const sess = chatSession.activeSolutionSession;
+  const storedTaskId = (sess as any)?.taskId as string | undefined;
+  if (storedTaskId && !currentTaskId.value) {
+    currentTaskId.value = storedTaskId;
+    taskStore.setCurrentTask(storedTaskId);
+    taskStore.fetchTaskEvents(storedTaskId);
+    fetchTaskFiles(storedTaskId);
+    getTask(storedTaskId)
+      .then((res) => {
+        const t = res.data?.data ?? res.data;
+        if (t?.status === "running") {
+          taskStore.connectWebSocket(storedTaskId);
+        }
+      })
+      .catch(() => {});
+  }
 });
 
 // 注意：故意不在 onUnmounted 关闭 WS，避免切页导致任务进度丢失。

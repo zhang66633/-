@@ -30,10 +30,20 @@
               >
                 <Loader2 v-if="s.status === 'active'" class="h-3 w-3 animate-spin" />
                 <Check v-else-if="s.status === 'done'" class="h-3 w-3" />
+                <Minus v-else-if="s.status === 'skipped'" class="h-3 w-3" />
                 <span v-else>{{ idx + 1 }}</span>
               </span>
               <div class="flex flex-col">
-                <span class="text-sm font-medium" :class="s.status === 'wait' ? 'text-muted-foreground' : 'text-foreground'">
+                <span
+                  class="text-sm font-medium"
+                  :class="
+                    s.status === 'wait'
+                      ? 'text-muted-foreground'
+                      : s.status === 'skipped'
+                        ? 'text-muted-foreground/60 line-through'
+                        : 'text-foreground'
+                  "
+                >
                   {{ s.label }}
                 </span>
                 <span class="text-xs text-muted-foreground">{{ s.description }}</span>
@@ -53,14 +63,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Check, ChevronDown, Loader2 } from "lucide-vue-next";
+import { Check, ChevronDown, Loader2, Minus } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 
 export interface ProgressStep {
   id: string;
   label: string;
   description: string;
-  status: "wait" | "active" | "done";
+  status: "wait" | "active" | "done" | "skipped";
 }
 
 const props = withDefaults(
@@ -115,6 +125,8 @@ function nodeClass(status: ProgressStep["status"]) {
     return "border-primary bg-primary text-primary-foreground";
   if (status === "done")
     return "border-primary bg-primary text-primary-foreground";
+  if (status === "skipped")
+    return "border-border bg-muted text-muted-foreground";
   return "border-border bg-background text-muted-foreground";
 }
 </script>
