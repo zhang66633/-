@@ -5,7 +5,7 @@ import BubbleTool from "@/components/bubble/BubbleTool.vue";
 import PaperCard from "@/components/paper/PaperCard.vue";
 import { useTypewriter } from "@/composables/useTypewriter";
 import { AgentType } from "@/types/enum";
-import type { AgentMessage, Message } from "@/types/response";
+import type { AgentMessage, AgentSegment, Message } from "@/types/response";
 import { renderMarkdown } from "@/utils/markdown";
 import { BookOpen, Clipboard, Printer, RotateCcw } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
@@ -17,8 +17,10 @@ const props = withDefaults(
     isLast?: boolean;
     /** chat 模式：本气泡内联的工具卡片（dsh 式"工具嵌在输出中"） */
     attachedTools?: Message[];
+    /** chat 模式：文本与工具按事件顺序交错的片段流（存在时优先按序渲染） */
+    segments?: AgentSegment[];
   }>(),
-  { isLast: false, attachedTools: () => [] },
+  { isLast: false, attachedTools: () => [], segments: () => [] },
 );
 
 const emit = defineEmits<{
@@ -94,6 +96,15 @@ const renderedContent = computed(() => {
   return renderMarkdown(text);
 });
 
+// 片段流渲染：toolId → 工具消息查表（BubbleTool 直接拿消息对象）
+const toolMap = computed(
+  () => new Map((props.attachedTools ?? []).map((t) => [t.id, t])),
+);
+
+function segHtml(seg: AgentSegment): string {
+  return seg.kind === "text" && seg.text ? renderMarkdown(seg.text) : "";
+}
+
 const timestamp = computed(() => {
   if (!props.message.created_at) return "";
   return new Date(props.message.created_at).toLocaleTimeString("zh-CN", {
@@ -128,9 +139,25 @@ const timestamp = computed(() => {
           />
 
           <!-- 内容 / 打字机 / 思考点 -->
+          <!-- 片段流（chat 模式）：文本与工具按事件顺序交错渲染 -->
+          <div v-if="segments && segments.length" class="w-full space-y-2">
+            <template v-for="(seg, i) in segments" :key="i">
+              <div
+                v-if="seg.kind === 'text' && seg.text"
+                class="prose prose-sm dark:prose-invert max-w-none break-words"
+                v-html="segHtml(seg)"
+              />
+              <BubbleTool
+                v-else-if="seg.kind === 'tool' && toolMap.get(seg.toolId)"
+                :message="toolMap.get(seg.toolId)!"
+                inline
+              />
+            </template>
+          </div>
+
           <!-- 论文消息：显示 PaperCard 代替全文渲染 -->
           <PaperCard
-            v-if="isFinalPaper && content"
+            v-else-if="isFinalPaper && content"
             :markdown="content"
             @open="emit('openPaper')"
           />
@@ -145,19 +172,6 @@ const timestamp = computed(() => {
             <span class="h-1.5 w-1.5 rounded-full bg-current animate-bounce" style="animation-delay: 0ms" />
             <span class="h-1.5 w-1.5 rounded-full bg-current animate-bounce" style="animation-delay: 150ms" />
             <span class="h-1.5 w-1.5 rounded-full bg-current animate-bounce" style="animation-delay: 300ms" />
-          </div>
-
-          <!-- 内联工具卡片（chat 模式：工具嵌在输出流中，不占独立消息行） -->
-          <div
-            v-if="attachedTools && attachedTools.length"
-            class="mt-3 space-y-2 border-t border-border/60 pt-2"
-          >
-            <BubbleTool
-              v-for="t in attachedTools"
-              :key="t.id"
-              :message="t"
-              inline
-            />
           </div>
 
           <!-- 出错重试（onError 置位；只出现在最后一条） -->

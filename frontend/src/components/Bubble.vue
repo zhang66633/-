@@ -39,6 +39,13 @@ const attachedTools = computed<Message[]>(() =>
     : [],
 );
 
+// chat 模式：片段流（文本与工具按事件顺序交错），渲染时按序输出
+const agentSegments = computed(() =>
+  props.message.msg_type === "agent"
+    ? chatSession.getAgentSegments(props.message.id)
+    : [],
+);
+
 const component = computed(() => {
   switch (props.message.msg_type) {
     case "user":
@@ -63,6 +70,7 @@ const component = computed(() => {
     :message="message"
     :is-last="isLast"
     :attached-tools="attachedTools"
+    :segments="agentSegments"
     @open-paper="emit('openPaper')"
     @retry="emit('retry')"
   />

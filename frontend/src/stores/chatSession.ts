@@ -1,4 +1,4 @@
-import type { Message, ToolStatus } from "@/types/response";
+import type { AgentSegment, Message, ToolStatus } from "@/types/response";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
@@ -343,6 +343,43 @@ export const useChatSessionStore = defineStore(
       delete toolAttachments.value[agentMsgId];
     }
 
+    // ── 片段流（dsh 式"工具嵌在输出流的正确位置"）──
+    // 文本与工具按 SSE 事件到达顺序交错记录；渲染时按序输出，
+    // 而不是把所有工具卡片堆到气泡底部。不持久化：刷新后退化为全文渲染。
+    const agentSegments = ref<Record<string, AgentSegment[]>>({});
+
+    /** 追加一个片段（工具片段；文本片段用 updateTextSegment 流式累积）。 */
+    function appendSegment(agentMsgId: string, seg: AgentSegment) {
+      if (!agentSegments.value[agentMsgId]) {
+        agentSegments.value[agentMsgId] = [];
+      }
+      agentSegments.value[agentMsgId].push(seg);
+    }
+
+    /** 把文本增量拼进最后一个文本片段；若最后不是文本（或无），追加新的文本片段。 */
+    function updateTextSegment(agentMsgId: string, delta: string) {
+      if (!agentSegments.value[agentMsgId]) {
+        agentSegments.value[agentMsgId] = [];
+      }
+      const segs = agentSegments.value[agentMsgId];
+      const last = segs[segs.length - 1];
+      if (last && last.kind === "text") {
+        last.text += delta;
+      } else {
+        segs.push({ kind: "text", text: delta });
+      }
+    }
+
+    /** 取 agent 气泡的片段流（渲染用）。 */
+    function getAgentSegments(agentMsgId: string): AgentSegment[] {
+      return agentSegments.value[agentMsgId] ?? [];
+    }
+
+    /** 清空某 agent 气泡的片段流（重试复用气泡时调用）。 */
+    function clearAgentSegments(agentMsgId: string) {
+      delete agentSegments.value[agentMsgId];
+    }
+
     /** 显式新建会话（不清空当前会话）。 */
     function newSession(mode: SessionMode): string {
       return createSession(mode);
@@ -389,6 +426,10 @@ export const useChatSessionStore = defineStore(
       attachTool,
       getToolAttachments,
       clearToolAttachments,
+      appendSegment,
+      updateTextSegment,
+      getAgentSegments,
+      clearAgentSegments,
     };
   },
   {

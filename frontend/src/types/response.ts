@@ -17,6 +17,11 @@ export interface BaseMessage {
   streaming?: boolean;
 }
 
+/** agent 气泡的流式片段（dsh 式：文本与工具卡片按事件到达顺序交错） */
+export type AgentSegment =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; toolId: string };
+
 /** 工具调用消息 */
 export interface ToolMessage extends BaseMessage {
   msg_type: "tool";

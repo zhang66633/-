@@ -91,6 +91,7 @@ export function useStreamChat(
       chatSession.addMessage(sessionMode, sessionId, userMsg);
     } else {
       chatSession.clearToolAttachments(retryAgentId);
+      chatSession.clearAgentSegments(retryAgentId);
       chatSession.updateMessage(sessionMode, sessionId, retryAgentId, {
         content: "",
         streaming: true,
@@ -134,6 +135,8 @@ export function useStreamChat(
         acc += delta;
         const id = ensureAgentMsg();
         chatSession.updateMessage(sessionMode, sessionId, id, { content: acc });
+        // 片段流：文本增量拼接进"最后一个文本片段"（若在工具之后，则开新文本片段）
+        chatSession.updateTextSegment(id, delta);
       },
       onThinking(thinking) {
         thinkingAcc += thinking;
@@ -144,7 +147,7 @@ export function useStreamChat(
       },
       onToolCall(event) {
         // dsh 式内联：工具卡片挂到 agent 气泡下（不进消息列表），
-        // 与回复文本同块渲染——"工具嵌在输出中"，不再堆在列表尾部
+        // 并按事件顺序插入片段流——渲染时出现在调用它那句话的正下方
         const toolMsg: Message = {
           id: generateId(),
           msg_type: "tool",
@@ -156,7 +159,12 @@ export function useStreamChat(
           tool_call_id: event.id,
           created_at: new Date().toISOString(),
         };
-        chatSession.attachTool(ensureAgentMsg(), toolMsg);
+        const agentId = ensureAgentMsg();
+        chatSession.attachTool(agentId, toolMsg);
+        chatSession.appendSegment(agentId, {
+          kind: "tool",
+          toolId: toolMsg.id,
+        });
       },
       onToolResult(event) {
         // 协议 v2.1：优先按 id 精确配对；旧后端无 id 时退化为最近同名未完成匹配
