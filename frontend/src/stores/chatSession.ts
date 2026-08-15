@@ -237,6 +237,13 @@ export const useChatSessionStore = defineStore(
       const list = getSessions(mode).value;
       const idx = list.findIndex((s) => s.id === id);
       if (idx === -1) return;
+      // 清理该会话的内联工具附件与片段流（防止 localStorage 泄漏）
+      for (const m of list[idx].messages) {
+        if (m.msg_type === "agent") {
+          delete toolAttachments.value[m.id];
+          delete agentSegments.value[m.id];
+        }
+      }
       list.splice(idx, 1);
       const activeId = getActiveId(mode);
       if (activeId.value === id) {
@@ -335,7 +342,7 @@ export const useChatSessionStore = defineStore(
 
     /** 取 agent 气泡的内联工具消息列表（渲染用）。 */
     function getToolAttachments(agentMsgId: string): Message[] {
-      return toolAttachments.value[agentMsgId] ?? [];
+      return toolAttachments.value?.[agentMsgId] ?? [];
     }
 
     /** 清空某 agent 气泡的内联工具（重试复用气泡时调用）。 */
@@ -372,7 +379,7 @@ export const useChatSessionStore = defineStore(
 
     /** 取 agent 气泡的片段流（渲染用）。 */
     function getAgentSegments(agentMsgId: string): AgentSegment[] {
-      return agentSegments.value[agentMsgId] ?? [];
+      return agentSegments.value?.[agentMsgId] ?? [];
     }
 
     /** 清空某 agent 气泡的片段流（重试复用气泡时调用）。 */
@@ -445,6 +452,10 @@ export const useChatSessionStore = defineStore(
         "activeSolutionId",
         "activeLearningId",
         "activePracticeId",
+        // 工具内联附件 + 片段流：刷新后恢复工具卡片与交错渲染
+        // （agent 消息只存了文本，工具卡片与位置信息由这两份状态补全）
+        "toolAttachments",
+        "agentSegments",
       ],
     },
   },
