@@ -5,13 +5,13 @@
   - 后端执行工具后将结果回灌 LLM
   - 全过程流式事件给前端（text delta / tool call / tool result / clarify）
 
-SSE 事件协议：
+SSE 事件协议（v2.1）：
   data: {"delta": "..."}\n\n                 文本增量
-  data: {"tool_call": {"name":"...","args":{...}}}\n\n    工具调用开始
-  data: {"tool_result": {"name":"...","preview":"..."}}\n\n 工具执行完成（含结果摘要）
+  data: {"tool_call": {"id":"...","name":"...","args":{...}}}\n\n    工具调用开始（id 供结果回声）
+  data: {"tool_result": {"id":"...","name":"...","preview":"...","ok":true,"duration_ms":123}}\n\n 工具执行完成（id 与 tool_call 对齐）
   data: {"clarify": {"questions":[...]}}\n\n   LLM 需要用户澄清（前端渲染选项卡片）
-  data: {"code_exec": {"status":"running"}}\n\n 代码开始执行
-  data: {"code_exec": {"status":"done","stdout":"...","images":[...]}}\n\n 代码执行完成
+  data: {"code_exec": {"status":"running","id":"..."}}\n\n 代码开始执行
+  data: {"code_exec": {"status":"done","id":"...","stdout":"...","images":[...],"ok":true,"duration_ms":123}}\n\n 代码执行完成
   data: [DONE]\n\n                            全部结束
   data: {"error": "..."}\n\n                 错误
 """
@@ -27,6 +27,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from ..auth import GitHubUser, get_current_user
 from ..core.llm.factory import LLMFactory
+from ..core.node_helpers import parse_code_result, tool_call_id, tool_timeout
 from ..core.prompts._shared import MARKDOWN_RULES, TEACH_SHARED_RULES
 from ..tools.interaction_tools import create_interaction_tools
 from ..tools.kb_tools import create_kb_tools
@@ -372,9 +373,6 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
 
             # ── 并行执行：所有工具并发（run_code 各自独立沙箱目录，安全）；
             #    每工具带超时（web_search 30s，其余 60s），超时/异常结构化返回 ──
-            def _tool_timeout(name: str) -> float:
-                return 30.0 if name == "web_search" else 60.0
-
             async def _execute_one(tc: dict) -> dict:
                 tool_name = tc.get("name")
                 tool_args = tc.get("args") or {}
@@ -390,7 +388,7 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                 try:
                     text = await asyncio.wait_for(
                         asyncio.to_thread(tool.invoke, tool_args),
-                        timeout=_tool_timeout(tool_name),
+                        timeout=tool_timeout(tool_name),
                     )
                     return {
                         "ok": True,
@@ -398,12 +396,12 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                         "text": str(text),
                     }
                 except TimeoutError:
-                    logger.warning("tool %s 超时（%ss）", tool_name, _tool_timeout(tool_name))
+                    logger.warning("tool %s 超时（%ss）", tool_name, tool_timeout(tool_name))
                     return {
                         "ok": False,
-                        "error": f"工具执行超时（{_tool_timeout(tool_name):.0f}s）",
+                        "error": f"工具执行超时（{tool_timeout(tool_name):.0f}s）",
                         "duration_ms": int((time.monotonic() - t0) * 1000),
-                        "text": f"工具执行超时（{_tool_timeout(tool_name):.0f}s）",
+                        "text": f"工具执行超时（{tool_timeout(tool_name):.0f}s）",
                     }
                 except Exception as e:  # noqa: BLE001
                     logger.exception("tool %s failed", tool_name)
@@ -414,20 +412,23 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                         "text": f"工具执行失败: {e}",
                     }
 
-            # run_code 先发 running 事件（保证前端立刻进入执行态）
+            # run_code 先发 running 事件（保证前端立刻进入执行态；v2.1：回声 id）
             for tc in tool_calls_final:
                 if tc.get("name") == "run_code":
-                    yield f"data: {json.dumps({'code_exec': {'status': 'running'}}, ensure_ascii=False)}\n\n"
+                    tc_id = tool_call_id(tc, "run_code")
+                    yield f"data: {json.dumps({'code_exec': {'status': 'running', 'id': tc_id}}, ensure_ascii=False)}\n\n"
 
             results = await asyncio.gather(*[_execute_one(tc) for tc in tool_calls_final])
 
             # 按 LLM 原始顺序回灌消息 + 推送结果事件
             for tc, r in zip(tool_calls_final, results, strict=False):
                 tool_name = tc.get("name")
+                tc_id = tool_call_id(tc, tool_name)
                 if tool_name == "run_code":
-                    code_data = _parse_code_result(r["text"])
-                    yield f"data: {json.dumps({'code_exec': {'status': 'done', **code_data, 'ok': r['ok'], 'duration_ms': r['duration_ms']}}, ensure_ascii=False)}\n\n"
+                    code_data = parse_code_result(r["text"])
+                    yield f"data: {json.dumps({'code_exec': {'status': 'done', 'id': tc_id, **code_data, 'ok': r['ok'], 'duration_ms': r['duration_ms']}}, ensure_ascii=False)}\n\n"
                 result_payload = {
+                    "id": tc_id,
                     "name": tool_name,
                     "preview": _result_preview(r["text"]),
                     "ok": r["ok"],
@@ -441,7 +442,7 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                 messages.append(
                     ToolMessage(
                         content=r["text"],
-                        tool_call_id=tc.get("id") or tc.get("tool_call_id") or tool_name,
+                        tool_call_id=tc_id,
                     )
                 )
 
@@ -458,23 +459,6 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
             err = f"API Key 错误: {err[:300]}"
         yield f"data: {json.dumps({'error': err}, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
-
-
-def _parse_code_result(result_text: str) -> dict:
-    """从 RunCodeTool 的输出文本中提取 stdout 和 images。"""
-    stdout_parts = []
-    images: list[str] = []
-    for line in result_text.split("\n"):
-        if line.startswith("输出:"):
-            continue
-        if line.startswith("生成图表:"):
-            paths = line.replace("生成图表:", "").strip()
-            images = [p.strip() for p in paths.split(",") if p.strip()]
-        elif line.startswith("错误:"):
-            continue
-        else:
-            stdout_parts.append(line)
-    return {"stdout": "\n".join(stdout_parts).strip(), "images": images}
 
 
 @chat_router.post("/chat")

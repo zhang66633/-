@@ -15,13 +15,20 @@ export interface ChatFileRef {
 }
 
 export interface ToolCallEvent {
+  /** 工具调用 id（协议 v2.1：tool_result/code_exec 回声，用于精确配对） */
+  id?: string;
   name: string;
   args: Record<string, unknown>;
 }
 
 export interface ToolResultEvent {
+  /** 与 tool_call 对齐的 id（协议 v2.1；缺失时前端退化按 name 匹配） */
+  id?: string;
   name: string;
   preview: string;
+  ok?: boolean;
+  duration_ms?: number;
+  error?: string;
 }
 
 export interface ClarifyEvent {
@@ -34,8 +41,13 @@ export interface ClarifyEvent {
 
 export interface CodeExecEvent {
   status: "running" | "done";
+  /** 与 tool_call 对齐的 id（协议 v2.1） */
+  id?: string;
   stdout?: string;
   images?: string[];
+  ok?: boolean;
+  duration_ms?: number;
+  error?: string;
 }
 
 export interface StreamChatOptions {

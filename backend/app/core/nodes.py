@@ -1,6 +1,7 @@
 """图节点函数 — classify / retrieve / plan / agent / format。"""
 
 import json
+import time
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
@@ -30,8 +31,12 @@ from .node_helpers import (  # noqa: F401  (god-files 拆分 #31：辅助函数�
     _persist_task_images,
     _pub_event,
     _save_working_memory,
+    get_cancel_event,
     invoke_with_retry,
     logger,
+    parse_code_result,
+    tool_call_id,
+    tool_timeout,
 )
 from .prompts.analysis import (
     ANALYSIS_SYSTEM_PROMPT,
@@ -419,6 +424,17 @@ def plan_execution(state: AgentState) -> dict:
         # 默认计划
         execution_plan = ["analysis", "modeling", "solving", "verification", "writing"]
 
+    # 协议 v2.1：推送动态执行计划（前端按真实计划渲染时间线，而非写死步骤）
+    _pub_event(
+        task_id,
+        "plan",
+        "plan_execution",
+        {
+            "plan": execution_plan,
+            "step_count": len(execution_plan),
+        },
+    )
+
     return {
         "execution_plan": execution_plan,
         "current_step_index": -1,
@@ -542,6 +558,23 @@ def modeling_agent_node(state: AgentState) -> dict:
             problem=state["problem_raw"],
             analysis=state.get("analysis_output", "无分析结果"),
             problem_type=state["problem_type"],
+        )
+
+    # ── 验证反馈闭环（协议 v2.1）：回退重跑时注入上次验证 FAIL 原因，
+    #    让建模针对性地修正，而不是盲目重试 ──
+    feedback = state.get("verification_feedback")
+    if feedback:
+        user_prompt += (
+            "\n\n## ⚠️ 上次验证未通过（必须针对性修正）\n"
+            "以下是你上一版模型的验证反馈，模型存在以下问题，请逐条修正后重新建立模型：\n"
+            f"{str(feedback)[:2000]}\n"
+            "修正后请明确说明：1) 针对哪些反馈做了哪些修改；2) 修改后的模型与上一版的差异。"
+        )
+        _pub_event(
+            task_id,
+            "node_progress",
+            "modeling_agent",
+            {"stage": "revise_with_feedback", "feedback_length": len(str(feedback)[:2000])},
         )
 
     response = llm.invoke(
@@ -698,6 +731,7 @@ def solving_agent_node(state: AgentState) -> dict:
         )
 
     for _ in range(max_rounds):
+        _check_cancelled(task_id)
         response = invoke_with_retry(llm_with_tools, messages, task_id=task_id, node="solving_tool")
         _log_usage(task_id, "solving_tool", response)
         messages.append(response)
@@ -706,56 +740,146 @@ def solving_agent_node(state: AgentState) -> dict:
         if not tool_calls:
             break  # LLM 停止调用工具 → 最后一条即结构化求解报告
 
+        # ── 协议 v2.1：先发 tool_call（running，带 tool_call_id），
+        #    执行完再发 tool_result（同一 id 回声）——前端同一卡片两段更新，内联成组 ──
         for tc in tool_calls:
-            tool_name = tc.get("name")
-            tool_args = tc.get("args") or {}
-            tool = tool_map.get(tool_name)
-
-            if tool is None:
-                result_text = f"未知工具: {tool_name}"
-            else:
-                try:
-                    result_text = tool.invoke(tool_args)
-                except Exception as e:  # noqa: BLE001
-                    result_text = f"工具执行失败: {e}"
-
-            # 截断超长工具结果（借鉴 cc-haha maxResultSizeChars）
-            result_text = _truncate_tool_result(result_text, tool_name)
-
-            # 收集 run_code 产出的图表和文件 URL
-            if tool_name == "run_code":
-                all_images.extend(_collect_image_urls(result_text))
-                all_xlsx.extend(_collect_file_urls(result_text, "xlsx"))
-                all_csv.extend(_collect_file_urls(result_text, "csv"))
-                all_html.extend(_collect_file_urls(result_text, "html"))
-
-            # 前端渲染工具调用卡片
             _pub_event(
                 task_id,
                 "tool_call",
                 "solving_agent",
                 {
-                    "tool_name": tool_name,
+                    "tool_call_id": tool_call_id(tc, tc.get("name")),
+                    "tool_name": tc.get("name"),
                     "input": {
-                        k: (str(v)[:1500] if k == "code" else v) for k, v in tool_args.items()
+                        k: (str(v)[:1500] if k == "code" else v)
+                        for k, v in (tc.get("args") or {}).items()
                     },
-                    "output": [
-                        {
-                            "name": tool_name,
-                            "preview": result_text[:1500],
-                            "images": _collect_image_urls(result_text),
-                            "xlsx_files": _collect_file_urls(result_text, "xlsx"),
-                            "csv_files": _collect_file_urls(result_text, "csv"),
-                            "html_files": _collect_file_urls(result_text, "html"),
+                    "status": "running",
+                },
+            )
+
+        # ── 执行：run_code 串行（沙箱资源独占，注入取消事件）；
+        #    其余工具线程池并行 + 每工具超时（与 chat 通道同规则）──
+        def _run_one(tc: dict) -> tuple[str, dict]:
+            """执行单个工具，返回 (结果文本, 元信息)。"""
+            tool_name = tc.get("name")
+            tool_args = tc.get("args") or {}
+            tool = tool_map.get(tool_name)
+            t0 = time.monotonic()
+            if tool is None:
+                return (
+                    f"未知工具: {tool_name}",
+                    {
+                        "tool_name": tool_name,
+                        "ok": False,
+                        "error": f"未知工具: {tool_name}",
+                        "duration_ms": 0,
+                    },
+                )
+            try:
+                text = tool.invoke(tool_args)
+                return text, {
+                    "tool_name": tool_name,
+                    "ok": True,
+                    "duration_ms": int((time.monotonic() - t0) * 1000),
+                }
+            except Exception as e:  # noqa: BLE001
+                return (
+                    f"工具执行失败: {e}",
+                    {
+                        "tool_name": tool_name,
+                        "ok": False,
+                        "error": str(e)[:200],
+                        "duration_ms": int((time.monotonic() - t0) * 1000),
+                    },
+                )
+
+        from concurrent.futures import ThreadPoolExecutor
+
+        results: dict[str, tuple[str, dict]] = {}
+
+        # run_code 串行执行：任务取消 → 沙箱进程树被中断（事件级取消）
+        run_code_tool.cancel_event = get_cancel_event(task_id)
+        for tc in tool_calls:
+            if tc.get("name") != "run_code":
+                continue
+            tc_id = tool_call_id(tc, "run_code")
+            _pub_event(task_id, "code_exec", "solving_agent", {"status": "running", "id": tc_id})
+            text, meta = _run_one(tc)
+            results[tc_id] = (text, meta)
+            code_data = parse_code_result(text)
+            _pub_event(
+                task_id,
+                "code_exec",
+                "solving_agent",
+                {
+                    "status": "done",
+                    "id": tc_id,
+                    **code_data,
+                    "ok": meta["ok"],
+                    "duration_ms": meta["duration_ms"],
+                },
+            )
+
+        # 其余工具并行（每工具独立超时；超时仅放弃等待，不杀线程——与 chat 一致）
+        others = [tc for tc in tool_calls if tc.get("name") != "run_code"]
+        if others:
+            with ThreadPoolExecutor(max_workers=min(4, len(others))) as _pool:
+                _futs: dict[str, tuple] = {
+                    tool_call_id(tc, tc.get("name")): (_pool.submit(_run_one, tc), tc.get("name"))
+                    for tc in others
+                }
+                for tc_id, (_fut, tool_name) in _futs.items():
+                    try:
+                        text, meta = _fut.result(timeout=tool_timeout(tool_name))
+                    except TimeoutError:
+                        text = f"工具执行超时（{tool_timeout(tool_name):.0f}s）"
+                        meta = {
+                            "tool_name": tool_name,
+                            "ok": False,
+                            "error": text,
+                            "duration_ms": int(tool_timeout(tool_name) * 1000),
                         }
-                    ],
+                    results[tc_id] = (text, meta)
+
+        # ── 结果事件回灌（按 LLM 原始顺序，id 回声）──
+        for tc in tool_calls:
+            tc_id = tool_call_id(tc, tc.get("name"))
+            tool_name = tc.get("name")
+            text, meta = results[tc_id]
+
+            # 截断超长工具结果（借鉴 cc-haha maxResultSizeChars）
+            text = _truncate_tool_result(text, tool_name)
+
+            # 收集 run_code 产出的图表和文件 URL
+            if tool_name == "run_code":
+                all_images.extend(_collect_image_urls(text))
+                all_xlsx.extend(_collect_file_urls(text, "xlsx"))
+                all_csv.extend(_collect_file_urls(text, "csv"))
+                all_html.extend(_collect_file_urls(text, "html"))
+
+            _pub_event(
+                task_id,
+                "tool_result",
+                "solving_agent",
+                {
+                    "tool_call_id": tc_id,
+                    "tool_name": tool_name,
+                    "preview": text[:1500],
+                    "ok": meta["ok"],
+                    "duration_ms": meta["duration_ms"],
+                    "images": _collect_image_urls(text),
+                    "xlsx_files": _collect_file_urls(text, "xlsx"),
+                    "csv_files": _collect_file_urls(text, "csv"),
+                    "html_files": _collect_file_urls(text, "html"),
+                    **({"error": meta["error"]} if meta.get("error") else {}),
                 },
             )
 
             messages.append(
                 ToolMessage(
-                    content=result_text,
-                    tool_call_id=tc.get("id") or tool_name,
+                    content=text,
+                    tool_call_id=tc_id,
                 )
             )
 
@@ -1288,7 +1412,10 @@ def data_preprocessing_agent_node(state: AgentState) -> dict:
     max_rounds = 5
 
     for _ in range(max_rounds):
-        response = llm_with_tools.invoke(messages)
+        _check_cancelled(task_id)
+        response = invoke_with_retry(
+            llm_with_tools, messages, task_id=task_id, node="preprocessing_tool"
+        )
         _log_usage(task_id, "preprocessing_tool", response)
         messages.append(response)
 
@@ -1296,45 +1423,131 @@ def data_preprocessing_agent_node(state: AgentState) -> dict:
         if not tool_calls:
             break
 
+        # 协议 v2.1：tool_call（running）→ 执行 → tool_result（id 回声，同一卡片两段更新）
         for tc in tool_calls:
-            tool_name = tc.get("name")
-            tool_args = tc.get("args") or {}
-            tool = tool_map.get(tool_name)
-
-            if tool is None:
-                result_text = f"未知工具: {tool_name}"
-            else:
-                try:
-                    result_text = tool.invoke(tool_args)
-                except Exception as e:
-                    result_text = f"工具执行失败: {e}"
-
-            if tool_name == "run_code":
-                all_images.extend(_collect_image_urls(result_text))
-
             _pub_event(
                 task_id,
                 "tool_call",
                 "data_preprocessing_agent",
                 {
-                    "tool_name": tool_name,
+                    "tool_call_id": tool_call_id(tc, tc.get("name")),
+                    "tool_name": tc.get("name"),
                     "input": {
-                        k: (str(v)[:1500] if k == "code" else v) for k, v in tool_args.items()
+                        k: (str(v)[:1500] if k == "code" else v)
+                        for k, v in (tc.get("args") or {}).items()
                     },
-                    "output": [
-                        {
-                            "name": tool_name,
-                            "preview": result_text[:1500],
-                            "images": _collect_image_urls(result_text),
+                    "status": "running",
+                },
+            )
+
+        def _run_one(tc: dict) -> tuple[str, dict]:
+            """执行单个工具，返回 (结果文本, 元信息)。"""
+            tool_name = tc.get("name")
+            tool_args = tc.get("args") or {}
+            tool = tool_map.get(tool_name)
+            t0 = time.monotonic()
+            if tool is None:
+                return (
+                    f"未知工具: {tool_name}",
+                    {
+                        "tool_name": tool_name,
+                        "ok": False,
+                        "error": f"未知工具: {tool_name}",
+                        "duration_ms": 0,
+                    },
+                )
+            try:
+                text = tool.invoke(tool_args)
+                return text, {
+                    "tool_name": tool_name,
+                    "ok": True,
+                    "duration_ms": int((time.monotonic() - t0) * 1000),
+                }
+            except Exception as e:  # noqa: BLE001
+                return (
+                    f"工具执行失败: {e}",
+                    {
+                        "tool_name": tool_name,
+                        "ok": False,
+                        "error": str(e)[:200],
+                        "duration_ms": int((time.monotonic() - t0) * 1000),
+                    },
+                )
+
+        from concurrent.futures import ThreadPoolExecutor
+
+        results: dict[str, tuple[str, dict]] = {}
+
+        # run_code 串行（取消事件注入）；其余工具并行 + 超时
+        run_code_tool.cancel_event = get_cancel_event(task_id)
+        for tc in tool_calls:
+            if tc.get("name") != "run_code":
+                continue
+            tc_id = tool_call_id(tc, "run_code")
+            _pub_event(task_id, "code_exec", "data_preprocessing_agent", {"status": "running", "id": tc_id})
+            text, meta = _run_one(tc)
+            results[tc_id] = (text, meta)
+            code_data = parse_code_result(text)
+            _pub_event(
+                task_id,
+                "code_exec",
+                "data_preprocessing_agent",
+                {
+                    "status": "done",
+                    "id": tc_id,
+                    **code_data,
+                    "ok": meta["ok"],
+                    "duration_ms": meta["duration_ms"],
+                },
+            )
+
+        others = [tc for tc in tool_calls if tc.get("name") != "run_code"]
+        if others:
+            with ThreadPoolExecutor(max_workers=min(4, len(others))) as _pool:
+                _futs: dict[str, tuple] = {
+                    tool_call_id(tc, tc.get("name")): (_pool.submit(_run_one, tc), tc.get("name"))
+                    for tc in others
+                }
+                for tc_id, (_fut, tool_name) in _futs.items():
+                    try:
+                        text, meta = _fut.result(timeout=tool_timeout(tool_name))
+                    except TimeoutError:
+                        text = f"工具执行超时（{tool_timeout(tool_name):.0f}s）"
+                        meta = {
+                            "tool_name": tool_name,
+                            "ok": False,
+                            "error": text,
+                            "duration_ms": int(tool_timeout(tool_name) * 1000),
                         }
-                    ],
+                    results[tc_id] = (text, meta)
+
+        for tc in tool_calls:
+            tc_id = tool_call_id(tc, tc.get("name"))
+            tool_name = tc.get("name")
+            text, meta = results[tc_id]
+
+            if tool_name == "run_code":
+                all_images.extend(_collect_image_urls(text))
+
+            _pub_event(
+                task_id,
+                "tool_result",
+                "data_preprocessing_agent",
+                {
+                    "tool_call_id": tc_id,
+                    "tool_name": tool_name,
+                    "preview": text[:1500],
+                    "ok": meta["ok"],
+                    "duration_ms": meta["duration_ms"],
+                    "images": _collect_image_urls(text),
+                    **({"error": meta["error"]} if meta.get("error") else {}),
                 },
             )
 
             messages.append(
                 ToolMessage(
-                    content=result_text,
-                    tool_call_id=tc.get("id") or tool_name,
+                    content=text,
+                    tool_call_id=tc_id,
                 )
             )
 

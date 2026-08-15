@@ -31,6 +31,8 @@ export interface ToolMessage extends BaseMessage {
   duration_ms?: number;
   /** 后端 ok 标志（事件协议 v2 tool_result.ok） */
   ok?: boolean;
+  /** 工具调用 id（协议 v2.1：tool_call/tool_result/code_exec 回声，精确匹配成组） */
+  tool_call_id?: string;
 }
 
 /** 系统通知消息 */

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import ClassVar
 
@@ -111,6 +112,9 @@ class RunCodeTool(BaseTool):
     # ── 可选：题目数据文件目录（由求解节点注入）──
     data_files_dir: str = ""
 
+    # ── 可选：任务取消事件（由编排节点注入；置位时中断沙箱执行，事件级取消）──
+    cancel_event: threading.Event | None = None
+
     def _run(
         self,
         code: str,
@@ -151,7 +155,7 @@ class RunCodeTool(BaseTool):
                         extra_files.append(str(f))
                         logger.info("自动挂载数据文件: %s", f.name)
 
-        result = executor.run(code, extra_files=extra_files or None)
+        result = executor.run(code, extra_files=extra_files or None, cancel_event=self.cancel_event)
 
         parts = []
         if result["stdout"]:

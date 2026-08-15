@@ -130,10 +130,16 @@ class SandboxExecutor:
 
     # ── public API ────────────────────────────────────────────────
 
-    def run(self, code: str, extra_files: list[str] | None = None) -> dict:
+    def run(
+        self,
+        code: str,
+        extra_files: list[str] | None = None,
+        cancel_event=None,
+    ) -> dict:
         """执行代码，返回 stdout、stderr、图片路径列表。
 
         extra_files: 可选，需要复制到沙箱工作目录的文件绝对路径列表。
+        cancel_event: 可选 threading.Event；置位时立即中断执行（事件级取消）。
         """
         run_id = str(uuid.uuid4())[:8]
         output_subdir = self.output_dir / run_id
@@ -152,18 +158,21 @@ class SandboxExecutor:
         if self.backend == "docker":
             # 优先 docker（硬隔离）；二进制缺失或 daemon 未启动 → 自动回退 subprocess
             if docker_daemon_up():
-                return self._run_docker(code, output_subdir, run_id)
-            return self._run_subprocess(code, output_subdir, run_id)
+                return self._run_docker(code, output_subdir, run_id, cancel_event)
+            return self._run_subprocess(code, output_subdir, run_id, cancel_event)
         else:
-            return self._run_subprocess(code, output_subdir, run_id)
+            return self._run_subprocess(code, output_subdir, run_id, cancel_event)
 
     # ── subprocess 模式 ──────────────────────────────────────────
 
-    def _run_subprocess(self, code: str, output_subdir: Path, run_id: str) -> dict:
+    def _run_subprocess(
+        self, code: str, output_subdir: Path, run_id: str, cancel_event=None
+    ) -> dict:
         """在本机子进程中执行 + psutil 进程树内存监控（Windows 无 rlimit 的补偿）。
 
         监控线程每 0.3s 汇总父进程+全部子进程 RSS，超 max_memory_mb 即杀整树，
-        防止大 DataFrame 操作吃光内存导致后端主进程被系统 OOM 杀掉。
+        防止大 DataFrame 操作吃光内存导致后端主进程被系统 OOM 杀掉；
+        同时检查任务取消事件（置位 → 立即中断，事件级取消）。
         """
         wrapped_code = self._wrap_code(code, str(output_subdir))
 
@@ -181,8 +190,29 @@ class SandboxExecutor:
             )
 
             oom_killed = {"hit": False}
+            cancelled = {"hit": False}
 
-            def _monitor_memory():
+            def _kill_tree():
+                import psutil
+
+                try:
+                    parent = psutil.Process(proc.pid)
+                    for child in parent.children(recursive=True):
+                        try:
+                            child.kill()
+                        except Exception:
+                            pass
+                    try:
+                        parent.kill()
+                    except Exception:
+                        pass
+                except psutil.NoSuchProcess:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+
+            def _monitor():
                 try:
                     import time as _time
 
@@ -191,6 +221,11 @@ class SandboxExecutor:
                     limit = self.max_memory_mb * 1024 * 1024
                     parent = psutil.Process(proc.pid)
                     while proc.poll() is None:
+                        # 取消检查优先：任务被取消 → 立即中断整棵进程树
+                        if cancel_event is not None and cancel_event.is_set():
+                            cancelled["hit"] = True
+                            _kill_tree()
+                            break
                         try:
                             rss = parent.memory_info().rss
                             for child in parent.children(recursive=True):
@@ -199,15 +234,7 @@ class SandboxExecutor:
                             break
                         if rss > limit:
                             oom_killed["hit"] = True
-                            for child in parent.children(recursive=True):
-                                try:
-                                    child.kill()
-                                except Exception:
-                                    pass
-                            try:
-                                parent.kill()
-                            except Exception:
-                                pass
+                            _kill_tree()
                             break
                         _time.sleep(0.3)
                 except Exception:
@@ -215,18 +242,31 @@ class SandboxExecutor:
 
             import threading
 
-            monitor = threading.Thread(target=_monitor_memory, daemon=True)
+            monitor = threading.Thread(target=_monitor, daemon=True)
             monitor.start()
 
             try:
                 stdout, stderr = proc.communicate(timeout=self.timeout)
             except subprocess.TimeoutExpired:
-                proc.kill()
+                _kill_tree()
                 proc.communicate()
                 return {
                     "success": False,
                     "stdout": "",
                     "stderr": f"执行超时 ({self.timeout}秒)",
+                    "returncode": -1,
+                    "images": [],
+                    "xlsx_files": [],
+                    "csv_files": [],
+                    "html_files": [],
+                    "run_id": run_id,
+                }
+
+            if cancelled["hit"]:
+                return {
+                    "success": False,
+                    "stdout": "",
+                    "stderr": "执行已被取消",
                     "returncode": -1,
                     "images": [],
                     "xlsx_files": [],
@@ -278,11 +318,12 @@ class SandboxExecutor:
 
     # ── Docker 模式 ──────────────────────────────────────────────
 
-    def _run_docker(self, code: str, output_subdir: Path, run_id: str) -> dict:
+    def _run_docker(self, code: str, output_subdir: Path, run_id: str, cancel_event=None) -> dict:
         """在 Docker 容器中隔离执行。
 
         安全: --network=none 阻断网络, --memory 硬限制内存,
               --rm 执行完自动销毁, 不残留文件系统状态。
+        支持事件级取消：取消置位时 kill 容器（docker run 前台进程 + docker kill 兜底）。
         """
         # 将代码写入临时文件，挂载进容器
         code_file = output_subdir / "_code.py"
@@ -290,11 +331,14 @@ class SandboxExecutor:
 
         # 容器内输出目录
         container_output = "/output"
+        container_name = f"mma-sandbox-{run_id}"
 
         cmd = [
             "docker",
             "run",
             "--rm",
+            "--name",
+            container_name,
             "--network=none",
             f"--memory={self.max_memory_mb}m",
             f"--memory-swap={self.max_memory_mb}m",  # 禁用 swap
@@ -326,40 +370,86 @@ class SandboxExecutor:
         ]
 
         try:
-            result = subprocess.run(
+            proc = subprocess.Popen(
                 cmd,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=self.timeout + 10,  # Docker 启动需要额外时间
                 encoding="utf-8",
                 errors="replace",
             )
+
+            def _kill_container():
+                """杀 docker run 前台进程 + docker kill 容器兜底（--rm 会自动清理）。"""
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+                try:
+                    subprocess.run(
+                        ["docker", "kill", container_name],
+                        capture_output=True,
+                        timeout=5,
+                    )
+                except Exception:
+                    pass
+
+            # 轮询等待：超时 / 取消 → 中断容器（Docker 启动需额外时间，预算 +10s）
+            import time as _time
+
+            deadline = _time.monotonic() + self.timeout + 10
+            cancelled = False
+            while proc.poll() is None:
+                if cancel_event is not None and cancel_event.is_set():
+                    cancelled = True
+                    _kill_container()
+                    break
+                if _time.monotonic() > deadline:
+                    _kill_container()
+                    break
+                _time.sleep(0.5)
+            stdout, stderr = proc.communicate()
 
             images = sorted(p for p in output_subdir.glob("*.png") if p.name != "_code.py")
             xlsx_files = sorted(p for p in output_subdir.glob("*.xlsx") if p.name != "_code.py")
             csv_files = sorted(p for p in output_subdir.glob("*.csv") if p.name != "_code.py")
             html_files = sorted(p for p in output_subdir.glob("*.html") if p.name != "_code.py")
+
+            if cancelled:
+                return {
+                    "success": False,
+                    "stdout": "",
+                    "stderr": "执行已被取消",
+                    "returncode": -1,
+                    "images": [],
+                    "xlsx_files": [],
+                    "csv_files": [],
+                    "html_files": [],
+                    "run_id": run_id,
+                }
+            if proc.returncode != 0 and not stderr and not stdout:
+                # 轮询超时杀掉的进程 returncode 为 -9，无输出 → 判定超时
+                return {
+                    "success": False,
+                    "stdout": "",
+                    "stderr": f"执行超时 ({self.timeout}秒)",
+                    "returncode": -1,
+                    "images": [],
+                    "xlsx_files": [],
+                    "csv_files": [],
+                    "html_files": [],
+                    "run_id": run_id,
+                }
+
             return {
-                "success": result.returncode == 0,
-                "stdout": result.stdout[:5000],
-                "stderr": result.stderr[:2000],
-                "returncode": result.returncode,
+                "success": proc.returncode == 0,
+                "stdout": stdout[:5000],
+                "stderr": stderr[:2000],
+                "returncode": proc.returncode,
                 "images": [str(img) for img in images],
                 "xlsx_files": [str(f) for f in xlsx_files],
                 "csv_files": [str(f) for f in csv_files],
                 "html_files": [str(f) for f in html_files],
-                "run_id": run_id,
-            }
-        except subprocess.TimeoutExpired:
-            return {
-                "success": False,
-                "stdout": "",
-                "stderr": f"执行超时 ({self.timeout}秒)",
-                "returncode": -1,
-                "images": [],
-                "xlsx_files": [],
-                "csv_files": [],
-                "html_files": [],
                 "run_id": run_id,
             }
         except FileNotFoundError:

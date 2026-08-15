@@ -149,28 +149,46 @@ export function useStreamChat(
           input: event.args,
           output: null,
           status: "running",
+          // 协议 v2.1：记录 tool_call_id，结果事件按 id 精确配对（修复并发同名工具错配）
+          tool_call_id: event.id,
           created_at: new Date().toISOString(),
         };
         chatSession.addMessage(sessionMode, sessionId, toolMsg);
       },
       onToolResult(event) {
-        // 找到最近一条同名 tool 消息，更新其 output 与 status（协议 v2：ok/耗时/错误）
+        // 协议 v2.1：优先按 id 精确配对；旧后端无 id 时退化为最近同名未完成匹配
         const msgs = chatSession.getActiveMessages(sessionMode).value;
-        for (let i = msgs.length - 1; i >= 0; i--) {
-          const m = msgs[i];
-          if (
-            m.msg_type === "tool" &&
-            (m as any).tool_name === event.name &&
-            !(m as any).output
-          ) {
-            chatSession.updateMessage(sessionMode, sessionId, m.id, {
-              output: [{ name: event.name, preview: event.preview }],
-              status: event.ok ? "success" : "error",
-              error: event.ok ? undefined : event.error,
-              duration_ms: event.duration_ms,
-            });
-            break;
+        let target: Message | null = null;
+        if (event.id) {
+          target =
+            msgs
+              .slice()
+              .reverse()
+              .find(
+                (m) =>
+                  m.msg_type === "tool" && (m as any).tool_call_id === event.id,
+              ) ?? null;
+        }
+        if (!target) {
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            const m = msgs[i];
+            if (
+              m.msg_type === "tool" &&
+              (m as any).tool_name === event.name &&
+              !(m as any).output
+            ) {
+              target = m;
+              break;
+            }
           }
+        }
+        if (target) {
+          chatSession.updateMessage(sessionMode, sessionId, target.id, {
+            output: [{ name: event.name, preview: event.preview }],
+            status: event.ok ? "success" : "error",
+            error: event.ok ? undefined : event.error,
+            duration_ms: event.duration_ms,
+          });
         }
       },
       onClarify(event) {
@@ -187,36 +205,51 @@ export function useStreamChat(
         chatSession.addMessage(sessionMode, sessionId, clarifyMsg);
       },
       onCodeExec(event) {
-        // 更新最近一条 run_code 工具消息的 output
+        // 协议 v2.1：优先按 id 精确配对（并发多个 run_code 时不串）
         const msgs = chatSession.getActiveMessages(sessionMode).value;
-        for (let i = msgs.length - 1; i >= 0; i--) {
-          const m = msgs[i];
-          if (m.msg_type === "tool" && (m as any).tool_name === "run_code") {
-            if (event.status === "running") {
-              chatSession.updateMessage(sessionMode, sessionId, m.id, {
-                output: [{ name: "run_code", preview: "代码执行中…" }],
-                status: "running",
-              });
-            } else if (event.status === "done") {
-              const parts = [];
-              if (event.stdout) parts.push(`输出:\n${event.stdout}`);
-              if (event.images?.length)
-                parts.push(`图表: ${event.images.length} 张`);
-              chatSession.updateMessage(sessionMode, sessionId, m.id, {
-                output: [
-                  {
-                    name: "run_code",
-                    preview: parts.join("\n") || "执行完成",
-                    images: event.images ?? [],
-                  },
-                ],
-                status: event.ok === false ? "error" : "success",
-                error: event.ok === false ? event.error : undefined,
-                duration_ms: event.duration_ms,
-              });
+        let target: Message | null = null;
+        if (event.id) {
+          target =
+            msgs
+              .slice()
+              .reverse()
+              .find(
+                (m) =>
+                  m.msg_type === "tool" && (m as any).tool_call_id === event.id,
+              ) ?? null;
+        }
+        if (!target) {
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            const m = msgs[i];
+            if (m.msg_type === "tool" && (m as any).tool_name === "run_code") {
+              target = m;
+              break;
             }
-            break;
           }
+        }
+        if (!target) return;
+        if (event.status === "running") {
+          chatSession.updateMessage(sessionMode, sessionId, target.id, {
+            output: [{ name: "run_code", preview: "代码执行中…" }],
+            status: "running",
+          });
+        } else if (event.status === "done") {
+          const parts = [];
+          if (event.stdout) parts.push(`输出:\n${event.stdout}`);
+          if (event.images?.length)
+            parts.push(`图表: ${event.images.length} 张`);
+          chatSession.updateMessage(sessionMode, sessionId, target.id, {
+            output: [
+              {
+                name: "run_code",
+                preview: parts.join("\n") || "执行完成",
+                images: event.images ?? [],
+              },
+            ],
+            status: event.ok === false ? "error" : "success",
+            error: event.ok === false ? event.error : undefined,
+            duration_ms: event.duration_ms,
+          });
         }
       },
       onDone(taskId?: string) {

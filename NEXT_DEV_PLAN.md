@@ -206,34 +206,54 @@ GET  /api/profile/achievements        # 用户已解锁成就 + 进度
 - 后端改动跑 `cd backend && python -m pytest`；前端改动跑 `cd frontend && pnpm typecheck && pnpm lint`。
 - 每个方向功能完成后，双方在本文档「完成度评估」对应行打勾并更新 `RESOURCES_AND_ROADMAP.md`。
 
-### 4.4 SSE 聊天工具事件协议 v2（A 已实现，B 面板照此渲染）
+### 4.4 SSE 聊天工具事件协议 v2.1（A 已实现，B 面板照此渲染）
 
-\\\json
-// 工具调用开始（新增 id 字段，与后续 tool_result 关联）
+```json
+// 工具调用开始（id 字段：tool_result / code_exec 回声同一 id，精确配对）
 {"tool_call": {"id": "call_xxx", "name": "search_method_cards", "args": {...}}}
 
-// 工具结果（v2：新增 ok / duration_ms / error 字段）
-{"tool_result": {"name": "...", "preview": "摘要(≤200字)", "ok": true, "duration_ms": 1234, "error": "可选，失败时才有"}}
+// 工具结果（v2.1：新增 id 回声；ok / duration_ms / error 自 v2 起）
+{"tool_result": {"id": "call_xxx", "name": "...", "preview": "摘要(≤200字)", "ok": true, "duration_ms": 1234, "error": "可选，失败时才有"}}
 
-// 代码执行（保持原状 + 新增 ok/duration_ms）
-{"code_exec": {"status": "running"}}
-{"code_exec": {"status": "done", "stdout": "...", "images": [...], "ok": true, "duration_ms": 5678}}
-\\\
+// 代码执行（v2.1：新增 id 回声）
+{"code_exec": {"status": "running", "id": "call_xxx"}}
+{"code_exec": {"status": "done", "id": "call_xxx", "stdout": "...", "images": [...], "ok": true, "duration_ms": 5678}}
+```
 
-说明：工具已改为**并行执行**（KB 检索/数学/搜索并发，run_code 独立沙箱目录同样并发），每工具带超时（web_search 30s，其余 60s），失败不再静默——面板可据 \ok/error/duration_ms\ 渲染状态徽标与耗时。
+**v2.1 变更要点（A 已完成）**：
+- `tool_result` / `code_exec` 回声 `tool_call` 的 `id`；前端**优先按 id 精确配对**，旧数据无 id 时退化为「最近同名未完成」匹配。修复并发同名工具（如两个 run_code 并行）结果错配气泡的问题。
+- 工具为**并行执行**（KB/数学/搜索并发，run_code 独立沙箱目录同样并发），每工具带超时（web_search 30s，其余 60s）。
+- 面板渲染同一张工具卡片两段更新：tool_call（running）→ tool_result（success/error + 耗时 + 预览），即「调用与输出内联成组」，不再调用在后、输出在前。
 
 ### 4.5 沙箱模式状态（A 已实现）
 
-\\\
+```
 GET /api/sandbox/status
 → {"backend": "subprocess"|"docker", "configured": "docker", "docker_available": false, "note": "..."}
-\\\
+```
 
 面板可在设置/首页展示当前沙箱模式（docker 硬隔离 vs subprocess 回退）。
 
-### 4.6 前端体验改进清单（A 给 B 的竞赛演示优化点）
+### 4.6 方案模式事件协议 v2.1（A 已实现，B 面板照此渲染）
 
-基于工具事件协议 v2（§4.4）与当前痛点，B 侧可落地的体验项：
+solution 模式事件经 **WebSocket**（`/api/ws/task/{task_id}`）推送，与 §4.4 的 SSE 共用同一套事件语义；自 v2.1 起**所有事件同时落盘** `data/task_events/{task_id}.jsonl`（dsh 式 durable 事件流）：
+
+```
+GET /api/tasks/{task_id}/events?after=0&limit=500
+→ {"task_id": "...", "events": [...], "total": N, "after": 0, "has_more": bool}
+```
+
+- `plan` 事件：`{"event":"plan","data":{"plan":["analysis","modeling",...],"step_count":N}}` — 动态执行计划，前端按**真实计划**渲染时间线（不再写死 7 步；支持 skipped / rollback / 重复步骤）。
+- `tool_call`：`data={"tool_call_id":"...","tool_name":"...","input":{...},"status":"running"}` — 先建卡片（执行态）。
+- `tool_result`：`data={"tool_call_id":"...","preview":"...","ok":true,"duration_ms":123,"images":[...],"error":"可选"}` — 同一卡片回填（id 配对）。
+- `code_exec`：`data={"status":"running"|"done","id":"...","stdout":"...","images":[...],"ok":...,"duration_ms":...}` — run_code 执行态与结果。
+- `node_end`：`data={"stage":"...","title":"...","summary":"...","output_length":N,"passed":bool?,"rollback_target":"..."?}`。
+- `task_end`：`data={"status":"completed"|"error","final_response_preview":"...","final_response_length":N}`。
+- 刷新恢复：进会话时先 `GET .../events` 回放（after 游标增量），再连 WS 收实时事件。
+
+### 4.7 前端体验改进清单（A 给 B 的竞赛演示优化点）
+
+基于工具事件协议 v2.1（§4.4/§4.6）与当前痛点，B 侧可落地的体验项：
 
 1. **工具状态徽标**：利用 tool_result 的 ok/duration_ms/error 渲染成功/失败/耗时徽标（ToolStatusBadge 已有雏形），失败红色 + 错误摘要，演示时「智能体在干活」的观感强很多。
 2. **执行态进度**：code_exec running → 骨架屏/脉冲动画；写作节点 node_progress 事件（stage: outline/section/abstract/red_team）→ 顶部进度条展示 6 阶段。
@@ -241,5 +261,6 @@ GET /api/sandbox/status
 4. **错误恢复**：SSE error 帧显示「重试」按钮（复用删除掉的 handleUserSendWithRetry 思路，但要加幂等守卫）。
 5. **沙箱模式徽章**：调用 §4.5 GET /api/sandbox/status，在设置页/首页显示「沙箱: Docker 硬隔离」或「subprocess 回退」。
 6. **写作加速提示**：写作阶段并发后，node_progress 的 section 事件会在全部完成后批量到达，建议展示「并行生成 6 章节…」而非逐节等待。
+7. **动态时间线（波次 2）**：消费 §4.6 的 plan 事件渲染真实计划；tool_call/tool_result 两段式卡片；events 端点回放恢复进度。
 
-后端已就绪（A 侧完成），B 照此实现即可。
+后端已就绪（A 侧完成）。用户决策：前端六项由 A 直接实现，不再分配给 B。波次 1（协议 v2.1 + 编排层）由 A 实现并验证；波次 2（动态时间线/交付物面板等显示层）待波次 1 实测后推进。

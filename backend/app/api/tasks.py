@@ -5,7 +5,7 @@ import logging
 import re
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from ..auth import GitHubUser, get_current_user, require_auth
@@ -199,6 +199,31 @@ async def get_task_files(task_id: str, user: GitHubUser = Depends(require_auth))
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     return {"task_id": task_id, "files": task.get("artifacts", [])}
+
+
+@tasks_router.get("/tasks/{task_id}/events")
+async def get_task_events(
+    task_id: str,
+    after: int = Query(0, ge=0, description="跳过前 N 条事件（增量回放）"),
+    limit: int = Query(500, ge=1, le=2000, description="返回条数上限"),
+    user: GitHubUser = Depends(require_auth),
+):
+    """回放任务的持久化事件流（协议 v2.1）。
+
+    事件按发生顺序写入 data/task_events/{task_id}.jsonl（node_start / node_end /
+    plan / tool_call / tool_result / code_exec / task_end）。前端进会话时调用本端点
+    恢复进度视图（dsh 式 session-projection 回放），配合 WS 实时事件使用。
+    """
+    from app.core.node_helpers import read_task_events
+
+    events, total = read_task_events(task_id, after=after, limit=limit)
+    return {
+        "task_id": task_id,
+        "events": events,
+        "total": total,
+        "after": after,
+        "has_more": after + len(events) < total,
+    }
 
 
 @tasks_router.post("/tasks/{task_id}/cancel")

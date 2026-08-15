@@ -11,6 +11,7 @@ import logging
 import re
 import shutil
 import tempfile
+import threading
 from pathlib import Path
 
 from app.config import get_settings
@@ -29,11 +30,102 @@ class TaskCancelledError(Exception):
 
 
 def _pub_event(task_id: str, event: str, node: str, data: dict | None = None):
-    """Fire-and-forget publish a progress event to Redis."""
+    """发布进度事件：实时推 Redis（WS 通道）+ 追加 JSONL（持久回放，dsh 式）。
+
+    事件日志是前端"刷新不丢进度"的真相源：GET /api/tasks/{id}/events 回放。
+    """
     try:
-        return get_publisher().publish(task_id, event, node, data)
+        get_publisher().publish(task_id, event, node, data)
     except Exception:
         pass  # best-effort; never block the workflow on publish failures
+    _log_event(task_id, event, node, data)
+
+
+# ── helper: durable event log（session-as-source-of-truth，参考 dsh）──
+
+_event_log_lock = threading.Lock()
+
+
+def _event_log_path(task_id: str) -> Path:
+    return get_settings().project_root / "data" / "task_events" / f"{task_id}.jsonl"
+
+
+def _log_event(task_id: str, event: str, node: str, data: dict | None = None) -> None:
+    """把进度事件追加到磁盘 JSONL（原子小写，best-effort 不阻塞工作流）。"""
+    try:
+        from app.services.redis_pubsub import ProgressEvent
+
+        msg = ProgressEvent(event=event, node=node, task_id=task_id, data=data)
+        path = _event_log_path(task_id)
+        with _event_log_lock:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(msg.to_json() + "\n")
+    except Exception:
+        pass
+
+
+def read_task_events(task_id: str, after: int = 0, limit: int = 500) -> tuple[list[dict], int]:
+    """读取任务的持久化事件流（回放）。返回 (事件切片, 总条数)。"""
+    events: list[dict] = []
+    try:
+        path = _event_log_path(task_id)
+        if not path.exists():
+            return [], 0
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    events.append(json.loads(line))
+                except Exception:
+                    continue
+    except Exception:
+        return [], 0
+    return events[after : after + limit], len(events)
+
+
+# ── helper: per-tool timeout（chat 与 solution 两条通道共用）─────────
+
+
+def tool_timeout(name: str) -> float:
+    """每工具超时秒数：web_search 30s，其余 60s。"""
+    return 30.0 if name == "web_search" else 60.0
+
+
+def parse_code_result(result_text: str) -> dict:
+    """从 RunCodeTool 的输出文本中提取 stdout 和 images（chat/solution 共用）。"""
+    stdout_parts: list[str] = []
+    images: list[str] = []
+    for line in (result_text or "").split("\n"):
+        if line.startswith("输出:"):
+            continue
+        if line.startswith("生成图表:"):
+            paths = line.replace("生成图表:", "").strip()
+            images = [p.strip() for p in paths.split(",") if p.strip()]
+        elif line.startswith("错误:"):
+            continue
+        else:
+            stdout_parts.append(line)
+    return {"stdout": "\n".join(stdout_parts).strip(), "images": images}
+
+
+def tool_call_id(tc: dict, tool_name: str) -> str:
+    """工具调用 id：优先 LLM 返回的 id，缺失时本地生成（保证 call/result 事件对可关联）。"""
+    import uuid as _uuid
+
+    return tc.get("id") or tc.get("tool_call_id") or f"{tool_name}-{_uuid.uuid4().hex[:8]}"
+
+
+def get_cancel_event(task_id: str) -> threading.Event | None:
+    """获取任务取消事件（供沙箱/工具执行中检查，事件级取消）。"""
+    try:
+        from app.services.session import get_session_manager
+
+        return get_session_manager().get_cancel_event(task_id)
+    except Exception:
+        return None
 
 
 def _is_cancelled(task_id: str) -> bool:

@@ -23,6 +23,8 @@ export const useTaskStore = defineStore("task", () => {
   // 写作阶段并行生成状态（node_progress 事件驱动：outline → section×N → abstract → red_team → revise）
   const writingStage = ref<string | null>(null);
   const sectionsDone = ref(0);
+  // 动态执行计划（plan 事件；波次 2 用真实计划渲染时间线，替换写死步骤）
+  const planSteps = ref<string[]>([]);
 
   const messages = computed<Message[]>(() => {
     if (!currentTaskId.value) return [];
@@ -40,6 +42,53 @@ export const useTaskStore = defineStore("task", () => {
     messagesByTask.value[taskId] = [...messagesByTask.value[taskId], message];
   }
 
+  /** 更新 task 内已存在的消息（同 id 覆盖，供工具结果/代码执行回填） */
+  function updateMessage(
+    taskId: string,
+    messageId: string,
+    patch: Partial<Message>,
+  ) {
+    const bucket = messagesByTask.value[taskId];
+    if (!bucket) return;
+    const idx = bucket.findIndex((m) => m.id === messageId);
+    if (idx === -1) return;
+    const updated = { ...bucket[idx], ...patch };
+    bucket[idx] = updated;
+    messagesByTask.value = { ...messagesByTask.value, [taskId]: [...bucket] };
+  }
+
+  /** 找最近的 tool 消息：优先 tool_call_id 精确匹配，退化最近同名未完成 */
+  function findToolMessage(
+    taskId: string,
+    toolCallId?: string,
+    toolName?: string,
+  ) {
+    const bucket = messagesByTask.value[taskId];
+    if (!bucket) return null;
+    if (toolCallId) {
+      const hit = [...bucket]
+        .reverse()
+        .find(
+          (m) =>
+            m.msg_type === "tool" && (m as any).tool_call_id === toolCallId,
+        );
+      if (hit) return hit;
+    }
+    if (toolName) {
+      return (
+        [...bucket]
+          .reverse()
+          .find(
+            (m) =>
+              m.msg_type === "tool" &&
+              (m as any).tool_name === toolName &&
+              ((m as any).status === "running" || !(m as any).output),
+          ) ?? null
+      );
+    }
+    return null;
+  }
+
   function setCurrentTask(taskId: string) {
     currentTaskId.value = taskId;
   }
@@ -51,6 +100,15 @@ export const useTaskStore = defineStore("task", () => {
   function handleProgressEvent(taskId: string, data: Record<string, any>) {
     const event = data?.event;
 
+    // 动态执行计划（协议 v2.1：前端按真实计划渲染时间线）
+    if (event === "plan") {
+      const plan: string[] = Array.isArray(data.data?.plan)
+        ? data.data.plan
+        : [];
+      if (plan.length) planSteps.value = plan;
+      return;
+    }
+
     // 写作阶段细粒度进度（并行生成章节提示）
     if (event === "node_progress") {
       const stage: string | undefined = data.data?.stage;
@@ -60,17 +118,71 @@ export const useTaskStore = defineStore("task", () => {
       return;
     }
 
-    // 工具调用：求解阶段代码执行（代码/stdout/图表），渲染为 tool 消息卡片
+    // 工具调用：先发 running（协议 v2.1：两段式，同一卡片执行态 → 结果回填）
     if (event === "tool_call") {
       appendMessage(taskId, {
         id: data.id ?? genId(),
         msg_type: "tool",
         tool_name: data.data?.tool_name ?? "run_code",
         input: data.data?.input ?? null,
-        output: data.data?.output ?? null,
-        status: "success",
+        output: null,
+        status: "running",
+        tool_call_id: data.data?.tool_call_id,
         created_at: now(),
       } as Message);
+      return;
+    }
+
+    // 工具结果（协议 v2.1：按 id 回填同一卡片，修复"调用在后、输出在前"的割裂）
+    if (event === "tool_result") {
+      const d = data.data ?? {};
+      const target = findToolMessage(taskId, d.tool_call_id, d.tool_name);
+      if (!target) return;
+      updateMessage(taskId, target.id, {
+        output: [
+          {
+            name: d.tool_name,
+            preview: d.preview ?? "",
+            images: d.images ?? [],
+            xlsx_files: d.xlsx_files ?? [],
+            csv_files: d.csv_files ?? [],
+            html_files: d.html_files ?? [],
+          },
+        ],
+        status: d.ok === false ? "error" : "success",
+        error: d.ok === false ? d.error : undefined,
+        duration_ms: d.duration_ms,
+      } as Partial<Message>);
+      return;
+    }
+
+    // 代码执行态（run_code 的 running/done 帧，与 chat 通道协议一致）
+    if (event === "code_exec") {
+      const d = data.data ?? {};
+      const target = findToolMessage(taskId, d.id, "run_code");
+      if (!target) return;
+      if (d.status === "running") {
+        updateMessage(taskId, target.id, {
+          output: [{ name: "run_code", preview: "代码执行中…" }],
+          status: "running",
+        } as Partial<Message>);
+      } else if (d.status === "done") {
+        const parts = [];
+        if (d.stdout) parts.push(`输出:\n${d.stdout}`);
+        if (d.images?.length) parts.push(`图表: ${d.images.length} 张`);
+        updateMessage(taskId, target.id, {
+          output: [
+            {
+              name: "run_code",
+              preview: parts.join("\n") || "执行完成",
+              images: d.images ?? [],
+            },
+          ],
+          status: d.ok === false ? "error" : "success",
+          error: d.ok === false ? d.error : undefined,
+          duration_ms: d.duration_ms,
+        } as Partial<Message>);
+      }
       return;
     }
 
@@ -232,11 +344,13 @@ export const useTaskStore = defineStore("task", () => {
     currentStep,
     writingStage,
     sectionsDone,
+    planSteps,
     currentTaskId,
     connectWebSocket,
     closeWebSocket,
     setCurrentTask,
     appendMessage,
+    updateMessage,
   };
 });
 // ⚠️ 故意不持久化 taskStore：messagesByTask 含 LLM 全文太大、且不能与 isRunning/
