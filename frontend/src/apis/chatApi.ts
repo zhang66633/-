@@ -22,6 +22,12 @@ export interface ToolCallEvent {
 export interface ToolResultEvent {
   name: string;
   preview: string;
+  /** 协议 v2: 执行是否成功 */
+  ok: boolean;
+  /** 耗时(毫秒) */
+  duration_ms: number;
+  /** 失败原因(成功时不带) */
+  error?: string;
 }
 
 export interface ClarifyEvent {
@@ -36,6 +42,12 @@ export interface CodeExecEvent {
   status: "running" | "done";
   stdout?: string;
   images?: string[];
+  /** 协议 v2: 执行是否成功(done 时携带) */
+  ok?: boolean;
+  /** 耗时(毫秒,done 时携带) */
+  duration_ms?: number;
+  /** 失败原因 */
+  error?: string;
 }
 
 export interface StreamChatOptions {
