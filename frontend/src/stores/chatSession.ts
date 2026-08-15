@@ -320,6 +320,29 @@ export const useChatSessionStore = defineStore(
       }
     }
 
+    // ── 工具内联附件（chat 模式，dsh 式"工具嵌在回复里"）──
+    // 流式期间工具卡片不再作为独立消息行，而是挂到 agent 气泡内联渲染；
+    // key 为 agent 消息 id（前端生成，全局唯一）。刻意不持久化：刷新后只保留文本。
+    const toolAttachments = ref<Record<string, Message[]>>({});
+
+    /** 把一个工具消息挂到 agent 气泡下（内联渲染，不进消息列表）。 */
+    function attachTool(agentMsgId: string, toolMsg: Message) {
+      if (!toolAttachments.value[agentMsgId]) {
+        toolAttachments.value[agentMsgId] = [];
+      }
+      toolAttachments.value[agentMsgId].push(toolMsg);
+    }
+
+    /** 取 agent 气泡的内联工具消息列表（渲染用）。 */
+    function getToolAttachments(agentMsgId: string): Message[] {
+      return toolAttachments.value[agentMsgId] ?? [];
+    }
+
+    /** 清空某 agent 气泡的内联工具（重试复用气泡时调用）。 */
+    function clearToolAttachments(agentMsgId: string) {
+      delete toolAttachments.value[agentMsgId];
+    }
+
     /** 显式新建会话（不清空当前会话）。 */
     function newSession(mode: SessionMode): string {
       return createSession(mode);
@@ -363,6 +386,9 @@ export const useChatSessionStore = defineStore(
       getActiveMessages,
       getIsRunning,
       setRunning,
+      attachTool,
+      getToolAttachments,
+      clearToolAttachments,
     };
   },
   {

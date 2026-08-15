@@ -13,6 +13,8 @@ import BubbleAvatar from "./BubbleAvatar.vue";
 
 const props = defineProps<{
   message: Message;
+  /** 内联模式：嵌在 agent 气泡内，隐藏头像与时间戳、去除外边距 */
+  inline?: boolean;
 }>();
 
 const tool = computed(() => props.message as ToolMessage);
@@ -37,8 +39,11 @@ const timestamp = computed(() => {
 </script>
 
 <template>
-  <div class="flex gap-3 w-full my-2 animate-in fade-in slide-in-from-bottom-2">
-    <div class="flex shrink-0 flex-col items-center self-start pt-0.5">
+  <div
+    class="w-full animate-in fade-in slide-in-from-bottom-2"
+    :class="inline ? '' : 'flex gap-3 my-2'"
+  >
+    <div v-if="!inline" class="flex shrink-0 flex-col items-center self-start pt-0.5">
       <BubbleAvatar :message="message" />
     </div>
     <div class="flex-1 min-w-0">
@@ -51,7 +56,7 @@ const timestamp = computed(() => {
           :duration-ms="tool.duration_ms"
           :error-text="typeof tool.error === 'string' ? tool.error : undefined"
         />
-        <span v-if="timestamp" class="font-mono text-[10px] text-muted-foreground/50 mt-0.5">{{ timestamp }}</span>
+        <span v-if="timestamp && !inline" class="font-mono text-[10px] text-muted-foreground/50 mt-0.5">{{ timestamp }}</span>
       </div>
     </div>
   </div>

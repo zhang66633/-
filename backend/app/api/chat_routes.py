@@ -41,8 +41,9 @@ chat_router = APIRouter()
 
 # 滑动窗口：保留最近 N 条消息（不含 system），防止多轮后 token 膨胀。
 MAX_HISTORY_MESSAGES = 20
-# 单次对话最多工具调用轮数，防止无限循环
-MAX_TOOL_ITERATIONS = 3
+# 单次对话最多工具调用轮数（每轮可并发多个工具）；轮数耗尽会强制 LLM 收尾总结，
+# 不会"戛然而止"——LLM 每轮只调一个工具时（如读 PDF 的渐进探索）仍有足够余量。
+MAX_TOOL_ITERATIONS = 5
 
 # ── Retriever 缓存（避免每请求重建 BM25 索引）──────────────────────
 _cached_retriever = None
@@ -445,6 +446,32 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                         tool_call_id=tc_id,
                     )
                 )
+        else:
+            # 轮数耗尽且最后一轮仍是工具调用 → 强制收尾轮：
+            # 让 LLM 停止工具、基于已得结果总结，避免"三步就停"式戛然而止。
+            try:
+                wrap_resp = await llm_with_tools.ainvoke(
+                    messages
+                    + [
+                        HumanMessage(
+                            content=(
+                                "请停止调用工具。基于以上已经获得的全部结果，"
+                                "直接输出最终回答；如果能力不足（如缺少 OCR 工具），"
+                                "请明确告诉用户当前限制与可行的替代方案。"
+                            )
+                        )
+                    ]
+                )
+                wrap_text = getattr(wrap_resp, "content", "") or ""
+                if isinstance(wrap_text, list):
+                    wrap_text = "".join(
+                        part.get("text", "") if isinstance(part, dict) else str(part)
+                        for part in wrap_text
+                    )
+                if wrap_text:
+                    yield f"data: {json.dumps({'delta': wrap_text}, ensure_ascii=False)}\n\n"
+            except Exception:
+                pass  # 收尾轮失败不影响主流程（此前已有文本增量）
 
         yield "data: [DONE]\n\n"
 

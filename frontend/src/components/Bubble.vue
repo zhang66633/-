@@ -4,12 +4,13 @@ import BubbleClarify from "@/components/bubble/BubbleClarify.vue";
 import BubbleSystem from "@/components/bubble/BubbleSystem.vue";
 import BubbleTool from "@/components/bubble/BubbleTool.vue";
 import BubbleUser from "@/components/bubble/BubbleUser.vue";
+import { useChatSessionStore } from "@/stores/chatSession";
 import type { Message } from "@/types/response";
 /**
  * 消息气泡 — 按 msg_type 分发到对应子组件
  *
  *   user     → BubbleUser
- *   agent    → BubbleAgent（含 Markdown / 打字机 / 论文操作）
+ *   agent    → BubbleAgent（含 Markdown / 打字机 / 论文操作 + 内联工具卡片）
  *   tool     → BubbleTool（含输入 / 输出 / 图表）
  *   system   → BubbleSystem（含图标 / 摘要）
  *   clarify  → BubbleClarify（含澄清卡片）
@@ -28,6 +29,15 @@ const emit = defineEmits<{
   openPaper: [];
   retry: [];
 }>();
+
+const chatSession = useChatSessionStore();
+
+// chat 模式：agent 气泡下挂内联工具卡片（dsh 式"工具嵌在输出中"）
+const attachedTools = computed<Message[]>(() =>
+  props.message.msg_type === "agent"
+    ? chatSession.getToolAttachments(props.message.id)
+    : [],
+);
 
 const component = computed(() => {
   switch (props.message.msg_type) {
@@ -48,5 +58,12 @@ const component = computed(() => {
 </script>
 
 <template>
-  <component :is="component" :message="message" :is-last="isLast" @open-paper="emit('openPaper')" @retry="emit('retry')" />
+  <component
+    :is="component"
+    :message="message"
+    :is-last="isLast"
+    :attached-tools="attachedTools"
+    @open-paper="emit('openPaper')"
+    @retry="emit('retry')"
+  />
 </template>

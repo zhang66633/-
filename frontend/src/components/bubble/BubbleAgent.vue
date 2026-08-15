@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { getAgentIdentity } from "@/components/agent/AgentIdentity";
 import ThinkingBlock from "@/components/agent/ThinkingBlock.vue";
+import BubbleTool from "@/components/bubble/BubbleTool.vue";
 import PaperCard from "@/components/paper/PaperCard.vue";
 import { useTypewriter } from "@/composables/useTypewriter";
 import { AgentType } from "@/types/enum";
@@ -14,8 +15,10 @@ const props = withDefaults(
   defineProps<{
     message: Message;
     isLast?: boolean;
+    /** chat 模式：本气泡内联的工具卡片（dsh 式"工具嵌在输出中"） */
+    attachedTools?: Message[];
   }>(),
-  { isLast: false },
+  { isLast: false, attachedTools: () => [] },
 );
 
 const emit = defineEmits<{
@@ -142,6 +145,19 @@ const timestamp = computed(() => {
             <span class="h-1.5 w-1.5 rounded-full bg-current animate-bounce" style="animation-delay: 0ms" />
             <span class="h-1.5 w-1.5 rounded-full bg-current animate-bounce" style="animation-delay: 150ms" />
             <span class="h-1.5 w-1.5 rounded-full bg-current animate-bounce" style="animation-delay: 300ms" />
+          </div>
+
+          <!-- 内联工具卡片（chat 模式：工具嵌在输出流中，不占独立消息行） -->
+          <div
+            v-if="attachedTools && attachedTools.length"
+            class="mt-3 space-y-2 border-t border-border/60 pt-2"
+          >
+            <BubbleTool
+              v-for="t in attachedTools"
+              :key="t.id"
+              :message="t"
+              inline
+            />
           </div>
 
           <!-- 出错重试（onError 置位；只出现在最后一条） -->
