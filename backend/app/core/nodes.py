@@ -859,8 +859,20 @@ def solving_agent_node(state: AgentState) -> dict:
             tool_name = tc.get("name")
             text, meta = results[tc_id]
 
+            # run_code 的图/文件 URL 在结果文本末尾,截断会丢 → 先留存原行
+            url_lines: list[str] = []
+            if tool_name == "run_code":
+                url_lines = [
+                    ln for ln in text.splitlines()
+                    if "/api/images/" in ln or "/api/task_files/" in ln
+                ]
+
             # 截断超长工具结果（借鉴 cc-haha maxResultSizeChars）
             text = _truncate_tool_result(text, tool_name)
+
+            # 截断后回补 URL 行: 求解 LLM 与事件里图链接必须完整,论文才有图
+            if url_lines:
+                text = f"{text.rstrip()}\n\n" + "\n".join(url_lines)
 
             # 收集 run_code 产出的图表和文件 URL
             if tool_name == "run_code":
@@ -1107,7 +1119,8 @@ PAPER_SECTIONS: list[tuple[str, str]] = [
     (
         "四、模型的建立与求解 — 4.1 问题1分析",
         "### 4.1 问题1：各品类销售分布规律分析\n"
-        "严格按此结构：①原理与方法 ②数据预处理 ③求解结果（含表格）④结果检验。"
+        "严格按此结构：①原理与方法 ②数据预处理 ③求解结果（含表格与图："
+        "材料中每个 /api/images/ 链接至少引用一次并配图注）④结果检验。"
         "**必须输出完整小节，不要截断。**",
     ),
     (
@@ -1145,6 +1158,14 @@ PAPER_SECTIONS: list[tuple[str, str]] = [
         "**只引用你确定真实存在的经典文献**（如姜启源《数学模型》、司守奎《数学建模算法与应用》等）；"
         "严禁编造。"
         "**本章必须完整写完，以最后一条文献结束。**",
+    ),
+    (
+        "附录",
+        "把材料（尤其求解结果）中出现的**全部代码块原样收录**：按模型分小节"
+        "（如 `### 附录A · 问题1模型求解代码`），每节一个带语言标签的代码块"
+        "（```python 等），代码一字不改、一段不少，严禁省略或改写。"
+        "若材料中确实没有任何代码，写一句话说明并结束。"
+        "**本章必须完整写完。**",
     ),
 ]
 
