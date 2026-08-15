@@ -630,14 +630,26 @@ except Exception:
 
 _os.chdir({json.dumps(output_dir)})
 
+# ── 记录用户手动 savefig 过的 figure（自动保存时跳过，避免同图落盘两份——
+#    手动保存与自动保存只是 dpi/bbox 不同，内容 MD5 去重会失效）──
+import matplotlib.figure as _mfig
+_orig_savefig = _mfig.Figure.savefig
+_saved_figs = set()
+def _tracked_savefig(self, *args, **kwargs):
+    _saved_figs.add(id(self))
+    return _orig_savefig(self, *args, **kwargs)
+_mfig.Figure.savefig = _tracked_savefig
+
 # ── 用户代码（LLM 自行 import 所需库）──
 {code}
 
-# ── 自动保存 matplotlib 图表（仅当用户代码用到了 pyplot）──
+# ── 自动保存 matplotlib 图表（仅当用户代码用到了 pyplot；跳过已手动保存的）──
 if "matplotlib.pyplot" in _sys.modules:
     import matplotlib.pyplot as _plt
     for i in _plt.get_fignums():
         fig = _plt.figure(i)
+        if id(fig) in _saved_figs:
+            continue
         fig.savefig(_os.path.join({json.dumps(output_dir)}, f"figure_{{i}}.png"),
                     dpi=150, bbox_inches="tight")
     _plt.close("all")

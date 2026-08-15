@@ -61,17 +61,33 @@ def main():
 
     # 读取并执行用户代码
     code = code_file.read_text(encoding="utf-8")
+
+    # 记录用户手动 savefig 过的 figure（自动保存时跳过，避免同图落盘两份——
+    # 手动保存与自动保存往往只是 dpi/bbox 不同，内容 MD5 去重会失效）
+    import matplotlib.figure as _mfig
+
+    _orig_savefig = _mfig.Figure.savefig
+    _saved_figs = set()
+
+    def _tracked_savefig(self, *args, **kwargs):
+        _saved_figs.add(id(self))
+        return _orig_savefig(self, *args, **kwargs)
+
+    _mfig.Figure.savefig = _tracked_savefig
+
     try:
         exec(code, {"__name__": "__main__"})
     except Exception:
         traceback.print_exc()
         sys.exit(1)
 
-    # 自动保存所有 matplotlib 图表
+    # 自动保存所有 matplotlib 图表（跳过用户已手动保存过的）
     try:
         import matplotlib.pyplot as plt
         for i in plt.get_fignums():
             fig = plt.figure(i)
+            if id(fig) in _saved_figs:
+                continue
             fig.savefig(
                 str(output_dir / f"figure_{i}.png"),
                 dpi=150,
