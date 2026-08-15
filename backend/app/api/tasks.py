@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -557,11 +558,40 @@ def _export_latex(full_text: str, writing_output: str) -> Response:
     )
 
 
+def _resolve_image_path(url: str) -> Path | None:
+    """把 /api/task_files/... 或 /api/images/... URL 解析为本地文件路径。"""
+    import tempfile as _tempfile
+
+    parts = url.rstrip("/").split("/")
+    settings = get_settings()
+    try:
+        if "task_files" in parts:
+            # /api/task_files/{task_id}/{filename}
+            task_id = parts[parts.index("task_files") + 1]
+            filename = parts[-1]
+            p = settings.project_root / "data" / "task_files" / task_id / filename
+            if p.exists():
+                return p
+        elif "images" in parts:
+            # /api/images/{run_id}/{filename} → temp 目录 + 持久副本兜底
+            run_id = parts[parts.index("images") + 1]
+            filename = parts[-1]
+            for p in (
+                Path(_tempfile.gettempdir()) / "mathmodel_outputs" / run_id / filename,
+                settings.project_root / "data" / "chat_images" / run_id / filename,
+            ):
+                if p.exists():
+                    return p
+    except Exception:
+        return None
+    return None
+
+
 def _export_docx(content: str, title: str = "数学建模方案") -> StreamingResponse:
-    """将 Markdown 转换为 Word .docx 并返回。"""
+    """将 Markdown 转换为 Word .docx 并返回（支持插入图表）。"""
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.shared import Pt
+    from docx.shared import Inches, Pt
 
     doc = Document()
 
@@ -575,6 +605,17 @@ def _export_docx(content: str, title: str = "数学建模方案") -> StreamingRe
     heading = doc.add_heading(title, level=1)
     heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
+    def _insert_image(url: str) -> None:
+        """解析 markdown 图片语法并插入本地图表（居中，最大宽度 5.5 英寸）。"""
+        try:
+            path = _resolve_image_path(url)
+            if not path:
+                return
+            doc.add_picture(str(path), width=Inches(5.5))
+            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        except Exception:
+            pass  # 图片插入失败不阻断导出
+
     # 简单 Markdown → docx 转换
     lines = content.split("\n")
     for line in lines:
@@ -584,6 +625,14 @@ def _export_docx(content: str, title: str = "数学建模方案") -> StreamingRe
 
         if stripped.startswith("```"):
             continue  # skip code fences
+
+        # 图片：![说明](/api/task_files/... 或 /api/images/...) → 插入图表
+        img_match = re.match(
+            r"^!\[[^\]]*\]\((/api/(?:task_files|images)/[^)\s]+)\)$", stripped
+        )
+        if img_match:
+            _insert_image(img_match.group(1))
+            continue
 
         if stripped.startswith("### "):
             doc.add_heading(stripped[4:], level=3)

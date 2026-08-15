@@ -182,8 +182,20 @@ const PRINT_HTML_TEMPLATE = (
       content.style.display = "";
       document.title = TITLE;
 
-      // 给用户预留 800ms 看一眼，再弹打印
-      setTimeout(() => { try { window.print(); } catch (e) {} }, 800);
+      // 等所有图片加载完成（含失败）再弹打印，避免 PDF 缺图；
+      // 超时 6s 兜底，防止某张图卡住整个导出
+      const imgs = Array.from(content.querySelectorAll("img"));
+      const waitImg = (img) => new Promise((resolve) => {
+        if (img.complete) { resolve(); return; }
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+      });
+      Promise.race([
+        Promise.all(imgs.map(waitImg)),
+        new Promise((r) => setTimeout(r, 6000)),
+      ]).then(() => {
+        try { window.print(); } catch (e) {}
+      });
     }
 
     function escape(s) {
@@ -215,7 +227,14 @@ export function exportPaperAsPDF(opts: {
   } catch {
     /* ignore */
   }
+  // 相对路径图片（/api/images/...、/api/task_files/...）在打印窗口
+  // （about:blank）里会解析失败 → 转成父页面 origin 的绝对 URL，图表才能插入 PDF
+  const base = window.location.origin;
+  const markdown = opts.markdown.replace(
+    /\]\(\/(api\/[^)\s]+)\)/g,
+    `](${base}/$1)`,
+  );
   w.document.open();
-  w.document.write(PRINT_HTML_TEMPLATE(opts.title, opts.markdown));
+  w.document.write(PRINT_HTML_TEMPLATE(opts.title, markdown));
   w.document.close();
 }

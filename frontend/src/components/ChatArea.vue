@@ -80,6 +80,35 @@
     <!-- 滚动回底部按钮 -->
     <ChatScrollButton v-if="!isAtBottom" @click="scrollToBottom" />
 
+    <!-- 交付物条：本会话生成的图表缩略图（chat/方案模式统一集中查看） -->
+    <div
+      v-if="artifactImages.length"
+      class="px-4 sm:px-8 pb-2 shrink-0 bg-background"
+    >
+      <div class="flex items-center gap-2 overflow-x-auto py-1.5">
+        <span
+          class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60 shrink-0"
+        >
+          交付物 {{ artifactImages.length }}
+        </span>
+        <a
+          v-for="(src, i) in artifactImages"
+          :key="`${src}-${i}`"
+          :href="src"
+          target="_blank"
+          rel="noopener"
+          class="shrink-0"
+          :title="`图表 ${i + 1}（新窗口打开）`"
+        >
+          <img
+            :src="src"
+            class="h-12 w-16 object-cover rounded border border-border hover:border-primary/50 transition-colors"
+            loading="lazy"
+          />
+        </a>
+      </div>
+    </div>
+
     <!-- 输入区域 -->
     <ChatInput
       :is-running="isRunning"
@@ -162,6 +191,24 @@ const isConnecting = computed(
 
 const scrollRef = ref<HTMLElement | null>(null);
 const isAtBottom = ref(true);
+
+// 交付物：本会话所有工具卡片产出的图表 URL（去重，最近 12 张）
+const artifactImages = computed<string[]>(() => {
+  const urls: string[] = [];
+  for (const m of props.messages) {
+    if (m.msg_type !== "tool") continue;
+    const out = (m as any).output as any[] | null;
+    if (!Array.isArray(out)) continue;
+    for (const o of out) {
+      if (Array.isArray(o?.images)) {
+        for (const u of o.images) {
+          if (typeof u === "string" && !urls.includes(u)) urls.push(u);
+        }
+      }
+    }
+  }
+  return urls.slice(-12);
+});
 
 // ── 虚拟滚动 ──
 const virtualizer = useVirtualizer(
