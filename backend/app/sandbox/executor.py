@@ -7,6 +7,7 @@
   - 执行超时
 """
 
+import hashlib
 import json
 import logging
 import os
@@ -19,6 +20,26 @@ from pathlib import Path
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+def _dedupe_image_paths(paths: list[Path]) -> list[Path]:
+    """按图片内容 MD5 去重。
+
+    用户代码手动 plt.savefig('xxx.png') 与沙箱自动保存（figure_N.png）常是
+    同一张图的两次落盘——去重后只留一张（优先保留用户手动命名的文件）。
+    """
+    if len(paths) <= 1:
+        return paths
+    seen: dict[str, Path] = {}
+    # 手动命名文件排在前面登记，自动命名的重复副本被丢弃
+    ordered = sorted(paths, key=lambda p: p.name.startswith("figure_"))
+    for p in ordered:
+        try:
+            digest = hashlib.md5(p.read_bytes()).hexdigest()
+        except Exception:
+            digest = f"path:{p}"
+        seen.setdefault(digest, p)
+    return [seen[k] for k in seen]
 
 # ── Docker 沙箱镜像名 ──────────────────────────────────────────────
 
@@ -326,7 +347,7 @@ class SandboxExecutor:
                     "run_id": run_id,
                 }
 
-            images = sorted(output_subdir.glob("*.png"))
+            images = _dedupe_image_paths(sorted(output_subdir.glob("*.png")))
             xlsx_files = sorted(output_subdir.glob("*.xlsx"))
             csv_files = sorted(output_subdir.glob("*.csv"))
             html_files = sorted(output_subdir.glob("*.html"))
@@ -448,7 +469,9 @@ class SandboxExecutor:
                 _time.sleep(0.5)
             stdout, stderr = proc.communicate()
 
-            images = sorted(p for p in output_subdir.glob("*.png") if p.name != "_code.py")
+            images = _dedupe_image_paths(
+                sorted(p for p in output_subdir.glob("*.png") if p.name != "_code.py")
+            )
             xlsx_files = sorted(p for p in output_subdir.glob("*.xlsx") if p.name != "_code.py")
             csv_files = sorted(p for p in output_subdir.glob("*.csv") if p.name != "_code.py")
             html_files = sorted(p for p in output_subdir.glob("*.html") if p.name != "_code.py")
