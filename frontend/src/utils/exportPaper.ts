@@ -55,6 +55,12 @@ const PRINT_HTML_TEMPLATE = (
         @bottom-center { content: "— " counter(page) " —"; font-size: 9pt; color: #999; }
       }
       pre, code, table, img { page-break-inside: avoid; }
+      /* 打印时代码超长行自动折行,去掉横向滚动条(学术论文排版惯例) */
+      pre {
+        overflow-x: visible;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
       h1, h2, h3, h4 { page-break-after: avoid; }
       thead { display: table-header-group; }
       tr { page-break-inside: avoid; }
@@ -106,6 +112,12 @@ const PRINT_HTML_TEMPLATE = (
       background: var(--bg-soft);
     }
     hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 1em auto;
+    }
     table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.95em; }
     th, td { border: 1px solid var(--border); padding: 0.5em 0.8em; text-align: left; }
     th { background: var(--bg-soft); font-weight: 600; }
