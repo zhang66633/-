@@ -77,7 +77,8 @@ export const useTaskStore = defineStore("task", () => {
     if (!bucket) return;
     const idx = bucket.findIndex((m) => m.id === messageId);
     if (idx === -1) return;
-    const updated = { ...bucket[idx], ...patch };
+    // 联合类型展开会退化为并集,显式断言回 Message
+    const updated = { ...bucket[idx], ...patch } as Message;
     bucket[idx] = updated;
     messagesByTask.value = { ...messagesByTask.value, [taskId]: [...bucket] };
   }

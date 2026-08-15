@@ -4,7 +4,7 @@ import {
   streamChat,
 } from "@/apis/chatApi";
 import { type SessionMode, useChatSessionStore } from "@/stores/chatSession";
-import type { Message } from "@/types/response";
+import type { Message, ToolMessage } from "@/types/response";
 /** 流式对话组合式函数 — 对话/学习/答疑/练习页共用。
  *
  * 负责：会话创建/复用、用户消息与 agent 占位消息写入、
@@ -186,12 +186,14 @@ export function useStreamChat(
       onToolResult(event) {
         // 协议 v2.1：优先按 id 精确配对；旧后端无 id 时退化为最近同名未完成匹配
         const tools = chatSession.getToolAttachments(agentMsgId ?? "");
-        let target: Message | null = null;
+        let target: ToolMessage | null = null;
         if (event.id) {
           target =
-            [...tools]
+            ([...tools]
               .reverse()
-              .find((m) => (m as any).tool_call_id === event.id) ?? null;
+              .find((m) => (m as any).tool_call_id === event.id) as
+              | ToolMessage
+              | undefined) ?? null;
         }
         if (!target) {
           for (let i = tools.length - 1; i >= 0; i--) {
@@ -201,7 +203,7 @@ export function useStreamChat(
               (m as any).tool_name === event.name &&
               !(m as any).output
             ) {
-              target = m;
+              target = m as ToolMessage;
               break;
             }
           }
@@ -245,18 +247,20 @@ export function useStreamChat(
       onCodeExec(event) {
         // 协议 v2.1：优先按 id 精确配对（并发多个 run_code 时不串）
         const tools = chatSession.getToolAttachments(agentMsgId ?? "");
-        let target: Message | null = null;
+        let target: ToolMessage | null = null;
         if (event.id) {
           target =
-            [...tools]
+            ([...tools]
               .reverse()
-              .find((m) => (m as any).tool_call_id === event.id) ?? null;
+              .find((m) => (m as any).tool_call_id === event.id) as
+              | ToolMessage
+              | undefined) ?? null;
         }
         if (!target) {
           for (let i = tools.length - 1; i >= 0; i--) {
             const m = tools[i];
             if (m.msg_type === "tool" && (m as any).tool_name === "run_code") {
-              target = m;
+              target = m as ToolMessage;
               break;
             }
           }
