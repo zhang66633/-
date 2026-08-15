@@ -2,8 +2,8 @@
   <aside
     :class="[
       collapsed ? 'w-12' : '',
-      'relative flex flex-col border-r bg-background h-screen sticky top-0 shrink-0',
-      dragging ? '' : 'transition-all duration-200',
+      'relative flex flex-col border-r bg-background h-screen sticky top-0 shrink-0 overflow-hidden',
+      dragging ? '' : 'transition-[width] duration-200',
     ]"
     :style="collapsed ? undefined : { width: `${navWidth}px` }"
   >
@@ -19,7 +19,7 @@
         class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         title="折叠侧栏"
         aria-label="折叠侧栏"
-        @click="collapsed = true"
+        @click="setCollapsed(true)"
       >
         <PanelLeftClose class="h-3.5 w-3.5" />
       </button>
@@ -29,7 +29,7 @@
       class="flex h-14 items-center justify-center border-b shrink-0 cursor-pointer"
       title="展开侧栏"
       aria-label="展开侧栏"
-      @click="collapsed = false"
+      @click="setCollapsed(false)"
     >
       <div class="flex h-6 w-6 items-center justify-center border border-border rounded-sm shrink-0">
         <span class="font-display text-sm font-medium leading-none">M</span>
@@ -138,13 +138,10 @@
         <Home class="h-4 w-4" />
       </button>
       <div v-for="group in visibleGroups" :key="group.label" class="mt-1 shrink-0">
-        <!-- 分区标题：折叠态竖排 2 字短标签（高度≈展开态单行行高，空位不变大） -->
-        <p
-          class="py-0.5 pl-2.5 font-mono text-[10px] tracking-wider text-muted-foreground/50 select-none [writing-mode:vertical-rl] [text-orientation:upright]"
-          aria-hidden="true"
-        >
-          {{ group.label.slice(0, 2) }}
-        </p>
+        <!-- 分区占位：折叠态用圆点分隔（紧凑，不撑大空位） -->
+        <div class="flex justify-center py-1.5" aria-hidden="true">
+          <span class="h-1 w-1 rounded-full bg-muted-foreground/40" />
+        </div>
         <div class="space-y-0.5">
           <button
             v-for="item in group.items"
@@ -283,7 +280,28 @@ const chatSession = useChatSessionStore();
 
 const editing = ref<{ id: string; mode: SessionMode } | null>(null);
 const editingTitle = ref("");
-const collapsed = ref(false);
+
+// ── 折叠状态：localStorage 持久化（防路由跳转/组件重挂/刷新时状态重置）──
+const C_KEY = "mma.sidebarCollapsed";
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(C_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const collapsed = ref(readCollapsed());
+
+function setCollapsed(v: boolean) {
+  collapsed.value = v;
+  try {
+    localStorage.setItem(C_KEY, v ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
 
 // ── 导航分组逻辑 ─────────────────────────────────────
 
