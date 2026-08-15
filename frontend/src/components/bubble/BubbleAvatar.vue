@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { getAgentIdentity } from "@/components/agent/AgentIdentity";
 import type { AgentMessage, Message } from "@/types/response";
+import { Bot } from "lucide-vue-next";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -19,6 +20,9 @@ const identity = computed(() => {
   return null;
 });
 
+// 小助手 = chat 模式无 agent_type 的通用 agent（流水线各 Agent 有专属 identity）
+const isAssistant = computed(() => isAgent.value && !identity.value);
+
 const agentColor = computed(() => identity.value?.color ?? "");
 
 const letter = computed(() => {
@@ -32,7 +36,16 @@ const letter = computed(() => {
 </script>
 
 <template>
-  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-border relative">
+  <!-- 小助手（chat 通用 agent）：渐变圆 + 机器人头像 -->
+  <div
+    v-if="isAssistant"
+    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-600 text-white shadow-sm"
+  >
+    <Bot class="h-4 w-4" />
+  </div>
+
+  <!-- 其他消息类型：方框 + emoji / 字母 -->
+  <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-border relative">
     <!-- agent 颜色指示点 -->
     <span v-if="agentColor" class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border border-background" :class="agentColor" />
     <!-- agent emoji 或字母 -->
