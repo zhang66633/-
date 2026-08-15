@@ -20,6 +20,6 @@ export const BTN_PRIMARY = [
 
 // ── 导航 ──
 export const NAV_ITEM = [
-  "group relative flex w-full items-center gap-3 py-2 pr-4 pl-5 text-sm",
+  "group relative flex w-full items-center gap-3 py-2 pr-4 pl-2.5 text-sm",
   SCALE_PRESS,
 ].join(" ");

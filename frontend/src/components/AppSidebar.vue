@@ -3,14 +3,13 @@
     :class="[
       collapsed ? 'w-12' : '',
       'relative flex flex-col border-r bg-background h-screen sticky top-0 shrink-0',
-      dragging ? '' : 'transition-all duration-200',
     ]"
     :style="collapsed ? undefined : { width: `${navWidth}px` }"
   >
-    <!-- 头部：Logo 行，右上角收起按钮（article_agent 风格：收起后 Logo 图标接管展开） -->
-    <div v-if="!collapsed" class="flex h-14 items-center justify-between border-b pl-5 pr-2 shrink-0">
+    <!-- 头部：Logo 行，右上角收起按钮（article_agent 几何：24px 图标 + 折叠态居中接管，位置零跳动） -->
+    <div v-if="!collapsed" class="flex h-14 items-center justify-between border-b pl-3 pr-2 shrink-0">
       <button class="flex items-center gap-2.5 min-w-0" title="回到首页" @click="navigate('/')">
-        <div class="flex h-7 w-7 items-center justify-center border border-border rounded-sm shrink-0">
+        <div class="flex h-6 w-6 items-center justify-center border border-border rounded-sm shrink-0">
           <span class="font-display text-sm font-medium leading-none">M</span>
         </div>
         <span class="font-display text-sm font-medium tracking-tight truncate">{{ APP_NAME }}</span>
@@ -26,12 +25,12 @@
     </div>
     <button
       v-else
-      class="flex h-14 items-center border-b shrink-0 cursor-pointer pl-5"
+      class="flex h-14 items-center justify-center border-b shrink-0 cursor-pointer"
       title="展开侧栏"
       aria-label="展开侧栏"
       @click="collapsed = false"
     >
-      <div class="flex h-7 w-7 items-center justify-center border border-border rounded-sm shrink-0">
+      <div class="flex h-6 w-6 items-center justify-center border border-border rounded-sm shrink-0">
         <span class="font-display text-sm font-medium leading-none">M</span>
       </div>
     </button>
@@ -45,7 +44,7 @@
       </button>
       <div v-for="group in visibleGroups" :key="group.label" class="mt-1">
         <!-- 静态小节标签(图标+汉字;两个组头常亮高亮,不随页面切换) -->
-        <p class="relative flex items-center gap-2 w-full px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-foreground font-medium">
+        <p class="relative flex items-center gap-2 w-full px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-foreground font-medium">
           <span class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-primary" />
           <component :is="group.icon" class="h-3.5 w-3.5 shrink-0 text-primary" />
           {{ group.label }}
@@ -63,15 +62,15 @@
 
     <!-- 聊天记录(跨模式汇总,固定位置,空时占位保持布局稳定) -->
     <div v-if="!collapsed" class="border-t py-2 shrink-0 max-h-40 overflow-y-auto min-h-0">
-      <p class="px-5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">AI 聊天记录</p>
-      <p v-if="sessionList.length === 0" class="px-5 py-2 text-[11px] text-muted-foreground/50">
+      <p class="px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">AI 聊天记录</p>
+      <p v-if="sessionList.length === 0" class="px-2.5 py-2 text-[11px] text-muted-foreground/50">
         暂无聊天记录
       </p>
       <TransitionGroup name="session-list">
         <div
           v-for="s in sessionList"
           :key="s.session.id"
-          class="group relative flex w-full items-center gap-2 py-1 pr-2 pl-5 text-sm cursor-pointer transition-all duration-200"
+          class="group relative flex w-full items-center gap-2 py-1 pr-2 pl-2.5 text-sm cursor-pointer transition-all duration-200"
           :class="isActiveSession(s) ? 'text-foreground bg-accent/50' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
           @click="switchTo(s)"
         >
@@ -126,10 +125,10 @@
       </TransitionGroup>
     </div>
 
-    <!-- 折叠态: 仅图标（左对齐，与展开态图标位置一致，切换零跳动） -->
-    <nav v-else class="flex-1 py-4 flex flex-col items-start gap-2 px-3">
+    <!-- 折叠态: 仅图标（宽度自适应贴左缘 px-2.5，与展开态图标同位，切换零跳动） -->
+    <nav v-else class="flex-1 py-4 flex flex-col items-start gap-2 px-2.5">
       <button v-for="item in collapsedNavItems" :key="item.path"
-        class="flex h-8 w-8 items-center justify-center rounded-md transition-colors"
+        class="flex h-8 items-center rounded-md transition-colors"
         :class="isNavActive(item.path) ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
         :title="item.label" @click="navigate(item.path)">
         <component :is="item.icon" class="h-4 w-4" />
@@ -139,7 +138,7 @@
     <!-- 底部固定项(技术配置降权: 小字+弱化) -->
     <div v-if="!collapsed" class="border-t py-1.5 shrink-0">
       <button v-for="item in bottomItems" :key="item.path"
-        class="group relative flex w-full items-center gap-3 py-1.5 pr-4 pl-5 text-xs transition-colors"
+        class="group relative flex w-full items-center gap-3 py-1.5 pr-4 pl-2.5 text-xs transition-colors"
         :class="isNavActive(item.path) ? 'text-foreground font-medium' : 'text-muted-foreground/70 hover:text-foreground hover:bg-accent/30'" @click="navigate(item.path)">
         <span v-if="isNavActive(item.path)" class="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-primary" />
         <component :is="item.icon" class="h-3.5 w-3.5 shrink-0 opacity-60" />
@@ -152,7 +151,7 @@
     </div>
 
     <!-- 页脚状态行（article_agent 风格：mono 小字） -->
-    <div v-if="!collapsed" class="border-t px-5 py-2 shrink-0">
+    <div v-if="!collapsed" class="border-t px-2.5 py-2 shrink-0">
       <p class="font-mono text-[10px] text-muted-foreground/60 truncate">
         {{ auth.displayName }}
       </p>
