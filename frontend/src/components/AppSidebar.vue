@@ -1,18 +1,33 @@
 <template>
   <aside :class="collapsed ? 'w-12' : 'w-64'" class="flex flex-col border-r bg-background h-screen sticky top-0 shrink-0 transition-all duration-200">
-    <div v-if="!collapsed" class="flex h-14 items-center border-b px-5 shrink-0">
-      <div class="flex items-center gap-2.5">
-        <div class="flex h-7 w-7 items-center justify-center border border-border rounded-sm">
+    <!-- 头部：Logo 行，右上角收起按钮（article_agent 风格：收起后 Logo 图标接管展开） -->
+    <div v-if="!collapsed" class="flex h-14 items-center justify-between border-b pl-5 pr-2 shrink-0">
+      <button class="flex items-center gap-2.5 min-w-0" title="回到首页" @click="navigate('/')">
+        <div class="flex h-7 w-7 items-center justify-center border border-border rounded-sm shrink-0">
           <span class="font-display text-sm font-medium leading-none">M</span>
         </div>
-        <span class="font-display text-sm font-medium tracking-tight">{{ APP_NAME }}</span>
-      </div>
+        <span class="font-display text-sm font-medium tracking-tight truncate">{{ APP_NAME }}</span>
+      </button>
+      <button
+        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        title="折叠侧栏"
+        aria-label="折叠侧栏"
+        @click="collapsed = true"
+      >
+        <PanelLeftClose class="h-3.5 w-3.5" />
+      </button>
     </div>
-    <div v-else class="flex h-14 items-center justify-center border-b shrink-0">
+    <button
+      v-else
+      class="flex h-14 items-center justify-center border-b shrink-0 cursor-pointer"
+      title="展开侧栏"
+      aria-label="展开侧栏"
+      @click="collapsed = false"
+    >
       <div class="flex h-7 w-7 items-center justify-center border border-border rounded-sm">
         <span class="font-display text-sm font-medium leading-none">M</span>
       </div>
-    </div>
+    </button>
 
     <!-- 展开态: 完整导航(主区域,可滚动,学习入口优先) -->
     <nav v-if="!collapsed" class="flex-1 overflow-y-auto py-3 min-h-0">
@@ -128,14 +143,6 @@
     <div v-if="!collapsed" class="border-t px-3 py-3 shrink-0">
       <VersionSwitcher />
     </div>
-
-    <!-- 折叠/展开按钮 -->
-    <div class="border-t py-2 shrink-0 flex justify-center">
-      <button class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" :title="collapsed ? '展开侧栏' : '折叠侧栏'" @click="collapsed = !collapsed">
-        <PanelLeftOpen v-if="!collapsed" class="h-3.5 w-3.5" />
-        <PanelLeftClose v-else class="h-3.5 w-3.5" />
-      </button>
-    </div>
   </aside>
 </template>
 
@@ -149,14 +156,7 @@ import {
   useChatSessionStore,
 } from "@/stores/chatSession";
 import { APP_NAME } from "@/types/const";
-import {
-  Check,
-  Home,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Pencil,
-  X,
-} from "lucide-vue-next";
+import { Check, Home, PanelLeftClose, Pencil, X } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
