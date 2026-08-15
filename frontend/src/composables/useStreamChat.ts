@@ -198,8 +198,8 @@ export function useStreamChat(
           }
         }
         if (target) {
-          // run_code 的图表由 code_exec done 帧先行写入（tool_result 帧不带 images）。
-          // 直接覆盖会丢图 → 保留已有 images，并从未截断的 preview 兜底提取 URL。
+          // 图表来源优先级（协议 v2.2）：tool_result.images（后端完整携带）
+          // → code_exec done 帧已写入的 images → 从 preview 文本兜底提取 URL
           const prevOut = (target.output as any[] | null) ?? [];
           const prevImages: string[] =
             (prevOut.find((o) => o?.name === "run_code") as any)?.images ?? [];
@@ -208,9 +208,11 @@ export function useStreamChat(
               name: event.name,
               preview: event.preview,
               images:
-                prevImages.length > 0
-                  ? prevImages
-                  : extractImageUrls(event.preview),
+                event.images && event.images.length > 0
+                  ? event.images
+                  : prevImages.length > 0
+                    ? prevImages
+                    : extractImageUrls(event.preview),
             },
           ];
           target.status = event.ok ? "success" : "error";

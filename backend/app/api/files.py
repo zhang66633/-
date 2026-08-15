@@ -114,7 +114,10 @@ async def download_file(file_id: str):
 
 @files_router.get("/images/{run_id}/{filename}")
 async def get_image(run_id: str, filename: str):
-    """获取求解 Agent 生成的图表（png/jpg/gif 等，按扩展名给 media type）。"""
+    """获取求解 Agent 生成的图表（png/jpg/gif 等，按扩展名给 media type）。
+
+    temp 目录被系统清理时，回退读持久化副本 data/chat_images/{run_id}。
+    """
     _validate_path_segment(run_id, "run_id")
     _validate_path_segment(filename, "filename")
     img_dir = (Path(tempfile.gettempdir()) / "mathmodel_outputs" / run_id).resolve()
@@ -123,7 +126,15 @@ async def get_image(run_id: str, filename: str):
     if not img_path.is_relative_to(img_dir):
         raise HTTPException(status_code=400, detail="非法路径")
     if not img_path.exists():
-        raise HTTPException(status_code=404, detail="图片不存在")
+        # temp 已清理 → 回退持久化副本（chat 模式图片落盘 data/chat_images/{run_id}）
+        persist_dir = (
+            get_settings().project_root / "data" / "chat_images" / run_id
+        ).resolve()
+        persist_path = (persist_dir / filename).resolve()
+        if persist_path.is_relative_to(persist_dir) and persist_path.exists():
+            img_path = persist_path
+        else:
+            raise HTTPException(status_code=404, detail="图片不存在")
     _media_types = {
         ".png": "image/png",
         ".jpg": "image/jpeg",

@@ -439,6 +439,12 @@ async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
                     "ok": r["ok"],
                     "duration_ms": r["duration_ms"],
                 }
+                # run_code 直接带完整图表 URL 列表（preview 会被截断，
+                # 不能依赖前端从截断文本里提取——否则 gif/靠后的图会丢引用）
+                if tool_name == "run_code":
+                    result_payload["images"] = parse_code_result(r["text"]).get(
+                        "images", []
+                    )
                 if r.get("error"):
                     result_payload["error"] = r["error"]
                 yield f"data: {json.dumps({'tool_result': result_payload}, ensure_ascii=False)}\n\n"

@@ -26,6 +26,8 @@ export interface ToolResultEvent {
   id?: string;
   name: string;
   preview: string;
+  /** run_code 的图表 URL 列表（v2.2：后端直接携带，preview 截断也不丢引用） */
+  images?: string[];
   /** 协议 v2: 执行是否成功（缺失时视为成功，兼容旧后端） */
   ok?: boolean;
   /** 耗时(毫秒) */

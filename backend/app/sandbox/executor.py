@@ -217,10 +217,36 @@ class SandboxExecutor:
         if self.backend == "docker":
             # 优先 docker（硬隔离）；二进制缺失或 daemon 未启动 → 自动回退 subprocess
             if docker_daemon_up():
-                return self._run_docker(code, output_subdir, run_id, cancel_event)
-            return self._run_subprocess(code, output_subdir, run_id, cancel_event)
+                result = self._run_docker(code, output_subdir, run_id, cancel_event)
+            else:
+                result = self._run_subprocess(code, output_subdir, run_id, cancel_event)
         else:
-            return self._run_subprocess(code, output_subdir, run_id, cancel_event)
+            result = self._run_subprocess(code, output_subdir, run_id, cancel_event)
+
+        # 图片/结果文件落盘持久副本：系统临时目录被清理后引用仍有效
+        self._persist_chat_outputs(result, run_id)
+        return result
+
+    def _persist_chat_outputs(self, result: dict, run_id: str) -> None:
+        """把执行产物复制到 data/chat_images/{run_id}（best-effort）。
+
+        聊天模式的图片只留在 temp 目录时，Windows 重启/磁盘清理会全部 404，
+        前端出现"图和动画引用出现问题"；持久副本 + get_image 路由 fallback 兜底。
+        """
+        try:
+            import shutil as _shutil
+
+            settings = get_settings()
+            dest = settings.project_root / "data" / "chat_images" / run_id
+            dest.mkdir(parents=True, exist_ok=True)
+            for key in ("images", "xlsx_files", "csv_files", "html_files"):
+                for fpath in result.get(key, []):
+                    try:
+                        _shutil.copy2(fpath, str(dest / Path(fpath).name))
+                    except Exception:
+                        pass
+        except Exception:
+            pass  # 持久化失败不影响执行结果
 
     # ── subprocess 模式 ──────────────────────────────────────────
 
