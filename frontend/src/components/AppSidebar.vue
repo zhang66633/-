@@ -3,6 +3,7 @@
     :class="[
       collapsed ? 'w-12' : '',
       'relative flex flex-col border-r bg-background h-screen sticky top-0 shrink-0',
+      dragging ? '' : 'transition-all duration-200',
     ]"
     :style="collapsed ? undefined : { width: `${navWidth}px` }"
   >
@@ -125,14 +126,38 @@
       </TransitionGroup>
     </div>
 
-    <!-- 折叠态: 仅图标（宽度自适应贴左缘 px-2.5，与展开态图标同位，切换零跳动） -->
-    <nav v-else class="flex-1 py-4 flex flex-col items-start gap-2 px-2.5">
-      <button v-for="item in collapsedNavItems" :key="item.path"
-        class="flex h-8 items-center rounded-md transition-colors"
-        :class="isNavActive(item.path) ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
-        :title="item.label" @click="navigate(item.path)">
-        <component :is="item.icon" class="h-4 w-4" />
+    <!-- 折叠态: 仅图标。分组标题行用 invisible 占位（article_agent 同款），
+         保证每个图标与展开态同项垂直位置完全一致 -->
+    <nav v-else class="flex-1 overflow-y-auto py-3 min-h-0 flex flex-col px-2.5">
+      <button
+        class="flex h-9 items-center rounded-md transition-colors shrink-0"
+        :class="isNavActive('/') ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
+        :title="'首页'"
+        @click="navigate('/')"
+      >
+        <Home class="h-4 w-4" />
       </button>
+      <div v-for="group in visibleGroups" :key="group.label" class="mt-1 shrink-0">
+        <!-- 分组标题占位行：不可见但占位，图标不因文字消失而跳动 -->
+        <p
+          class="flex items-center px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider invisible select-none"
+          aria-hidden="true"
+        >
+          {{ group.label }}
+        </p>
+        <div class="space-y-0.5">
+          <button
+            v-for="item in group.items"
+            :key="item.path"
+            class="flex h-9 items-center rounded-md transition-colors"
+            :class="isNavActive(item.path) ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'"
+            :title="item.label"
+            @click="navigate(item.path)"
+          >
+            <component :is="item.icon" class="h-4 w-4" />
+          </button>
+        </div>
+      </div>
     </nav>
 
     <!-- 底部固定项(技术配置降权: 小字+弱化) -->
@@ -259,16 +284,6 @@ const chatSession = useChatSessionStore();
 const editing = ref<{ id: string; mode: SessionMode } | null>(null);
 const editingTitle = ref("");
 const collapsed = ref(false);
-
-// ── 折叠态导航项（所有页面入口） ──────────────────────
-const collapsedNavItems = computed(() => {
-  const items: { label: string; path: string; icon: any }[] = [
-    { label: "首页", path: "/", icon: Home },
-    ...paperGroup.items,
-    ...learnGroup.items,
-  ];
-  return items;
-});
 
 // ── 导航分组逻辑 ─────────────────────────────────────
 
