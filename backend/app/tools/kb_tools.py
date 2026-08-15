@@ -31,13 +31,17 @@ _RETRIEVER: BaseRetriever | None = None
 
 
 def _resolve_kb_paths():
-    """延迟解析 KB 路径，避免循环依赖（config -> main -> retriever）。"""
+    """延迟解析 KB 路径，与 config 设置（settings.kb_root / chroma_dir）保持一致。
+
+    注意：不能硬编码 data/knowledge_base —— 真实知识库在 settings.kb_root
+    （默认 backend/knowledge_base），硬编码会导致在空目录上建检索器、
+    搜索永远"未找到"。
+    """
     global _KB_ROOT, _PERSIST_DIR
     if _KB_ROOT is None:
-        get_settings()
-        backend_root = Path(__file__).parent.parent.parent
-        _KB_ROOT = backend_root / "data" / "knowledge_base"
-        _PERSIST_DIR = backend_root / "data" / "chroma_db"
+        settings = get_settings()
+        _KB_ROOT = settings.kb_root
+        _PERSIST_DIR = settings.chroma_dir
     return _KB_ROOT, _PERSIST_DIR
 
 
@@ -163,8 +167,10 @@ class GetAnalysisTemplateTool(BaseTool):
     ) -> str:
         try:
             retriever = get_retriever()
-            retriever.search_kwargs = {"filter": {"kind": "template"}}
-            docs = retriever.invoke(query)
+            # 通过 invoke 的 metadata_filter 参数过滤（type 字段，模板为 template）。
+            # 注意：不能用 search_kwargs —— 那是 VectorStoreRetriever 的字段，
+            # 自定义 HybridRetriever（pydantic 模型）没有该字段，赋值会抛错。
+            docs = retriever.invoke(query, metadata_filter={"type": "template"})
             if not docs:
                 return "未找到相关模板。"
             return "\n\n---\n\n".join(
