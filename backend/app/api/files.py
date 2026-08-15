@@ -114,7 +114,7 @@ async def download_file(file_id: str):
 
 @files_router.get("/images/{run_id}/{filename}")
 async def get_image(run_id: str, filename: str):
-    """获取求解 Agent 生成的图表。"""
+    """获取求解 Agent 生成的图表（png/jpg/gif 等，按扩展名给 media type）。"""
     _validate_path_segment(run_id, "run_id")
     _validate_path_segment(filename, "filename")
     img_dir = (Path(tempfile.gettempdir()) / "mathmodel_outputs" / run_id).resolve()
@@ -124,7 +124,16 @@ async def get_image(run_id: str, filename: str):
         raise HTTPException(status_code=400, detail="非法路径")
     if not img_path.exists():
         raise HTTPException(status_code=404, detail="图片不存在")
-    return FileResponse(str(img_path), media_type="image/png")
+    _media_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+    }
+    media_type = _media_types.get(img_path.suffix.lower(), "image/png")
+    return FileResponse(str(img_path), media_type=media_type)
 
 
 @files_router.get("/task_files/{task_id}/{filename}")

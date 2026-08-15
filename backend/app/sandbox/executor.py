@@ -347,7 +347,15 @@ class SandboxExecutor:
                     "run_id": run_id,
                 }
 
-            images = _dedupe_image_paths(sorted(output_subdir.glob("*.png")))
+            images = _dedupe_image_paths(
+                sorted(
+                    list(output_subdir.glob("*.png"))
+                    + list(output_subdir.glob("*.jpg"))
+                    + list(output_subdir.glob("*.jpeg"))
+                    + list(output_subdir.glob("*.gif"))
+                    + list(output_subdir.glob("*.webp"))
+                )
+            )
             xlsx_files = sorted(output_subdir.glob("*.xlsx"))
             csv_files = sorted(output_subdir.glob("*.csv"))
             html_files = sorted(output_subdir.glob("*.html"))
@@ -470,7 +478,17 @@ class SandboxExecutor:
             stdout, stderr = proc.communicate()
 
             images = _dedupe_image_paths(
-                sorted(p for p in output_subdir.glob("*.png") if p.name != "_code.py")
+                sorted(
+                    p
+                    for p in (
+                        list(output_subdir.glob("*.png"))
+                        + list(output_subdir.glob("*.jpg"))
+                        + list(output_subdir.glob("*.jpeg"))
+                        + list(output_subdir.glob("*.gif"))
+                        + list(output_subdir.glob("*.webp"))
+                    )
+                    if p.name != "_code.py"
+                )
             )
             xlsx_files = sorted(p for p in output_subdir.glob("*.xlsx") if p.name != "_code.py")
             csv_files = sorted(p for p in output_subdir.glob("*.csv") if p.name != "_code.py")

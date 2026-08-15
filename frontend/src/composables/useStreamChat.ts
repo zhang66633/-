@@ -17,9 +17,12 @@ function generateId() {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** 从工具输出文本中提取 /api/images/...png 图表 URL（tool_result 无 images 字段时兜底）。 */
+/** 从工具输出文本中提取图表 URL（png/jpg/gif/webp；tool_result 无 images 字段时兜底）。 */
 function extractImageUrls(text: string): string[] {
-  return text.match(/\/api\/images\/[^\s,，)）'"]+\.png/g) ?? [];
+  return (
+    text.match(/\/api\/images\/[^\s,，)）'"]+\.(?:png|jpg|jpeg|gif|webp)/g) ??
+    []
+  );
 }
 
 export function useStreamChat(

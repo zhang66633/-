@@ -195,8 +195,8 @@ def _next_step(state: AgentState) -> int:
 
 
 def _collect_image_urls(text: str) -> list[str]:
-    """从工具输出文本中提取 /api/images/... 形式的图表 URL。"""
-    return re.findall(r"/api/images/[^\s,，)）'\"]+\.png", text or "")
+    """从工具输出文本中提取 /api/images/... 形式的图表 URL（png/jpg/gif/webp）。"""
+    return re.findall(r"/api/images/[^\s,，)）'\"]+\.(?:png|jpg|jpeg|gif|webp)", text or "")
 
 
 def _collect_file_urls(text: str, suffix: str) -> list[str]:
