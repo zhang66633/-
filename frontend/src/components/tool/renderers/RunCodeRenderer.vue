@@ -25,9 +25,16 @@ const code = computed(() => {
 
 const codeExpanded = ref(false);
 const codeLines = computed(() => code.value.split("\n").length);
-const isLongCode = computed(() => codeLines.value > 15);
 
 const highlightedCode = ref("");
+
+// 执行失败时自动展开代码，便于用户直接看到出错位置
+watch(
+  () => props.status,
+  (s) => {
+    if (s === "error") codeExpanded.value = true;
+  },
+);
 
 // 动态导入 highlight.js
 watch(
@@ -108,22 +115,21 @@ const isRunning = computed(() => props.status === "running");
         <div class="h-3 bg-muted rounded w-2/3" />
       </div>
 
-      <!-- 代码块 -->
-      <div v-if="code" class="relative">
-        <div
-          class="font-mono text-xs bg-muted/40 rounded border border-border overflow-hidden"
-          :class="{ 'max-h-60': !codeExpanded && isLongCode }"
-        >
-          <pre class="p-2.5 overflow-x-auto"><code class="language-python" v-html="highlightedCode" /></pre>
-        </div>
+      <!-- 代码块（默认折叠：只显示展开按钮，点击才渲染代码主体，节省版面） -->
+      <div v-if="code">
         <button
-          v-if="isLongCode"
-          class="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          class="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
           @click="codeExpanded = !codeExpanded"
         >
           <ChevronRight class="h-3 w-3 transition-transform" :class="{ 'rotate-90': codeExpanded }" />
-          <span>{{ codeExpanded ? "收起代码" : `展开全部（${codeLines} 行）` }}</span>
+          <span>{{ codeExpanded ? "收起代码" : `展开代码（${codeLines} 行）` }}</span>
         </button>
+        <div
+          v-if="codeExpanded"
+          class="mt-1 font-mono text-xs bg-muted/40 rounded border border-border overflow-hidden"
+        >
+          <pre class="p-2.5 overflow-x-auto max-h-72 overflow-y-auto"><code class="language-python" v-html="highlightedCode" /></pre>
+        </div>
       </div>
 
       <!-- 运行中提示 -->

@@ -17,6 +17,11 @@ function generateId() {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** 从工具输出文本中提取 /api/images/...png 图表 URL（tool_result 无 images 字段时兜底）。 */
+function extractImageUrls(text: string): string[] {
+  return text.match(/\/api\/images\/[^\s,，)）'"]+\.png/g) ?? [];
+}
+
 export function useStreamChat(
   sessionMode: SessionMode,
   chatMode: "chat" | "learning" | "practice",
@@ -190,7 +195,21 @@ export function useStreamChat(
           }
         }
         if (target) {
-          target.output = [{ name: event.name, preview: event.preview }];
+          // run_code 的图表由 code_exec done 帧先行写入（tool_result 帧不带 images）。
+          // 直接覆盖会丢图 → 保留已有 images，并从未截断的 preview 兜底提取 URL。
+          const prevOut = (target.output as any[] | null) ?? [];
+          const prevImages: string[] =
+            (prevOut.find((o) => o?.name === "run_code") as any)?.images ?? [];
+          target.output = [
+            {
+              name: event.name,
+              preview: event.preview,
+              images:
+                prevImages.length > 0
+                  ? prevImages
+                  : extractImageUrls(event.preview),
+            },
+          ];
           target.status = event.ok ? "success" : "error";
           target.error = event.ok ? undefined : event.error;
           target.duration_ms = event.duration_ms;
