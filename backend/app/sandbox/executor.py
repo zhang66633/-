@@ -567,6 +567,23 @@ import os as _os
 import matplotlib as _mpl
 _mpl.use("Agg")
 
+# ── 中文字体自动配置：按可用性选择 CJK 字体，图表中文不再变豆腐块 ──
+try:
+    import matplotlib.font_manager as _fm
+    _candidates = [
+        "Noto Sans CJK SC", "Microsoft YaHei", "SimHei",
+        "PingFang SC", "WenQuanYi Micro Hei", "Source Han Sans SC",
+    ]
+    _available = {{_f.name for _f in _fm.fontManager.ttflist}}
+    for _c in _candidates:
+        if _c in _available:
+            _mpl.rcParams["font.sans-serif"] = [_c] + list(_mpl.rcParams["font.sans-serif"])
+            break
+    _mpl.rcParams["axes.unicode_minus"] = False
+    del _fm
+except Exception:
+    pass
+
 _os.chdir({json.dumps(output_dir)})
 
 # ── 用户代码（LLM 自行 import 所需库）──

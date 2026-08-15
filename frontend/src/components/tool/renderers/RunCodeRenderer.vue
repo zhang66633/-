@@ -94,6 +94,13 @@ const toolImages = computed<string[]>(() => {
 });
 
 const isRunning = computed(() => props.status === "running");
+
+// 图片加载失败（404/临时目录被清理）时隐藏，避免破图占位行
+const failedImages = ref<Set<number>>(new Set());
+
+function onImgError(i: number) {
+  failedImages.value = new Set([...failedImages.value, i]);
+}
 </script>
 
 <template>
@@ -143,15 +150,17 @@ const isRunning = computed(() => props.status === "running");
         <pre class="whitespace-pre-wrap break-all">{{ stdout }}</pre>
       </div>
 
-      <!-- 图片 -->
+      <!-- 图片（加载失败自动隐藏，不留破图占位） -->
       <div v-if="hasImages" class="space-y-2">
-        <img
-          v-for="(src, i) in toolImages"
-          :key="i"
-          :src="src"
-          class="max-w-full rounded-md border border-border"
-          loading="lazy"
-        />
+        <template v-for="(src, i) in toolImages" :key="i">
+          <img
+            v-if="!failedImages.has(i)"
+            :src="src"
+            class="max-w-full rounded-md border border-border"
+            loading="lazy"
+            @error="onImgError(i)"
+          />
+        </template>
       </div>
     </div>
   </div>

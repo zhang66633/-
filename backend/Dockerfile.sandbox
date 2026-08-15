@@ -7,12 +7,14 @@ FROM python:3.11-slim
 # tesseract-ocr：OCR 引擎（扫描版 PDF/图片提取文字）
 # tesseract-ocr-chi-sim / chi-tra / eng：简中 / 繁中 / 英文语言包
 # poppler-utils：pdftoppm / pdfimages（把扫描 PDF 每页转成 PNG 供 OCR）
+# fonts-noto-cjk：中文字体（matplotlib 图表中文渲染，缺了会变豆腐块）
 RUN apt-get update && apt-get install -y --no-install-recommends \
         tesseract-ocr \
         tesseract-ocr-chi-sim \
         tesseract-ocr-chi-tra \
         tesseract-ocr-eng \
         poppler-utils \
+        fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python 依赖 ──

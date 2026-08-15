@@ -38,6 +38,27 @@ def main():
     import matplotlib
     matplotlib.use("Agg")
 
+    # 中文字体自动配置：按可用性选择 CJK 字体（容器内 Noto Sans CJK），
+    # 图表中文标题/轴标签不再变豆腐块
+    try:
+        import matplotlib.font_manager as fm
+
+        candidates = [
+            "Noto Sans CJK SC", "Microsoft YaHei", "SimHei",
+            "PingFang SC", "WenQuanYi Micro Hei", "Source Han Sans SC",
+        ]
+        available = {f.name for f in fm.fontManager.ttflist}
+        for c in candidates:
+            if c in available:
+                matplotlib.rcParams["font.sans-serif"] = [
+                    c
+                ] + list(matplotlib.rcParams["font.sans-serif"])
+                break
+        matplotlib.rcParams["axes.unicode_minus"] = False
+        del fm
+    except Exception:
+        pass
+
     # 读取并执行用户代码
     code = code_file.read_text(encoding="utf-8")
     try:
