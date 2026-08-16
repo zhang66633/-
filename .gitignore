@@ -70,3 +70,4 @@ backend/_start.bat
 
 tools/
 
+!.env.production.example
