@@ -1,39 +1,23 @@
-# MathModelAgent 云服务器后端（前端在 Cloudflare Pages，本文件只跑后端）
-#
-# 服务器上:
-#   1. git clone https://github.com/zhang66633/NB_project.git && cd NB_project
-#   2. cp backend/.env.production.example backend/.env.production  # 填密钥
-#   3. docker compose -f docker-compose.cloud.yml up -d --build
-#   4. curl http://localhost:8002/api/health
-#
-# 说明:
-#   - 沙箱: 容器内无法嵌套 Docker → 强制 subprocess 模式（Unix rlimits 生效）
-#   - 向量库: 嵌入式 ChromaDB（本地 data/chroma_db，不依赖独立容器）
-#   - Redis: 未配置 → fakeredis 内存兜底（单实例够用）
-#   - 持久化: data/ 与 knowledge_base/ 挂卷，重启/重建不丢
+# MathModelAgent 云服务器一键部署
+# 用法: cp backend/.env.production.example backend/.env.production（填 key）→ docker compose -f docker-compose.cloud.yml up -d --build
 services:
-  backend:
+  math-backend:
     build:
       context: ./backend
-    container_name: mathmodel-backend
+      dockerfile: Dockerfile
+    container_name: math-backend
+    # 备案期仅本机回环监听；对外经 Cloudflare 隧道 nb.sgweb.asia（见 DEPLOY_CLOUD.md）
     ports:
-      - "8002:8002"
+      - "127.0.0.1:8002:8002"
     env_file:
       - ./backend/.env.production
-    environment:
-      - HOST=0.0.0.0
-      - PORT=8002
-      - DEBUG=false
-      - SANDBOX_BACKEND=subprocess
-      - SANDBOX_MAX_MEMORY_MB=1024
-      - CHROMA_HTTP_URL=
     volumes:
-      - ./backend/data:/app/data
-      - ./backend/knowledge_base:/app/knowledge_base
+      - ./data:/app/data                    # ChromaDB 向量库持久化
+      - ./knowledge_base:/app/knowledge_base # 知识库文档持久化
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/api/health"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8002/api/health', timeout=5).status==200 else 1)"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 30s

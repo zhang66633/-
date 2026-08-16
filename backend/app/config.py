@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     # ---- LLM API Keys ----
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    # DEEPSEEK_API_KEY 作为 openai_api_key 的别名（云部署模板使用此名，见 .env.production.example）
+    deepseek_api_key: str = ""
 
     # ---- Embedding（知识库向量索引）----
     # provider: openai_compatible（默认，任何 OpenAI 兼容 embedding 服务）| huggingface（本地模型）
@@ -120,7 +122,8 @@ class Settings(BaseSettings):
             api_key = self.anthropic_api_key
             base_url: str | None = None
         else:
-            api_key = self.openai_api_key
+            # DEEPSEEK_API_KEY 优先（云部署模板），OPENAI_API_KEY 兜底
+            api_key = self.deepseek_api_key or self.openai_api_key
             base_url = (
                 getattr(self, "deepseek_base_url", "https://api.deepseek.com")
                 if "deepseek" in model.lower()

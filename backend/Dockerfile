@@ -1,38 +1,28 @@
-# MathModelAgent 后端 — 云服务器生产镜像
-#
-# 关键云化点：
-# - subprocess 沙箱（容器内无法嵌套 Docker；Unix rlimits 在容器内生效）
-# - 系统依赖含 tesseract 中英文 + poppler + 中文字体（沙箱 OCR/图表中文渲染）
-# - HOST=0.0.0.0 对外监听（经反向代理/隧道暴露，不要直接裸奔公网）
+# MathModelAgent 后端云化镜像（生产部署 · 沙箱 subprocess 模式）
+# 与本地 Dockerfile.sandbox 的区别：OCR/PDF/中文字体直接装进主镜像，
+# 因为容器内无法再套 Docker 硬隔离，沙箱回退 subprocess 在同一环境执行
 FROM python:3.11-slim
-
-# ── 系统依赖：OCR + 中文字体（沙箱 subprocess 模式需要）──
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        tesseract-ocr \
-        tesseract-ocr-chi-sim \
-        tesseract-ocr-eng \
-        poppler-utils \
-        fonts-noto-cjk \
-        curl \
-    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# 先装依赖（利用 Docker 层缓存），再拷代码
+# ── 系统依赖：tesseract 中英文 OCR + poppler（PDF 转图）+ Noto CJK（中文图表）──
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        tesseract-ocr \
+        tesseract-ocr-chi-sim \
+        tesseract-ocr-chi-tra \
+        tesseract-ocr-eng \
+        poppler-utils \
+        fonts-noto-cjk \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Python 依赖（pip 安装，替代 poetry；poetry-core 构建后端仍被 pip 使用）──
 COPY pyproject.toml ./
-COPY app ./app
-COPY sandbox_wrapper.py ./
+RUN pip install --no-cache-dir -e . -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
 
-RUN pip install --no-cache-dir .
-
-# 云化默认值（可被 docker-compose / 环境变量覆盖）
-ENV HOST=0.0.0.0 \
-    PORT=8002 \
-    DEBUG=false \
-    SANDBOX_BACKEND=subprocess \
-    SANDBOX_MAX_MEMORY_MB=1024 \
-    PYTHONIOENCODING=utf-8
+COPY . .
 
 EXPOSE 8002
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--workers", "1", "--timeout-keep-alive", "30"]
+# HOST/PORT 由 .env.production 注入（settings.host/port），此处仅兜底
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--workers", "1", "--limit-concurrency", "4", "--timeout-keep-alive", "30"]
