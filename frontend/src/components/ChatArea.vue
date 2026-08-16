@@ -197,7 +197,7 @@ const artifactImages = computed<string[]>(() => {
   const urls: string[] = [];
   for (const m of props.messages) {
     if (m.msg_type !== "tool") continue;
-    const out = (m as any).output as any[] | null;
+    const out = m.output; // msg_type === "tool" 已收窄为 ToolMessage（output: unknown[] | null）
     if (!Array.isArray(out)) continue;
     for (const o of out) {
       if (Array.isArray(o?.images)) {

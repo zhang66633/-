@@ -147,7 +147,7 @@ function onGlobalMouseUp() {
       selectedSection = n.textContent || "";
       break;
     }
-    n = n.parentElement as any;
+    n = n.parentElement as HTMLElement | null;
   }
 
   // 保存选区矩形 → 仿蓝色高亮
