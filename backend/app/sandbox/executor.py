@@ -133,10 +133,13 @@ def _find_tessdata() -> str | None:
 
 
 def _clean_env() -> dict:
-    """构建清洗后的子进程环境变量，仅保留 Python 运行必需项。"""
+    """构建清洗后的子进程环境变量，仅保留 Python 运行必需项。
+
+    注意：刻意排除 PYTHONPATH —— 项目是 editable 安装，若继承 PYTHONPATH，
+    沙箱代码可 `import app.config` 直接读取后端密钥（API Key/JWT secret）。
+    """
     safe_keys = {
         "PATH",
-        "PYTHONPATH",
         "PYTHONIOENCODING",
         "TEMP",
         "TMP",

@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # pytesseract：tesseract 的 Python 绑定
 # pdf2image：调用 poppler 把 PDF 转图片
 # pillow：图像处理（matplotlib 已依赖，显式声明保险）
+# pymupdf：PDF 渲染转图（fitz，rapidocr 路线用）
+# rapidocr_onnxruntime：纯 Python 中英文 OCR（RunCodeTool 描述宣称可用，需与镜像一致）
 RUN pip install --no-cache-dir \
     numpy \
     scipy \
@@ -30,7 +32,9 @@ RUN pip install --no-cache-dir \
     cvxpy \
     pytesseract \
     pdf2image \
-    pillow
+    pillow \
+    pymupdf \
+    rapidocr_onnxruntime
 
 COPY sandbox_wrapper.py /wrapper.py
 

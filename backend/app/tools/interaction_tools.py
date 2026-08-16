@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 from pathlib import Path
 from typing import ClassVar
@@ -133,13 +134,27 @@ class RunCodeTool(BaseTool):
         extra_files: list[str] = []
         if file_ids:
             settings = get_settings()
-            uploads_dir = settings.project_root / "data" / "uploads"
+            uploads_dir = (settings.project_root / "data" / "uploads").resolve()
             for fid in file_ids:
+                # 路径穿越防护（AGENTS.md 红线）：file_id 只允许 [a-zA-Z0-9._-]，
+                # 拒绝点号段/斜杠/反斜杠；resolve 后必须仍在 uploads_dir 内
+                if (
+                    not isinstance(fid, str)
+                    or not fid
+                    or not re.fullmatch(r"[a-zA-Z0-9._-]+", fid)
+                    or set(fid) <= {"."}
+                ):
+                    logger.warning("非法 file_id 已拒绝: %r", fid)
+                    continue
                 matches = list(uploads_dir.glob(f"{fid}.*"))
-                if matches:
-                    extra_files.append(str(matches[0]))
-                else:
+                if not matches:
                     logger.warning("file_id %s 在上传目录中未找到", fid)
+                    continue
+                resolved = Path(matches[0]).resolve()
+                if not resolved.is_relative_to(uploads_dir):
+                    logger.warning("file_id 越界已拒绝: %s", fid)
+                    continue
+                extra_files.append(str(resolved))
 
         # 自动挂载题目数据文件（如果设置了 data_files_dir）
         if self.data_files_dir:
