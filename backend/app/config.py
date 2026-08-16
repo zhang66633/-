@@ -75,6 +75,10 @@ class Settings(BaseSettings):
 
     # ---- Knowledge Base ----
     kb_root_dir: str = "./knowledge_base"
+    # 知识库导入提取时的视觉模型(可选)。不填: 图片/扫描 PDF 降级为纯文本路径;
+    # 填写支持视觉的模型名(如 qwen-vl-plus、gpt-4o)后启用图片识别。
+    # 该模型使用 .env 的 OPENAI_API_KEY / ANTHROPIC_API_KEY,不受「活动 API Key」记录覆盖。
+    kb_vision_model: str = ""
 
     # ---- Sandbox ----
     sandbox_timeout: int = 60

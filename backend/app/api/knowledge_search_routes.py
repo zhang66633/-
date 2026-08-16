@@ -364,6 +364,9 @@ async def upload_knowledge(
     text_parts: list[str] = []  # 各文件解析后的文本片段
     raw_images: list[str] = []  # base64 图片 (PNG/JPG/GIF/PDF页)
     raw_file_data: list[dict] = []  # 附件元数据（文件名+内容）用于持久化
+    # 视觉模型配置(可选): 不填则图片/扫描 PDF 降级为纯文本路径
+    vision_model = get_settings().kb_vision_model.strip()
+    has_image_files = False
 
     for f in files:
         try:
@@ -385,30 +388,39 @@ async def upload_knowledge(
                 raw_file_data.append({"name": f.filename, "bytes": content})
 
             elif ext in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"):
-                import base64
-
-                mime_map = {
-                    ".png": "png",
-                    ".jpg": "jpeg",
-                    ".jpeg": "jpeg",
-                    ".gif": "gif",
-                    ".webp": "webp",
-                    ".bmp": "bmp",
-                }
-                mime = mime_map.get(ext, "png")
-                img_b64 = base64.b64encode(content).decode()
-                raw_images.append(f"data:image/{mime};base64,{img_b64}")
-                text_parts.append(f"[图片附件] {f.filename}: 内容见视觉分析")
+                has_image_files = True
                 raw_file_data.append({"name": f.filename, "bytes": content})
+                if vision_model:
+                    import base64
+
+                    mime_map = {
+                        ".png": "png",
+                        ".jpg": "jpeg",
+                        ".jpeg": "jpeg",
+                        ".gif": "gif",
+                        ".webp": "webp",
+                        ".bmp": "bmp",
+                    }
+                    mime = mime_map.get(ext, "png")
+                    img_b64 = base64.b64encode(content).decode()
+                    raw_images.append(f"data:image/{mime};base64,{img_b64}")
+                    text_parts.append(f"[图片附件] {f.filename}: 内容见视觉分析")
+                else:
+                    # 未配置视觉模型(默认 deepseek-chat 不支持 image_url),跳过图片
+                    text_parts.append(
+                        f"[图片附件] {f.filename}: 已跳过(未配置 KB_VISION_MODEL,模型不支持读图)"
+                    )
 
             elif ext == ".pdf":
                 pdf_text = _extract_pdf_text(content)
                 text_parts.append(pdf_text)
-                try:
-                    pdf_imgs = _pdf_to_images(content)
-                    raw_images.extend(f"data:image/png;base64,{i}" for i in pdf_imgs)
-                except Exception:
-                    pass
+                # PDF 页渲染仅视觉模型需要;纯文本模型会把 image_url 消息拒掉
+                if vision_model:
+                    try:
+                        pdf_imgs = _pdf_to_images(content)
+                        raw_images.extend(f"data:image/png;base64,{i}" for i in pdf_imgs)
+                    except Exception:
+                        pass
                 raw_file_data.append({"name": f.filename, "bytes": content})
 
             elif ext == ".docx":
@@ -435,7 +447,26 @@ async def upload_knowledge(
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"文件 {f.filename} 处理失败: {e}")
 
-    if not raw_text and not text_parts:
+    # 有意义内容 = 用户文本 | 视觉图片 | 非「图片跳过」提示的文本片段
+    meaningful = (
+        bool(raw_text)
+        or bool(raw_images)
+        or any(not p.startswith("[图片附件]") for p in text_parts)
+    )
+    if not meaningful:
+        if has_image_files and not vision_model:
+            # 纯图片且无视觉模型: 直接给出可操作的错误,不浪费一次 LLM 调用
+            job_id = str(uuid.uuid4())[:8]
+            _extraction_jobs[job_id] = {
+                "status": "error",
+                "result": None,
+                "error": (
+                    "上传内容为纯图片,当前未配置视觉模型。"
+                    "请粘贴文字,或在 backend/.env 设置 KB_VISION_MODEL "
+                    "为支持视觉的模型(如 qwen-vl-plus、gpt-4o)后重试。"
+                ),
+            }
+            return KnowledgeUploadJob(job_id=job_id, status="error")
         raise HTTPException(status_code=400, detail="请提供文本内容或上传文件")
 
     job_id = str(uuid.uuid4())[:8]
@@ -546,10 +577,10 @@ def _extract_pdf_text(file_bytes: bytes) -> str:
     return extracted
 
 
-def _pdf_to_images(file_bytes: bytes, max_pages: int = 30) -> list[str]:
+def _pdf_to_images(file_bytes: bytes, max_pages: int = 20) -> list[str]:
     """PDF → 每页一张 PNG base64。pymupdf 渲染，保留公式、图表、代码等视觉元素。
 
-    限制 max_pages 防止超大 PDF 导致 LLM context 溢出。
+    限制 max_pages + 较低 dpi 防止超大 PDF 撑爆视觉模型 payload(常见上限 ~10MB)。
     """
     import base64
 
@@ -564,7 +595,7 @@ def _pdf_to_images(file_bytes: bytes, max_pages: int = 30) -> list[str]:
     images: list[str] = []
     for i in range(pages):
         page = doc[i]
-        pix = page.get_pixmap(dpi=150)
+        pix = page.get_pixmap(dpi=110)
         img_b64 = base64.b64encode(pix.tobytes("png")).decode()
         images.append(img_b64)
 
@@ -572,10 +603,13 @@ def _pdf_to_images(file_bytes: bytes, max_pages: int = 30) -> list[str]:
     return images
 
 
-def _build_multimodal_message(text_content: str, images_base64: list[str]):
-    """构建多模态 HumanMessage：文本指令 + 每页 PDF 图片。
+def _build_multimodal_message(
+    text_content: str, images_base64: list[str], provider: str = "openai"
+):
+    """构建多模态 HumanMessage：文本指令 + 图片(data URI 或裸 PNG base64)。
 
     如果 images_base64 为空，返回纯文本消息。
+    provider 决定图片块格式: openai → image_url data URI;anthropic → image 块。
     """
     from langchain_core.messages import HumanMessage
 
@@ -584,12 +618,26 @@ def _build_multimodal_message(text_content: str, images_base64: list[str]):
 
     content: list[dict] = [{"type": "text", "text": text_content}]
     for img in images_base64:
-        content.append(
-            {
-                "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{img}"},
-            }
-        )
+        if provider == "anthropic":
+            # 解析 data URI(data:image/<mime>;base64,<b64>),旧裸 base64 按 PNG 处理
+            mime, b64 = "png", img
+            if img.startswith("data:"):
+                head, _, b64 = img.partition(",")
+                mime = head.split(";")[0].split("/")[-1]
+            content.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": f"image/{mime}",
+                        "data": b64,
+                    },
+                }
+            )
+        else:
+            # 已带 data: 前缀的 data URI 直接使用(上传层已编码),裸 base64 补前缀
+            url = img if img.startswith("data:") else f"data:image/png;base64,{img}"
+            content.append({"type": "image_url", "image_url": {"url": url}})
 
     return HumanMessage(content=content)
 
@@ -747,9 +795,33 @@ async def _run_extraction(
         from ..knowledge.schemas import MethodCard, Paper, Problem, Template
 
         # 1. LLM extraction
-        config = settings.get_llm_config("analysis")
-        factory = LLMFactory()
-        llm = factory.create(config)
+        # 配置了 KB_VISION_MODEL 时用独立视觉模型(只用 .env key,不受活动 API Key 覆盖,
+        # 避免被 DeepSeek key 覆盖回纯文本模型);否则走 analysis 角色(默认 deepseek-chat)
+        vision_model = settings.kb_vision_model.strip()
+        vision_provider = ""
+        if vision_model and raw_images:
+            from ..core.llm.providers import classify_provider, get_provider
+
+            vision_provider = classify_provider(vision_model)
+            api_key = (
+                settings.anthropic_api_key
+                if vision_provider == "anthropic"
+                else settings.openai_api_key
+            )
+            llm = get_provider(vision_model).create(
+                model=vision_model,
+                api_key=api_key,
+                temperature=settings.default_temperature,
+                max_tokens=settings.default_max_tokens,
+                base_url=(
+                    getattr(settings, "deepseek_base_url", None)
+                    if "deepseek" in vision_model.lower()
+                    else None
+                ),
+            )
+        else:
+            llm = LLMFactory().create("analysis")
+            vision_model = ""
 
         prompt_map = {
             "method": _EXTRACT_METHOD_PROMPT,
@@ -770,10 +842,29 @@ async def _run_extraction(
             full_text += "\n\n--- 附件资料 ---\n\n" + "\n\n".join(text_parts)
 
         prompt = prompt_map[kb_type].format(raw_text=full_text)
+        if kb_type == "paper" and not raw_images:
+            # paper prompt 默认写死「你将看到每一页扫描图片」,纯文本路径需说明
+            prompt += "\n\n注意: 本次输入不包含页面图片(未配置视觉模型或非 PDF),请仅依据文本内容提取。"
 
         # Multimodal if images available (PDF pages, standalone images, GIFs)
-        msg = _build_multimodal_message(prompt, raw_images)
-        response = llm.invoke([msg])
+        msg = _build_multimodal_message(prompt, raw_images, provider=vision_provider or "openai")
+        try:
+            response = llm.invoke([msg])
+        except Exception as e:
+            err_text = str(e)
+            # 模型不支持 image_url 的典型报错 → 换成可操作的提示,不抛原始 400 JSON
+            if "image_url" in err_text or "unknown variant" in err_text:
+                _extraction_jobs[job_id] = {
+                    "status": "error",
+                    "result": None,
+                    "error": (
+                        f"模型 {vision_model or 'analysis'} 不支持图片输入。"
+                        "请在 backend/.env 配置 KB_VISION_MODEL 为支持视觉的模型"
+                        "(如 qwen-vl-plus、gpt-4o),或移除图片附件后重试。"
+                    ),
+                }
+                return
+            raise
         extracted = _parse_llm_json(str(response.content))
 
         if not extracted:
