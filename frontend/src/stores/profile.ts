@@ -2,10 +2,17 @@ import { fetchProfile } from "@/apis/learningApi";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
+/** 学习画像/进度结构（未知字段透传） */
+interface LearningProfile {
+  roles?: string[];
+  achievements?: { is_new?: boolean }[];
+  [key: string]: unknown;
+}
+
 export const useProfileStore = defineStore("profile", () => {
   const hasProfile = ref(false);
   const loading = ref(false);
-  const progress = ref<any>(null);
+  const progress = ref<LearningProfile | null>(null);
   const error = ref("");
 
   /** 检查学习画像(首页「继续学习」卡等依赖) */

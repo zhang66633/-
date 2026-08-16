@@ -59,8 +59,9 @@ export const useLearningStore = defineStore("learning", () => {
     try {
       const res = await fetchLearningPath(r);
       path.value = res.data.path;
-    } catch (e: any) {
-      error.value = e?.message || "加载学习路径失败";
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      error.value = msg || "加载学习路径失败";
     } finally {
       loading.value = false;
     }
@@ -72,8 +73,9 @@ export const useLearningStore = defineStore("learning", () => {
     try {
       const res = await fetchUnitDetail(unitId);
       currentUnit.value = res.data.unit;
-    } catch (e: any) {
-      error.value = e?.message || "加载学习单元失败";
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      error.value = msg || "加载学习单元失败";
     } finally {
       loading.value = false;
     }
@@ -91,8 +93,9 @@ export const useLearningStore = defineStore("learning", () => {
       // 刷新路径
       await loadPath();
       return res.data;
-    } catch (e: any) {
-      error.value = e?.message || "标记完成失败";
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      error.value = msg || "标记完成失败";
       throw e;
     }
   }

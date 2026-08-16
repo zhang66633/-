@@ -4,7 +4,7 @@ import {
   streamChat,
 } from "@/apis/chatApi";
 import { type SessionMode, useChatSessionStore } from "@/stores/chatSession";
-import type { Message, ToolMessage } from "@/types/response";
+import type { Message, ToolMessage, ToolOutputEntry } from "@/types/response";
 /** 流式对话组合式函数 — 对话/学习/答疑/练习页共用。
  *
  * 负责：会话创建/复用、用户消息与 agent 占位消息写入、
@@ -191,19 +191,19 @@ export function useStreamChat(
           target =
             ([...tools]
               .reverse()
-              .find((m) => (m as any).tool_call_id === event.id) as
-              | ToolMessage
-              | undefined) ?? null;
+              .find(
+                (m) => m.msg_type === "tool" && m.tool_call_id === event.id,
+              ) as ToolMessage | undefined) ?? null;
         }
         if (!target) {
           for (let i = tools.length - 1; i >= 0; i--) {
             const m = tools[i];
             if (
               m.msg_type === "tool" &&
-              (m as any).tool_name === event.name &&
-              !(m as any).output
+              m.tool_name === event.name &&
+              !m.output
             ) {
-              target = m as ToolMessage;
+              target = m;
               break;
             }
           }
@@ -211,9 +211,16 @@ export function useStreamChat(
         if (target) {
           // 图表来源优先级（协议 v2.2）：tool_result.images（后端完整携带）
           // → code_exec done 帧已写入的 images → 从 preview 文本兜底提取 URL
-          const prevOut = (target.output as any[] | null) ?? [];
+          const prevOut = target.output ?? [];
           const prevImages: string[] =
-            (prevOut.find((o) => o?.name === "run_code") as any)?.images ?? [];
+            (
+              prevOut.find(
+                (o) =>
+                  typeof o === "object" &&
+                  o !== null &&
+                  (o as ToolOutputEntry).name === "run_code",
+              ) as ToolOutputEntry | undefined
+            )?.images ?? [];
           target.output = [
             {
               name: event.name,
@@ -252,14 +259,14 @@ export function useStreamChat(
           target =
             ([...tools]
               .reverse()
-              .find((m) => (m as any).tool_call_id === event.id) as
-              | ToolMessage
-              | undefined) ?? null;
+              .find(
+                (m) => m.msg_type === "tool" && m.tool_call_id === event.id,
+              ) as ToolMessage | undefined) ?? null;
         }
         if (!target) {
           for (let i = tools.length - 1; i >= 0; i--) {
             const m = tools[i];
-            if (m.msg_type === "tool" && (m as any).tool_name === "run_code") {
+            if (m.msg_type === "tool" && m.tool_name === "run_code") {
               target = m as ToolMessage;
               break;
             }
@@ -290,11 +297,12 @@ export function useStreamChat(
         abortControllers.delete(controllerKey(sessionId));
         const id = ensureAgentMsg();
         const doneContent = acc || "（未收到回复内容）";
+        const extra = taskId ? { task_id: taskId } : {};
         chatSession.updateMessage(sessionMode, sessionId, id, {
           content: doneContent,
           streaming: false,
           // 附加 task_id 供下载按钮使用
-          ...(taskId ? ({ task_id: taskId } as any) : {}),
+          ...(extra as { task_id?: string }),
         });
         chatSession.setRunning(null);
 
@@ -302,7 +310,7 @@ export function useStreamChat(
         if (taskId) {
           const sess = chatSession.getActiveSession(sessionMode).value;
           if (sess) {
-            (sess as any).taskId = taskId;
+            sess.taskId = taskId;
           }
         }
       },
@@ -338,7 +346,7 @@ export function useStreamChat(
     let failedId: string | null = null;
     for (let i = msgs.length - 1; i >= 0; i--) {
       const m = msgs[i];
-      if (m.msg_type === "agent" && (m as any).error === true) {
+      if (m.msg_type === "agent" && m.error === true) {
         failedId = m.id;
         break;
       }

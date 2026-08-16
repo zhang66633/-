@@ -242,7 +242,6 @@
 
 <script setup lang="ts">
 import { getKBStats } from "@/apis/knowledgeApi";
-// biome-ignore lint/style/useImportType: Vue 组件注册需要值导入,type-only 会导致运行期组件解析失败
 import NextRecommendationCard from "@/components/learning/NextRecommendationCard.vue";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLearningStore } from "@/stores/learning";

@@ -1,4 +1,11 @@
-import type { AgentSegment, Message, ToolStatus } from "@/types/response";
+import type {
+  AgentMessage,
+  AgentSegment,
+  ClarifyMessage,
+  Message,
+  ToolMessage,
+  ToolStatus,
+} from "@/types/response";
 import request from "@/utils/request";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
@@ -312,14 +319,17 @@ export const useChatSessionStore = defineStore(
       if (!msg) return;
       if (patch.content !== undefined) msg.content = patch.content;
       if (patch.streaming !== undefined) msg.streaming = patch.streaming;
-      if (patch.thinking !== undefined) (msg as any).thinking = patch.thinking;
-      if (patch.status !== undefined) (msg as any).status = patch.status;
-      if (patch.output !== undefined) (msg as any).output = patch.output;
-      if (patch.error !== undefined) (msg as any).error = patch.error;
+      if (patch.thinking !== undefined)
+        (msg as AgentMessage).thinking = patch.thinking;
+      if (patch.status !== undefined)
+        (msg as ToolMessage).status = patch.status;
+      if (patch.output !== undefined)
+        (msg as ToolMessage).output = patch.output;
+      if (patch.error !== undefined) (msg as AgentMessage).error = patch.error;
       if (patch.duration_ms !== undefined)
-        (msg as any).duration_ms = patch.duration_ms;
+        (msg as ToolMessage).duration_ms = patch.duration_ms;
       if (patch.answered !== undefined && "answered" in msg)
-        (msg as any).answered = patch.answered;
+        (msg as ClarifyMessage).answered = patch.answered;
       session.updatedAt = now();
       scheduleServerSync(mode, sessionId);
     }
@@ -427,13 +437,13 @@ export const useChatSessionStore = defineStore(
         id: m.id,
         msg_type: m.msg_type,
         content: m.content ?? null,
-        tool_name: (m as any).tool_name ?? null,
-        input: (m as any).input ?? null,
-        output: (m as any).output ?? null,
-        status: (m as any).status ?? null,
-        thinking: (m as any).thinking ?? null,
-        agent_type: (m as any).agent_type ?? null,
-        answered: (m as any).answered ?? null,
+        tool_name: m.msg_type === "tool" ? m.tool_name : null,
+        input: m.msg_type === "tool" ? m.input : null,
+        output: m.msg_type === "tool" ? m.output : null,
+        status: m.msg_type === "tool" ? (m.status ?? null) : null,
+        thinking: m.msg_type === "agent" ? (m.thinking ?? null) : null,
+        agent_type: m.msg_type === "agent" ? (m.agent_type ?? null) : null,
+        answered: m.msg_type === "clarify" ? (m.answered ?? null) : null,
         streaming: m.streaming ?? null,
         created_at: m.created_at ?? null,
       };
