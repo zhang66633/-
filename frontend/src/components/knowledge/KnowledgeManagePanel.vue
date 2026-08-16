@@ -177,7 +177,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Database, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 
-defineProps<{ isContributor: boolean }>();
+const props = defineProps<{ isContributor: boolean; initialSubType?: string }>();
 const emit = defineEmits<(e: "refresh-stats") => void>();
 
 // ── Tab 2: Manage ───────────────────────────────────────────────
@@ -246,8 +246,15 @@ async function loadMgrList() {
     mgrLoading.value = false;
   }
 }
-// 挂载时立即加载(mgrType 默认为 method,watch 不会触发首次加载)
-onMounted(loadMgrList);
+// 挂载时立即加载(mgrType 默认为 method,watch 不会触发首次加载);
+// 若父页指定了要打开的子页签(导入成功后跳转),切过去由 watch 触发加载,避免重复请求
+onMounted(() => {
+  if (props.initialSubType && props.initialSubType !== mgrType.value) {
+    mgrType.value = props.initialSubType;
+  } else {
+    loadMgrList();
+  }
+});
 watch(mgrType, () => loadMgrList());
 
 // Edit
