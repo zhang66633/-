@@ -14,8 +14,8 @@
       <!-- 结构化模式：每行多字段 -->
       <div v-else class="flex-1 flex flex-wrap gap-2 p-2 border border-border rounded-md">
         <template v-for="f in fields" :key="f.key">
-          <Input v-if="f.type !== 'textarea'" :model-value="item[f.key]" :placeholder="f.placeholder || f.label" class="h-8 text-sm" :class="fields.length <= 2 ? 'flex-1 min-w-[120px]' : 'w-full'" @update:model-value="(v) => updateField(i, f.key, v)" />
-          <Textarea v-else :model-value="item[f.key]" :placeholder="f.placeholder || f.label" class="text-sm w-full" rows="3" @update:model-value="(v) => updateField(i, f.key, v)" />
+          <Input v-if="f.type !== 'textarea'" :model-value="itemValue(item, f.key)" :placeholder="f.placeholder || f.label" class="h-8 text-sm" :class="fields.length <= 2 ? 'flex-1 min-w-[120px]' : 'w-full'" @update:model-value="(v) => updateField(i, f.key, v)" />
+          <Textarea v-else :model-value="itemValue(item, f.key)" :placeholder="f.placeholder || f.label" class="text-sm w-full" rows="3" @update:model-value="(v) => updateField(i, f.key, v)" />
         </template>
       </div>
       <button class="mt-0.5 shrink-0 text-muted-foreground hover:text-destructive" @click="remove(i)">
@@ -41,21 +41,26 @@ interface FieldDef {
 
 const props = withDefaults(
   defineProps<{
-    modelValue: any[];
+    modelValue: unknown[];
     fields?: FieldDef[]; // 提供则结构化模式，不提供则简单模式
     label?: string;
     placeholder?: string;
-    emptyValue?: any;
+    emptyValue?: unknown;
   }>(),
   { emptyValue: "" },
 );
 
-const emit = defineEmits<{ "update:modelValue": [v: any[]] }>();
+const emit = defineEmits<{ "update:modelValue": [v: unknown[]] }>();
 
 const items = computed(() => props.modelValue);
 
+/** 结构化模式：取字段值（未知结构用索引访问） */
+function itemValue(item: unknown, key: string): unknown {
+  return (item as Record<string, unknown> | null)?.[key];
+}
+
 function add() {
-  const empty =
+  const empty: unknown =
     props.fields && props.fields.length > 0
       ? Object.fromEntries(props.fields.map((f) => [f.key, ""]))
       : props.emptyValue;
@@ -68,15 +73,18 @@ function remove(i: number) {
   emit("update:modelValue", next);
 }
 
-function updateItem(i: number, value: any) {
+function updateItem(i: number, value: unknown) {
   const next = [...items.value];
   next[i] = value;
   emit("update:modelValue", next);
 }
 
-function updateField(i: number, key: string, value: any) {
+function updateField(i: number, key: string, value: unknown) {
   const next = [...items.value];
-  next[i] = { ...next[i], [key]: value };
+  next[i] = {
+    ...(next[i] as Record<string, unknown>),
+    [key]: value,
+  };
   emit("update:modelValue", next);
 }
 </script>

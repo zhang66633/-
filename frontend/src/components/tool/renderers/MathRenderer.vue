@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
-import type { ToolStatus } from "@/types/response";
+import type { ToolOutputEntry, ToolStatus } from "@/types/response";
 import { Sigma } from "lucide-vue-next";
 /**
  * 数学计算渲染器 — SymPy 符号计算 / 优化求解
@@ -31,7 +31,7 @@ const resultText = computed(() => {
   if (!out || !Array.isArray(out) || out.length === 0) return "";
   const first = out[0];
   if (first && typeof first === "object" && "preview" in first) {
-    return (first as any).preview as string;
+    return (first as ToolOutputEntry).preview ?? "";
   }
   return "";
 });

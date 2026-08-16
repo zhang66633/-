@@ -22,6 +22,17 @@ export type AgentSegment =
   | { kind: "text"; text: string }
   | { kind: "tool"; toolId: string };
 
+/** 工具输出条目（ToolMessage.output 数组元素；未知结构用可选字段 + 索引访问） */
+export interface ToolOutputEntry {
+  name?: string;
+  preview?: string;
+  images?: string[];
+  xlsx_files?: string[];
+  csv_files?: string[];
+  html_files?: string[];
+  [key: string]: unknown;
+}
+
 /** 工具调用消息 */
 export interface ToolMessage extends BaseMessage {
   msg_type: "tool";

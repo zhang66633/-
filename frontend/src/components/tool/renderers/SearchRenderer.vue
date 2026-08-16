@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
-import type { ToolStatus } from "@/types/response";
+import type { ToolOutputEntry, ToolStatus } from "@/types/response";
 import { BookOpen, ExternalLink, FileText, Search } from "lucide-vue-next";
 /**
  * 搜索结果渲染器 — 方法卡片 / 论文卡片 / 网页搜索
@@ -23,7 +23,7 @@ const previewText = computed(() => {
   if (!out || !Array.isArray(out) || out.length === 0) return "";
   const first = out[0];
   if (first && typeof first === "object" && "preview" in first) {
-    return (first as any).preview as string;
+    return (first as ToolOutputEntry).preview ?? "";
   }
   return "";
 });

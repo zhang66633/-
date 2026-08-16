@@ -297,7 +297,9 @@ const showKeyInput = ref(false);
 
 async function checkMyKey() {
   try {
-    const r: any = await request.get("/apikeys/mine");
+    const r = await request.get<{ has_key: boolean; key: string | null }>(
+      "/apikeys/mine",
+    );
     myKey.value = r.data || r;
     showKeyInput.value = !myKey.value.has_key;
   } catch {
@@ -314,10 +316,14 @@ async function activateKey() {
     await request.post("/apikeys/quick", { key: keyInput.value.trim() });
     keyInput.value = "";
     await checkMyKey();
-  } catch (e: any) {
+  } catch (e) {
+    const err = e as {
+      response?: { data?: { detail?: string } };
+      message?: string;
+    };
     activateError.value =
-      e?.response?.data?.detail ||
-      e?.message ||
+      err?.response?.data?.detail ||
+      err?.message ||
       "激活失败，请检查 Key 是否正确";
   } finally {
     activating.value = false;

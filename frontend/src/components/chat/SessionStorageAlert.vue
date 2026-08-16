@@ -77,7 +77,7 @@ function handleCleanup() {
         const keep = Math.max(3, Math.ceil(data[mode].length * 0.7));
         data[mode] = data[mode]
           .sort(
-            (a: any, b: any) =>
+            (a: { updatedAt: string }, b: { updatedAt: string }) =>
               new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
           )
           .slice(0, keep);

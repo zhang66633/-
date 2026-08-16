@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
-import type { ToolStatus } from "@/types/response";
+import type { ToolOutputEntry, ToolStatus } from "@/types/response";
 import { ChevronRight, Code2 } from "lucide-vue-next";
 /**
  * 代码执行渲染器 — Python 语法高亮 + stdout + 图片 + 错误
@@ -59,38 +59,34 @@ watch(
 );
 
 // 输出解析
-const stdout = computed(() => {
+function findCodeOut(): ToolOutputEntry | undefined {
   const out = props.output;
-  if (!out || !Array.isArray(out)) return "";
-  const codeOut = out.find(
-    (o) => o && typeof o === "object" && (o as any).name === "run_code",
+  if (!out || !Array.isArray(out)) return undefined;
+  return out.find(
+    (o): o is ToolOutputEntry =>
+      typeof o === "object" &&
+      o !== null &&
+      (o as ToolOutputEntry).name === "run_code",
   );
+}
+
+const stdout = computed(() => {
+  const codeOut = findCodeOut();
   if (!codeOut) return "";
-  const preview = (codeOut as any).preview as string;
+  const preview = codeOut.preview ?? "";
   // 提取 stdout 部分
-  const m = preview?.match(/输出:\n([\s\S]*)/);
+  const m = preview.match(/输出:\n([\s\S]*)/);
   return m ? m[1].trim() : "";
 });
 
 const hasImages = computed(() => {
-  const out = props.output;
-  if (!out || !Array.isArray(out)) return false;
-  const codeOut = out.find(
-    (o) => o && typeof o === "object" && (o as any).name === "run_code",
-  );
-  return (
-    Array.isArray((codeOut as any)?.images) &&
-    (codeOut as any).images.length > 0
-  );
+  const codeOut = findCodeOut();
+  return Array.isArray(codeOut?.images) && (codeOut?.images.length ?? 0) > 0;
 });
 
 const toolImages = computed<string[]>(() => {
-  const out = props.output;
-  if (!out || !Array.isArray(out)) return [];
-  const codeOut = out.find(
-    (o) => o && typeof o === "object" && (o as any).name === "run_code",
-  );
-  return (codeOut as any)?.images ?? [];
+  const codeOut = findCodeOut();
+  return codeOut?.images ?? [];
 });
 
 const isRunning = computed(() => props.status === "running");

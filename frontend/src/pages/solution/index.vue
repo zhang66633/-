@@ -446,15 +446,16 @@ async function handleUserSend(text: string, files?: ChatFileRef[]) {
     currentTaskId.value = taskId;
     // 写入 session 持久化（刷新恢复依赖它：onMounted 读 session.taskId 回放）
     const sess = chatSession.activeSolutionSession;
-    if (sess) (sess as any).taskId = taskId;
+    if (sess) sess.taskId = taskId;
     // 连接 WS 实时接收进度与最终答案；task_end 事件会清空 runningMode
     taskStore.connectWebSocket(taskId);
-  } catch (e: any) {
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     chatSession.addMessage("solution", sessionId, {
       id: generateId(),
       msg_type: "system",
       type: "error",
-      content: `⚠️ 创建任务失败：${e?.message ?? "后端不可达，请确认已启动 (uvicorn app.main:app --port 8002)"}`,
+      content: `⚠️ 创建任务失败：${msg ?? "后端不可达，请确认已启动 (uvicorn app.main:app --port 8002)"}`,
       created_at: new Date().toISOString(),
     } as Message);
     chatSession.setRunning(null);
@@ -468,8 +469,8 @@ async function handleCancel() {
   try {
     await cancelTask(currentTaskId.value);
     // 后端会主动推 task_end/canceled 事件，前端通过 WS 收尾
-  } catch (e: any) {
-    console.error("取消任务失败：", e);
+  } catch (e) {
+    console.error("取消任务失败：", e instanceof Error ? e.message : e);
   } finally {
     // 兜底：若 WS 没收到 cancel 事件，2s 后强制清状态
     setTimeout(() => {
@@ -498,8 +499,8 @@ async function downloadExport(format: "md" | "docx" | "xlsx" | "csv") {
     a.download = `paper.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e: any) {
-    console.error("导出失败：", e);
+  } catch (e) {
+    console.error("导出失败：", e instanceof Error ? e.message : e);
   }
 }
 
@@ -518,8 +519,8 @@ async function downloadPackage() {
     a.download = `${currentTaskId.value}_results.zip`;
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e: any) {
-    console.error("打包下载失败：", e);
+  } catch (e) {
+    console.error("打包下载失败：", e instanceof Error ? e.message : e);
   }
 }
 
@@ -590,7 +591,7 @@ onMounted(() => {
   // 刷新恢复：task_id 持久化在 session 上 → 回放事件流重建动态时间线 + 交付物；
   // 任务仍在跑则重连 WS 恢复实时进度。
   const sess = chatSession.activeSolutionSession;
-  const storedTaskId = (sess as any)?.taskId as string | undefined;
+  const storedTaskId = sess?.taskId;
   if (storedTaskId && !currentTaskId.value) {
     currentTaskId.value = storedTaskId;
     taskStore.setCurrentTask(storedTaskId);

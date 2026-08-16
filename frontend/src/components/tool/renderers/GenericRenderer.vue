@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ToolStatusBadge from "@/components/tool/ToolStatusBadge.vue";
-import type { ToolStatus } from "@/types/response";
+import type { ToolOutputEntry, ToolStatus } from "@/types/response";
 import { ChevronRight, Wrench } from "lucide-vue-next";
 /**
  * 通用工具渲染器 — 回退方案，展示 JSON 输入/输出
@@ -51,7 +51,7 @@ const toolImages = computed<string[]>(() => {
   const imgs: string[] = [];
   for (const item of out) {
     if (item && typeof item === "object" && "images" in item) {
-      const arr = (item as any).images;
+      const arr = (item as ToolOutputEntry).images;
       if (Array.isArray(arr)) imgs.push(...arr);
     }
   }

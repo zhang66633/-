@@ -12,6 +12,8 @@ export interface ChatSession {
   messages: Message[];
   createdAt: string;
   updatedAt: string;
+  /** 方案模式关联的任务 id（刷新后恢复事件回放/交付物） */
+  taskId?: string;
 }
 
 function now() {
