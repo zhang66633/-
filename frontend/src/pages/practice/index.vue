@@ -110,7 +110,10 @@
                 </td>
                 <td class="px-2 py-2 font-mono text-xs text-muted-foreground">{{ q.no }}</td>
                 <td class="px-2 py-2">
-                  <div class="line-clamp-1">{{ plainPreview(q.question) }}</div>
+                  <div
+                    class="truncate text-xs prose prose-sm prose-gray dark:prose-invert max-w-none [&>p]:m-0"
+                    v-html="renderMarkdown(q.question)"
+                  />
                   <div class="mt-0.5 flex gap-1 flex-wrap">
                     <span v-for="t in q.tags.slice(0, 3)" :key="t" class="rounded bg-muted px-1 py-px text-[10px] text-muted-foreground">{{ t }}</span>
                   </div>
@@ -183,7 +186,10 @@
             <tr v-for="q in mistakes" :key="q.id" class="border-b border-border/50 hover:bg-accent/50">
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">{{ q.no }}</td>
               <td class="px-2 py-2">
-                <div class="line-clamp-1">{{ plainPreview(q.question) }}</div>
+                <div
+                  class="truncate text-xs prose prose-sm prose-gray dark:prose-invert max-w-none [&>p]:m-0"
+                  v-html="renderMarkdown(q.question)"
+                />
               </td>
               <td class="px-2 py-2 text-xs text-muted-foreground">{{ q.category }}</td>
               <td class="px-2 py-2">
@@ -324,7 +330,10 @@
               <tr v-for="a in store.answers" :key="a.question.id" class="border-b border-border/50">
                 <td class="px-2 py-2 font-mono text-xs text-muted-foreground">{{ a.question.no }}</td>
                 <td class="px-2 py-2">
-                  <div class="line-clamp-1">{{ plainPreview(a.question.question) }}</div>
+                  <div
+                    class="truncate text-xs prose prose-sm prose-gray dark:prose-invert max-w-none [&>p]:m-0"
+                    v-html="renderMarkdown(a.question.question)"
+                  />
                 </td>
                 <td class="px-2 py-2">
                   <span class="text-xs font-medium" :class="a.correct ? 'text-emerald-500' : 'text-red-500'">
@@ -456,11 +465,6 @@ const elapsed = computed(() => {
 
 function diffLabel(d: string) {
   return d === "beginner" ? "入门" : d === "intermediate" ? "进阶" : "实战";
-}
-
-/** 列表预览：剥掉 $...$ 数学定界符显示纯文本（列表单行紧凑，公式在题面处完整渲染） */
-function plainPreview(text: string): string {
-  return text.replace(/\$/g, "").replace(/\s+/g, " ").slice(0, 60);
 }
 function diffBadgeClass(d: string) {
   return d === "beginner"
