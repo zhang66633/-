@@ -16,8 +16,8 @@ from ..config import get_settings
 from .knowledge_shared import *  # noqa: F403
 from .knowledge_shared import (  # noqa: F401
     _find_yaml_file,
-    _get_embedder,
     _next_id,
+    _sync_kb_index,
 )
 
 knowledge_router = APIRouter()
@@ -51,8 +51,7 @@ async def create_method(data: dict, user: GitHubUser = Depends(require_contribut
         out_path = out_dir / f"{safe_name}.yaml"
         out_path.write_text(yaml_str, encoding="utf-8")
 
-        embedder = _get_embedder()
-        embedder.add_document(out_path)
+        _sync_kb_index([], out_path, user.login)
 
         return KnowledgeCrudResponse(success=True, entry_id=entry_id, message="方法卡片已创建")
     except Exception as e:
@@ -81,9 +80,7 @@ async def update_method(card_id: str, data: dict, user: GitHubUser = Depends(req
         )
         yf.write_text(yaml_str, encoding="utf-8")
 
-        embedder = _get_embedder()
-        embedder.remove_document(card_id)
-        embedder.add_document(yf)
+        _sync_kb_index([card_id], yf, user.login)
 
         return KnowledgeCrudResponse(success=True, entry_id=card_id, message="方法卡片已更新")
     except HTTPException:
@@ -100,8 +97,7 @@ async def delete_method(card_id: str, user: GitHubUser = Depends(require_contrib
         if not yf:
             raise HTTPException(status_code=404, detail=f"方法卡片 {card_id} 不存在")
 
-        embedder = _get_embedder()
-        embedder.remove_document(card_id)
+        _sync_kb_index([card_id], None, user.login)
         yf.unlink()
         # Clean up raw text if exists
         raw_path = yf.with_suffix(".raw.txt")
@@ -145,8 +141,7 @@ async def create_paper(data: dict, user: GitHubUser = Depends(require_contributo
         out_path = out_dir / f"{safe_name}.yaml"
         out_path.write_text(yaml_str, encoding="utf-8")
 
-        embedder = _get_embedder()
-        embedder.add_document(out_path)
+        _sync_kb_index([], out_path, user.login)
 
         return KnowledgeCrudResponse(success=True, entry_id=entry_id, message="论文已创建")
     except Exception as e:
@@ -175,9 +170,7 @@ async def update_paper(paper_id: str, data: dict, user: GitHubUser = Depends(req
         )
         yf.write_text(yaml_str, encoding="utf-8")
 
-        embedder = _get_embedder()
-        embedder.remove_document(paper_id)
-        embedder.add_document(yf)
+        _sync_kb_index([paper_id], yf, user.login)
 
         return KnowledgeCrudResponse(success=True, entry_id=paper_id, message="论文已更新")
     except HTTPException:
@@ -194,8 +187,7 @@ async def delete_paper(paper_id: str, user: GitHubUser = Depends(require_contrib
         if not yf:
             raise HTTPException(status_code=404, detail=f"论文 {paper_id} 不存在")
 
-        embedder = _get_embedder()
-        embedder.remove_document(paper_id)
+        _sync_kb_index([paper_id], None, user.login)
         yf.unlink()
         raw_path = yf.with_suffix(".raw.txt")
         if raw_path.exists():
@@ -235,8 +227,7 @@ async def create_template(data: dict, user: GitHubUser = Depends(require_contrib
         out_path = out_dir / f"{safe_name}.yaml"
         out_path.write_text(yaml_str, encoding="utf-8")
 
-        embedder = _get_embedder()
-        embedder.add_document(out_path)
+        _sync_kb_index([], out_path, user.login)
 
         return KnowledgeCrudResponse(success=True, entry_id=entry_id, message="模板已创建")
     except Exception as e:
@@ -265,9 +256,7 @@ async def update_template(tpl_id: str, data: dict, user: GitHubUser = Depends(re
         )
         yf.write_text(yaml_str, encoding="utf-8")
 
-        embedder = _get_embedder()
-        embedder.remove_document(tpl_id)
-        embedder.add_document(yf)
+        _sync_kb_index([tpl_id], yf, user.login)
 
         return KnowledgeCrudResponse(success=True, entry_id=tpl_id, message="模板已更新")
     except HTTPException:
@@ -284,8 +273,7 @@ async def delete_template(tpl_id: str, user: GitHubUser = Depends(require_contri
         if not yf:
             raise HTTPException(status_code=404, detail=f"模板 {tpl_id} 不存在")
 
-        embedder = _get_embedder()
-        embedder.remove_document(tpl_id)
+        _sync_kb_index([tpl_id], None, user.login)
         yf.unlink()
         raw_path = yf.with_suffix(".raw.txt")
         if raw_path.exists():
@@ -328,8 +316,7 @@ async def create_problem(data: dict, user: GitHubUser = Depends(require_contribu
         out_path = out_dir / f"{safe_name}.yaml"
         out_path.write_text(yaml_str, encoding="utf-8")
 
-        embedder = _get_embedder()
-        embedder.add_document(out_path)
+        _sync_kb_index([], out_path, user.login)
 
         return KnowledgeCrudResponse(success=True, entry_id=entry_id, message="题目已创建")
     except Exception as e:
@@ -360,9 +347,7 @@ async def update_problem(
         )
         yf.write_text(yaml_str, encoding="utf-8")
 
-        embedder = _get_embedder()
-        embedder.remove_document(problem_id)
-        embedder.add_document(yf)
+        _sync_kb_index([problem_id], yf, user.login)
 
         return KnowledgeCrudResponse(success=True, entry_id=problem_id, message="题目已更新")
     except HTTPException:
@@ -379,8 +364,7 @@ async def delete_problem(problem_id: str, user: GitHubUser = Depends(require_con
         if not yf:
             raise HTTPException(status_code=404, detail=f"题目 {problem_id} 不存在")
 
-        embedder = _get_embedder()
-        embedder.remove_document(problem_id)
+        _sync_kb_index([problem_id], None, user.login)
         yf.unlink()
         raw_path = yf.with_suffix(".raw.txt")
         if raw_path.exists():

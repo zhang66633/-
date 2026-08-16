@@ -12,6 +12,10 @@
     </div>
 
     <div v-if="mgrLoading" class="space-y-3"><div v-for="i in 5" :key="i" class="rounded-md border border-border p-4"><Skeleton class="h-4 w-3/4" /></div></div>
+    <div v-else-if="mgrError" class="flex flex-col items-center justify-center gap-2 py-12 border border-dashed border-border rounded-md text-muted-foreground text-sm">
+      <span>⚠️ {{ mgrError }}</span>
+      <button class="mt-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent transition-colors" @click="loadMgrList">重试</button>
+    </div>
     <div v-else-if="mgrEntries.length === 0" class="text-center py-12 border border-dashed border-border rounded-md text-muted-foreground text-sm">暂无条目,切换到「导入知识」添加</div>
     <div v-else class="divide-y divide-border border border-border rounded-md">
       <div v-for="e in mgrEntries" :key="e.id" class="flex items-center gap-3 bg-background px-4 py-3 hover:bg-accent/30 group transition-colors">
@@ -171,15 +175,16 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Database, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-vue-next";
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
-defineProps<{ isContributor: boolean }>();
+const props = defineProps<{ isContributor: boolean; initialSubType?: string }>();
 const emit = defineEmits<(e: "refresh-stats") => void>();
 
 // ── Tab 2: Manage ───────────────────────────────────────────────
 const mgrType = ref("method");
 const mgrEntries = ref<any[]>([]);
 const mgrLoading = ref(false);
+const mgrError = ref("");
 const mgrTypes = [
   { label: "方法卡片", value: "method" },
   { label: "真题论文", value: "paper" },
@@ -209,28 +214,47 @@ function mgrSub(e: any) {
     return `${e.year || ""} ${e.competition || ""} ${e.problem_id || ""} · ${e.linked_papers_count || 0}篇论文`;
   return `${e.steps_count || 0} 个步骤`;
 }
+/** 加载当前类型的条目列表,带瞬时故障重试;失败不覆盖旧数据,只置错误态。 */
 async function loadMgrList() {
   mgrLoading.value = true;
+  mgrError.value = "";
   try {
-    if (mgrType.value === "method") {
-      const r = await listMethods();
-      mgrEntries.value = r.data as any;
-    } else if (mgrType.value === "paper") {
-      const r = await listPapers();
-      mgrEntries.value = r.data as any;
-    } else if (mgrType.value === "problem") {
-      const r = await listProblems();
-      mgrEntries.value = r.data as any;
-    } else {
-      const r = await listTemplates();
-      mgrEntries.value = r.data as any;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        if (mgrType.value === "method") {
+          const r = await listMethods();
+          mgrEntries.value = r.data as any;
+        } else if (mgrType.value === "paper") {
+          const r = await listPapers();
+          mgrEntries.value = r.data as any;
+        } else if (mgrType.value === "problem") {
+          const r = await listProblems();
+          mgrEntries.value = r.data as any;
+        } else {
+          const r = await listTemplates();
+          mgrEntries.value = r.data as any;
+        }
+        return;
+      } catch (err) {
+        if (attempt >= 2) throw err;
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+      }
     }
   } catch {
-    mgrEntries.value = [];
+    mgrError.value = "条目加载失败,请检查后端服务后重试";
   } finally {
     mgrLoading.value = false;
   }
 }
+// 挂载时立即加载(mgrType 默认为 method,watch 不会触发首次加载);
+// 若父页指定了要打开的子页签(导入成功后跳转),切过去由 watch 触发加载,避免重复请求
+onMounted(() => {
+  if (props.initialSubType && props.initialSubType !== mgrType.value) {
+    mgrType.value = props.initialSubType;
+  } else {
+    loadMgrList();
+  }
+});
 watch(mgrType, () => loadMgrList());
 
 // Edit

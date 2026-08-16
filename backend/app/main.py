@@ -154,11 +154,13 @@ if __name__ == "__main__":
 
     settings = get_settings()
     # 对齐 RULES.md：uvicorn 不带 --reload（不稳定）
+    # limit_concurrency 只放开到 64: 前端一页会并发打 6+ 个请求(健康检查/会话同步/题库),
+    # 加上 SSE 流与 WebSocket 常驻连接,限制 4 会直接 503 拒绝新连接(表现为刷新后题目/聊天记录消失)
     uvicorn.run(
         "app.main:app",
         host=settings.host,
         port=settings.port,
         workers=1,
-        limit_concurrency=4,
+        limit_concurrency=64,
         timeout_keep_alive=30,
     )

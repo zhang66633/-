@@ -81,7 +81,7 @@ def main():
         start_process(
             "backend",
             BACKEND_DIR,
-            f"uvicorn app.main:app --host 127.0.0.1 --port {BACKEND_PORT} --workers 1 --limit-concurrency 4 --timeout-keep-alive 30",
+            f"uvicorn app.main:app --host 127.0.0.1 --port {BACKEND_PORT} --workers 1 --limit-concurrency 64 --timeout-keep-alive 30",
         )
         print("  等待后端就绪...")
         for _ in range(10):

@@ -57,6 +57,10 @@
       </button>
     </div>
     <div v-if="extractError" class="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{{ extractError }}</div>
+    <div v-if="savedNotice" class="mt-4 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-3 flex-wrap">
+      <span>✓ {{ savedNotice }}</span>
+      <button class="ml-auto rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent transition-colors" @click="emit('goto-manage', impType)">去管理知识查看</button>
+    </div>
     <div v-if="extractPreview" class="mt-4">
       <p class="font-mono text-[10px] uppercase tracking-wider text-primary mb-2">提取完成</p>
       <pre class="rounded-md bg-zinc-950 p-4 font-mono text-xs text-zinc-300 overflow-auto max-h-96">{{ extractPreview }}</pre>
@@ -136,7 +140,10 @@ import {
 } from "lucide-vue-next";
 import { computed, ref } from "vue";
 
-const emit = defineEmits<(e: "refresh-stats") => void>();
+const emit = defineEmits<{
+  (e: "refresh-stats"): void;
+  (e: "goto-manage", subType: string): void;
+}>();
 
 // ── Tab 3: Import ───────────────────────────────────────────────
 // 题目/方法/模板上传
@@ -151,6 +158,7 @@ const saving = ref(false);
 const extractPreview = ref("");
 const extractError = ref("");
 const extractedEntryId = ref("");
+const savedNotice = ref("");
 const impTypes = [
   { label: "竞赛真题", value: "problem" },
   { label: "方法卡片", value: "method" },
@@ -238,6 +246,7 @@ async function doExtract() {
   extractError.value = "";
   extractPreview.value = "";
   extractedEntryId.value = "";
+  savedNotice.value = "";
   try {
     const uploadParams: any = {
       text: impText.value.trim() || undefined,
@@ -289,6 +298,15 @@ async function doSaveExtract() {
     lastProblemRef.value = entryId;
   }
 
+  const typeLabel =
+    ({ problem: "竞赛真题", method: "方法卡片", template: "框架模板" })[
+      impType.value
+    ] ?? impType.value;
+  savedNotice.value = `已保存到知识库(${typeLabel} · 编号 ${entryId})。可在「管理知识 → ${typeLabel}」或「检索知识」查看。`;
+  if (impType.value === "problem") {
+    savedNotice.value += "可在下方「上传对应论文」继续追加关联。";
+  }
+
   extractPreview.value = "";
   extractError.value = "";
   impText.value = "";
@@ -296,12 +314,6 @@ async function doSaveExtract() {
   clearAll();
   extractedEntryId.value = "";
   saving.value = false;
-
-  if (impType.value === "problem") {
-    // 不弹 alert，让用户在追加区域操作
-  } else {
-    alert("已提取入库，切换到「检索知识」可搜索验证。");
-  }
 }
 
 // ── paper upload (independent from problem upload) ───────────────
@@ -348,6 +360,7 @@ async function paperDoExtract() {
   paperError.value = "";
   paperPreview.value = "";
   paperExtractedEntryId.value = "";
+  savedNotice.value = "";
   try {
     const res = await uploadKnowledge({
       text: paperText.value.trim() || undefined,
@@ -391,6 +404,7 @@ async function paperDoSave() {
   }
 
   emit("refresh-stats");
+  savedNotice.value = `论文已保存到知识库(真题论文 · 编号 ${entryId})并关联到题目。可在「管理知识 → 真题论文」或「检索知识」查看。`;
   paperPreview.value = "";
   paperError.value = "";
   paperText.value = "";
@@ -398,6 +412,5 @@ async function paperDoSave() {
   paperClearAll();
   paperExtractedEntryId.value = "";
   paperSaving.value = false;
-  alert("论文已提取入库并关联到题目！");
 }
 </script>

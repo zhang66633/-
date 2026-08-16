@@ -24,7 +24,7 @@
           <button v-for="(tab, i) in tabs" :key="tab.value"
             class="relative flex items-center gap-2 py-3 text-sm transition-colors"
             :class="activeTab === tab.value ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"
-            @click="activeTab = tab.value">
+            @click="switchTab(tab.value)">
             <span class="font-mono text-[10px] text-muted-foreground/70">·4.{{ i + 1 }}</span>
             <span :class="activeTab === tab.value ? 'font-display font-medium' : ''">{{ tab.label }}</span>
             <span v-if="activeTab === tab.value" class="absolute left-0 right-0 -bottom-px h-px bg-primary"></span>
@@ -35,11 +35,11 @@
         <KnowledgeSearchPanel v-if="activeTab === 'search'" />
 
         <!-- ==================== TAB 2: 管理知识 ==================== -->
-        <KnowledgeManagePanel v-if="activeTab === 'manage'" :is-contributor="isContributor" @refresh-stats="loadStats" />
+        <KnowledgeManagePanel v-if="activeTab === 'manage'" :is-contributor="isContributor" :initial-sub-type="manageSubType" @refresh-stats="loadStats" />
 
         <!-- ==================== TAB 3: 导入知识 ==================== -->
         <div v-if="activeTab === 'import'">
-          <KnowledgeImportPanel @refresh-stats="loadStats" />
+          <KnowledgeImportPanel @refresh-stats="loadStats" @goto-manage="goToManage" />
         </div>
       </div>
   </div>
@@ -68,6 +68,19 @@ const tabs = [
   { value: "import", label: "导入知识", icon: Upload },
 ];
 const activeTab = ref("search");
+// 管理知识面板要打开的子页签(导入成功后跳转用: method/paper/template/problem)
+const manageSubType = ref("method");
+
+function switchTab(v: string) {
+  // 手动进入管理知识时回到默认子页签(只有导入成功跳转才指定子页签)
+  if (v === "manage") manageSubType.value = "method";
+  activeTab.value = v;
+}
+
+function goToManage(subType: string) {
+  manageSubType.value = subType || "method";
+  activeTab.value = "manage";
+}
 
 // ── shared ──────────────────────────────────────────────────────
 const stats = ref<KBStats>({
