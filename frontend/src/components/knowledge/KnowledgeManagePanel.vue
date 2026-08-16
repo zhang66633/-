@@ -469,7 +469,9 @@ async function openEdit(e: MgrEntry) {
       : [];
   }
   if (mgrType.value === "template") {
-    t.steps = Array.isArray(t.steps) ? t.steps.map((s) => ({ ...(s as Record<string, unknown>) })) : [];
+    t.steps = Array.isArray(t.steps)
+      ? t.steps.map((s) => ({ ...(s as Record<string, unknown>) }))
+      : [];
     t.applicable_to = Array.isArray(t.applicable_to)
       ? [...t.applicable_to]
       : [];
