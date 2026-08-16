@@ -66,37 +66,37 @@
         <div v-if="detailLoading && detailViewMode === 'structured'" class="space-y-3"><Skeleton class="h-4 w-full" /><Skeleton class="h-4 w-5/6" /></div>
         <div v-else-if="detailData && detailViewMode === 'structured'" class="text-sm space-y-4 py-2">
           <template v-if="detailData.type === 'method_card'">
-            <p class="leading-relaxed">{{ (detailData.data as any).principle }}</p>
-            <div><h4 class="font-display font-medium text-sm mb-1">适用条件</h4><ul class="list-disc list-inside text-muted-foreground text-sm"><li v-for="c in (detailData.data as any).applicable_when" :key="c">{{ c }}</li></ul></div>
+            <p class="leading-relaxed">{{ detailData.data.principle }}</p>
+            <div><h4 class="font-display font-medium text-sm mb-1">适用条件</h4><ul class="list-disc list-inside text-muted-foreground text-sm"><li v-for="c in detailData.data.applicable_when" :key="c">{{ c }}</li></ul></div>
           </template>
           <template v-if="detailData.type === 'paper'">
             <div class="flex items-center gap-3 flex-wrap mb-3">
-              <span class="font-mono text-[10px] uppercase tracking-wider border border-border rounded-sm px-2 py-0.5">{{ (detailData.data as any).competition }} {{ (detailData.data as any).year }}·{{ (detailData.data as any).problem_id }}题</span>
-              <span class="text-xs text-amber-500">{{ '★'.repeat((detailData.data as any).quality_rating || 3) }}</span>
-              <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{{ (detailData.data as any).difficulty_level }}</span>
-              <span v-if="(detailData.data as any).problem_ref" class="font-mono text-[10px] uppercase tracking-wider text-emerald-600 cursor-pointer hover:underline" @click="openProblemFromPaper((detailData.data as any).problem_ref)">🔗 {{ (detailData.data as any).problem_ref }}</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider border border-border rounded-sm px-2 py-0.5">{{ detailData.data.competition }} {{ detailData.data.year }}·{{ detailData.data.problem_id }}题</span>
+              <span class="text-xs text-amber-500">{{ '★'.repeat(detailData.data.quality_rating || 3) }}</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{{ detailData.data.difficulty_level }}</span>
+              <span v-if="detailData.data.problem_ref" class="font-mono text-[10px] uppercase tracking-wider text-emerald-600 cursor-pointer hover:underline" @click="openProblemFromPaper(detailData.data.problem_ref)">🔗 {{ detailData.data.problem_ref }}</span>
               <span v-else class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/50">⚠ 未关联题目</span>
             </div>
             <!-- 问题背景 -->
-            <div v-if="(detailData.data as any).problem_context" class="rounded-md border border-border p-4 bg-muted/20">
+            <div v-if="detailData.data.problem_context" class="rounded-md border border-border p-4 bg-muted/20">
               <h4 class="font-display font-medium text-sm mb-2">问题背景</h4>
-              <p class="text-sm leading-relaxed text-muted-foreground">{{ (detailData.data as any).problem_context }}</p>
+              <p class="text-sm leading-relaxed text-muted-foreground">{{ detailData.data.problem_context }}</p>
             </div>
             <!-- 方法链路 -->
-            <div v-if="(detailData.data as any).methodology_chain?.length" class="rounded-md border border-border p-4">
+            <div v-if="detailData.data.methodology_chain?.length" class="rounded-md border border-border p-4">
               <h4 class="font-display font-medium text-sm mb-2">建模方法链路</h4>
               <div class="space-y-1.5">
-                <div v-for="(step, i) in (detailData.data as any).methodology_chain" :key="i" class="flex items-start gap-2 text-sm">
+                <div v-for="(step, i) in detailData.data.methodology_chain" :key="i" class="flex items-start gap-2 text-sm">
                   <span class="font-mono text-[10px] text-muted-foreground shrink-0 mt-1">{{ i + 1 }}.</span>
                   <span>{{ step }}</span>
                 </div>
               </div>
             </div>
             <!-- 核心公式 -->
-            <div v-if="(detailData.data as any).key_formulas?.length" class="rounded-md border border-border p-4">
+            <div v-if="detailData.data.key_formulas?.length" class="rounded-md border border-border p-4">
               <h4 class="font-display font-medium text-sm mb-2">核心公式</h4>
               <div class="space-y-2">
-                <div v-for="f in (detailData.data as any).key_formulas" :key="f.name" class="rounded-sm bg-muted/30 p-3">
+                <div v-for="f in detailData.data.key_formulas" :key="f.name" class="rounded-sm bg-muted/30 p-3">
                   <p class="font-mono text-xs mb-1">{{ f.name }}</p>
                   <p class="font-serif text-sm mb-1 italic">{{ f.latex }}</p>
                   <p class="text-xs text-muted-foreground">{{ f.description }}</p>
@@ -104,61 +104,61 @@
               </div>
             </div>
             <!-- 算法概要 -->
-            <div v-if="(detailData.data as any).algorithm_outline?.length" class="rounded-md border border-border p-4">
+            <div v-if="detailData.data.algorithm_outline?.length" class="rounded-md border border-border p-4">
               <h4 class="font-display font-medium text-sm mb-2">算法概要</h4>
-              <div v-for="(a, i) in (detailData.data as any).algorithm_outline" :key="i" class="mb-3 last:mb-0">
+              <div v-for="(a, i) in detailData.data.algorithm_outline" :key="i" class="mb-3 last:mb-0">
                 <p class="text-xs text-muted-foreground mb-1">{{ a.description }}</p>
                 <pre class="rounded-sm bg-zinc-950 p-3 text-xs text-zinc-300 overflow-x-auto"><code>{{ a.code }}</code></pre>
               </div>
             </div>
             <!-- 假设分析 -->
-            <div v-if="(detailData.data as any).assumption_analysis?.length" class="rounded-md border border-border p-4">
+            <div v-if="detailData.data.assumption_analysis?.length" class="rounded-md border border-border p-4">
               <h4 class="font-display font-medium text-sm mb-2">假设分析</h4>
-              <ul class="space-y-1.5"><li v-for="a in (detailData.data as any).assumption_analysis" :key="a" class="text-sm text-muted-foreground flex items-start gap-2"><span class="text-primary shrink-0">→</span>{{ a }}</li></ul>
+              <ul class="space-y-1.5"><li v-for="a in detailData.data.assumption_analysis" :key="a" class="text-sm text-muted-foreground flex items-start gap-2"><span class="text-primary shrink-0">→</span>{{ a }}</li></ul>
             </div>
             <!-- 可复用模式 -->
-            <div v-if="(detailData.data as any).reusable_patterns?.length" class="rounded-md border border-emerald-200 bg-emerald-50/30 p-4">
+            <div v-if="detailData.data.reusable_patterns?.length" class="rounded-md border border-emerald-200 bg-emerald-50/30 p-4">
               <h4 class="font-display font-medium text-sm mb-2 text-emerald-800">可复用的建模模式</h4>
-              <ul class="space-y-1.5"><li v-for="p in (detailData.data as any).reusable_patterns" :key="p" class="text-sm text-emerald-700 flex items-start gap-2"><span class="text-emerald-500 shrink-0">✦</span>{{ p }}</li></ul>
+              <ul class="space-y-1.5"><li v-for="p in detailData.data.reusable_patterns" :key="p" class="text-sm text-emerald-700 flex items-start gap-2"><span class="text-emerald-500 shrink-0">✦</span>{{ p }}</li></ul>
             </div>
             <!-- 常见陷阱 -->
-            <div v-if="(detailData.data as any).common_pitfalls?.length" class="rounded-md border border-amber-200 bg-amber-50/30 p-4">
+            <div v-if="detailData.data.common_pitfalls?.length" class="rounded-md border border-amber-200 bg-amber-50/30 p-4">
               <h4 class="font-display font-medium text-sm mb-2 text-amber-800">常见陷阱</h4>
-              <div class="space-y-2"><div v-for="p in (detailData.data as any).common_pitfalls" :key="p.mistake" class="text-sm"><p class="text-amber-700">⚠ {{ p.mistake }}</p><p class="text-muted-foreground text-xs mt-0.5">→ {{ p.solution }}</p></div></div>
+              <div class="space-y-2"><div v-for="p in detailData.data.common_pitfalls" :key="p.mistake" class="text-sm"><p class="text-amber-700">⚠ {{ p.mistake }}</p><p class="text-muted-foreground text-xs mt-0.5">→ {{ p.solution }}</p></div></div>
             </div>
             <!-- 评价 -->
             <div class="border-t border-border pt-3 mt-2">
               <p class="text-sm font-medium">可学之处</p>
-              <p class="text-sm text-muted-foreground leading-relaxed mt-1">{{ (detailData.data as any).evaluation?.lessons }}</p>
+              <p class="text-sm text-muted-foreground leading-relaxed mt-1">{{ detailData.data.evaluation?.lessons }}</p>
             </div>
           </template>
           <template v-if="detailData.type === 'template'">
-            <div v-for="s in (detailData.data as any).steps" :key="s.step" class="border-l-2 border-border pl-3 py-1">
+            <div v-for="s in detailData.data.steps" :key="s.step" class="border-l-2 border-border pl-3 py-1">
               <h5 class="font-display font-medium text-sm">§{{ s.step }} {{ s.name }}</h5>
               <ul class="list-disc list-inside text-xs text-muted-foreground mt-1"><li v-for="c in s.checklist" :key="c">{{ c }}</li></ul>
             </div>
           </template>
           <template v-if="detailData.type === 'problem'">
             <div class="flex items-center gap-3 flex-wrap mb-3">
-              <span class="font-mono text-[10px] uppercase tracking-wider border border-border rounded-sm px-2 py-0.5">{{ (detailData.data as any).competition }} {{ (detailData.data as any).year }}·{{ (detailData.data as any).problem_id }}题</span>
-              <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{{ (detailData.data as any).tags?.difficulty || 'medium' }}</span>
-              <span class="text-xs text-muted-foreground" v-if="(detailData.data as any).linked_papers?.length">{{ (detailData.data as any).linked_papers.length }}篇关联论文</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider border border-border rounded-sm px-2 py-0.5">{{ detailData.data.competition }} {{ detailData.data.year }}·{{ detailData.data.problem_id }}题</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{{ detailData.data.tags?.difficulty || 'medium' }}</span>
+              <span class="text-xs text-muted-foreground" v-if="detailData.data.linked_papers?.length">{{ detailData.data.linked_papers.length }}篇关联论文</span>
             </div>
-            <div v-if="(detailData.data as any).background" class="rounded-md border border-border p-4 bg-muted/20">
+            <div v-if="detailData.data.background" class="rounded-md border border-border p-4 bg-muted/20">
               <h4 class="font-display font-medium text-sm mb-2">问题背景</h4>
-              <p class="text-sm leading-relaxed text-muted-foreground">{{ (detailData.data as any).background }}</p>
+              <p class="text-sm leading-relaxed text-muted-foreground">{{ detailData.data.background }}</p>
             </div>
-            <div v-if="(detailData.data as any).objectives?.length" class="rounded-md border border-border p-4">
+            <div v-if="detailData.data.objectives?.length" class="rounded-md border border-border p-4">
               <h4 class="font-display font-medium text-sm mb-2">求解目标</h4>
-              <ul class="space-y-1"><li v-for="o in (detailData.data as any).objectives" :key="o" class="text-sm text-muted-foreground flex items-start gap-2"><span class="text-primary shrink-0">→</span>{{ o }}</li></ul>
+              <ul class="space-y-1"><li v-for="o in detailData.data.objectives" :key="o" class="text-sm text-muted-foreground flex items-start gap-2"><span class="text-primary shrink-0">→</span>{{ o }}</li></ul>
             </div>
-            <div v-if="(detailData.data as any).data_description" class="rounded-md border border-border p-4">
+            <div v-if="detailData.data.data_description" class="rounded-md border border-border p-4">
               <h4 class="font-display font-medium text-sm mb-2">数据说明</h4>
-              <p class="text-sm text-muted-foreground leading-relaxed">{{ (detailData.data as any).data_description }}</p>
+              <p class="text-sm text-muted-foreground leading-relaxed">{{ detailData.data.data_description }}</p>
             </div>
-            <div v-if="(detailData.data as any).full_text" class="rounded-md border border-border p-4">
+            <div v-if="detailData.data.full_text" class="rounded-md border border-border p-4">
               <h4 class="font-display font-medium text-sm mb-2">完整题目</h4>
-              <p class="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{{ (detailData.data as any).full_text }}</p>
+              <p class="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{{ detailData.data.full_text }}</p>
             </div>
           </template>
         </div>
@@ -170,7 +170,12 @@
 
 <script setup lang="ts">
 import {
+  type MethodCardDetail,
+  type MethodCardSummary,
+  type PaperDetail,
+  type ProblemDetail,
   type SearchResult,
+  type TemplateDetail,
   getMethod,
   getMethodRaw,
   getPaper,
@@ -206,9 +211,13 @@ const searchDone = ref(false);
 const searchResults = ref<SearchResult[]>([]);
 const detailItem = ref<SearchResult | null>(null);
 const detailLoading = ref(false);
-const detailData = ref<{ type: string; data: Record<string, unknown> } | null>(
-  null,
-);
+/** 详情条目：判别联合（模板 v-if 按 type 收窄 data 类型，替代 as any） */
+type DetailEntry =
+  | { type: "method_card"; data: MethodCardDetail }
+  | { type: "paper"; data: PaperDetail }
+  | { type: "template"; data: TemplateDetail }
+  | { type: "problem"; data: ProblemDetail };
+const detailData = ref<DetailEntry | null>(null);
 const detailRawText = ref("");
 const detailViewMode = ref<"structured" | "raw">("structured");
 const typeOpts = [
@@ -275,17 +284,20 @@ const visibleResults = computed<SearchResult[]>(() => {
     : list;
 });
 async function loadBrowseAll() {
-  const items: any[] = [];
+  const items: SearchResult[] = [];
   // 分开请求：单个失败不影响其他类型
   try {
     const m = await listMethods();
     items.push(
-      ...(m.data as any[]).map((c: any) => ({
+      ...(m.data ?? []).map((c) => ({
         id: c.id,
         type: "method_card" as const,
         name: c.name,
         title: c.name,
-        snippet: (c.principle || "").slice(0, 120),
+        // summary 接口未含 principle，运行时数据携带（结构断言补类型）
+        snippet: (
+          (c as MethodCardSummary & { principle?: string }).principle ?? ""
+        ).slice(0, 120),
         score: null,
       })),
     );
@@ -295,7 +307,7 @@ async function loadBrowseAll() {
   try {
     const p = await listPapers();
     items.push(
-      ...(p.data as any[]).map((x: any) => ({
+      ...(p.data ?? []).map((x) => ({
         id: x.id,
         type: "paper" as const,
         name: x.title,
@@ -310,12 +322,12 @@ async function loadBrowseAll() {
   try {
     const t = await listTemplates();
     items.push(
-      ...(t.data as any[]).map((x: any) => ({
+      ...(t.data ?? []).map((x) => ({
         id: x.id,
         type: "template" as const,
         name: x.name,
         title: x.name,
-        snippet: (x.applicable_to || []).join(", "),
+        snippet: (x.applicable_to ?? []).join(", "),
         score: null,
       })),
     );
@@ -325,7 +337,7 @@ async function loadBrowseAll() {
   try {
     const pr = await listProblems();
     items.push(
-      ...(pr.data as any[]).map((x: any) => ({
+      ...(pr.data ?? []).map((x) => ({
         id: x.id,
         type: "problem" as const,
         name: x.title,
@@ -352,16 +364,16 @@ async function openDetail(r: SearchResult) {
   try {
     if (r.type === "method_card") {
       const res = await getMethod(r.id);
-      detailData.value = { type: "method_card", data: res.data as any };
+      detailData.value = { type: "method_card", data: res.data };
     } else if (r.type === "paper") {
       const res = await getPaper(r.id);
-      detailData.value = { type: "paper", data: res.data as any };
+      detailData.value = { type: "paper", data: res.data };
     } else if (r.type === "problem") {
       const res = await getProblem(r.id);
-      detailData.value = { type: "problem", data: res.data as any };
+      detailData.value = { type: "problem", data: res.data };
     } else {
       const res = await getTemplate(r.id);
-      detailData.value = { type: "template", data: res.data as any };
+      detailData.value = { type: "template", data: res.data };
     }
   } catch {
     /* ignore */
@@ -396,14 +408,14 @@ async function openProblemFromPaper(problemRef: string) {
     title: "",
     snippet: "",
     score: null,
-  } as any;
+  };
   detailLoading.value = true;
   detailData.value = null;
   detailRawText.value = "";
   detailViewMode.value = "structured";
   try {
     const res = await getProblem(problemRef);
-    detailData.value = { type: "problem", data: res.data as any };
+    detailData.value = { type: "problem", data: res.data };
   } catch {
     /* ignore */
   } finally {
