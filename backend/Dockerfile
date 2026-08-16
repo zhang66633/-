@@ -6,7 +6,8 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # ── 系统依赖：tesseract 中英文 OCR + poppler（PDF 转图）+ Noto CJK（中文图表）──
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && apt-get install -y --no-install-recommends \
         tesseract-ocr \
         tesseract-ocr-chi-sim \
         tesseract-ocr-chi-tra \
@@ -18,6 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ── Python 依赖（pip 安装，替代 poetry；poetry-core 构建后端仍被 pip 使用）──
 COPY pyproject.toml ./
+# poetry-core 构建 editable 需要包目录存在（否则 /app/app does not contain any element）
+COPY app ./app
 RUN pip install --no-cache-dir -e . -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
 
 COPY . .

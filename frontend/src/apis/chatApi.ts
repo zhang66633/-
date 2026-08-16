@@ -160,9 +160,10 @@ export async function streamChat(
       }),
       signal,
     });
-  } catch (e: any) {
-    if (e?.name === "AbortError") return;
-    onError?.(`网络错误，无法连接后端：${e?.message ?? e}`);
+  } catch (e: unknown) {
+    if (e instanceof DOMException && e.name === "AbortError") return;
+    const msg = e instanceof Error ? e.message : String(e);
+    onError?.(`网络错误，无法连接后端：${msg}`);
     return;
   }
 
@@ -239,9 +240,10 @@ export async function streamChat(
       }
     }
     onDone?.(finalTaskId);
-  } catch (e: any) {
-    if (e?.name !== "AbortError") {
-      onError?.(`流读取中断：${e?.message ?? e}`);
+  } catch (e: unknown) {
+    if (!(e instanceof DOMException && e.name === "AbortError")) {
+      const msg = e instanceof Error ? e.message : String(e);
+      onError?.(`流读取中断：${msg}`);
     }
   }
 }

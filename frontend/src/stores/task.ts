@@ -150,18 +150,18 @@ export const useTaskStore = defineStore("task", () => {
       const hit = [...list]
         .reverse()
         .find((m) => m.msg_type === "tool" && m.tool_call_id === toolCallId);
-      if (hit) return hit as ToolMessage;
+      if (hit) return hit; // 联合类型已按 msg_type 收窄为 ToolMessage
     }
     if (toolName) {
       return (
-        ([...list]
+        [...list]
           .reverse()
           .find(
             (m) =>
               m.msg_type === "tool" &&
               m.tool_name === toolName &&
               (m.status === "running" || !m.output),
-          ) as ToolMessage | undefined) ?? null
+          ) ?? null
       );
     }
     return null;

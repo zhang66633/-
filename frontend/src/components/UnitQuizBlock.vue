@@ -128,8 +128,8 @@ async function load() {
       choices[i] = null;
       results[i] = null;
     }
-  } catch (e: any) {
-    error.value = e?.message || "网络异常";
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : "网络异常";
   } finally {
     loading.value = false;
   }

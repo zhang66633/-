@@ -106,10 +106,16 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS — allow frontend dev server
+    # CORS — 本地开发默认 + 生产经 CORS_ORIGINS 环境变量追加（逗号分隔）
+    # 云部署示例: CORS_ORIGINS=https://math-model-agent.pages.dev,https://nb.sgweb.asia
+    import os
+
+    _cors = ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]
+    _extra = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+    _cors.extend(o for o in _extra if o not in _cors)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+        allow_origins=_cors,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
