@@ -299,7 +299,7 @@ async function doSaveExtract() {
   }
 
   const typeLabel =
-    ({ problem: "竞赛真题", method: "方法卡片", template: "框架模板" })[
+    { problem: "竞赛真题", method: "方法卡片", template: "框架模板" }[
       impType.value
     ] ?? impType.value;
   savedNotice.value = `已保存到知识库(${typeLabel} · 编号 ${entryId})。可在「管理知识 → ${typeLabel}」或「检索知识」查看。`;

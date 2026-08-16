@@ -5,6 +5,46 @@ import { TaskWebSocket } from "@/utils/websocket";
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
 
+// ── WS 进度事件类型（与后端 ProgressEvent envelope 对齐，替代 Record<string, any>）──
+interface WsEventData {
+  plan?: string[];
+  step_count?: number;
+  stage?: string;
+  title?: string;
+  summary?: string;
+  desc?: string;
+  output_length?: number;
+  passed?: boolean;
+  rollback_target?: string;
+  skipped?: boolean;
+  delta?: string;
+  reset?: boolean;
+  tool_name?: string;
+  tool_call_id?: string;
+  input?: Record<string, unknown>;
+  output?: unknown[];
+  status?: string;
+  preview?: string;
+  ok?: boolean;
+  duration_ms?: number;
+  error?: string;
+  images?: string[];
+  xlsx_files?: string[];
+  csv_files?: string[];
+  html_files?: string[];
+  final_response_preview?: string;
+  final_response_length?: number;
+  message?: string;
+}
+
+interface WsEvent {
+  event: string;
+  node?: string;
+  task_id?: string;
+  timestamp?: string;
+  data?: WsEventData;
+}
+
 // 流式节点白名单：这些节点的 LLM 输出逐字渲染（node_delta 事件驱动），
 // 与 chat 模式体验一致；其余节点（分类/检索/计划/导出/写作）保持摘要式。
 const STREAMING_NODES = new Set([
@@ -109,10 +149,7 @@ export const useTaskStore = defineStore("task", () => {
     if (toolCallId) {
       const hit = [...list]
         .reverse()
-        .find(
-          (m) =>
-            m.msg_type === "tool" && (m as any).tool_call_id === toolCallId,
-        );
+        .find((m) => m.msg_type === "tool" && m.tool_call_id === toolCallId);
       if (hit) return hit as ToolMessage;
     }
     if (toolName) {
@@ -122,8 +159,8 @@ export const useTaskStore = defineStore("task", () => {
           .find(
             (m) =>
               m.msg_type === "tool" &&
-              (m as any).tool_name === toolName &&
-              ((m as any).status === "running" || !(m as any).output),
+              m.tool_name === toolName &&
+              (m.status === "running" || !m.output),
           ) as ToolMessage | undefined) ?? null
       );
     }
@@ -140,7 +177,7 @@ export const useTaskStore = defineStore("task", () => {
 
   /** 事件 → 时间线状态更新（plan / node_start / node_end / task_end）。
    * WS 实时事件与 GET /tasks/{id}/events 回放共用同一实现。 */
-  function applyEventState(data: Record<string, any>) {
+  function applyEventState(data: WsEvent) {
     const event = data?.event;
     const node = data?.node;
     if (event === "plan") {
@@ -201,7 +238,7 @@ export const useTaskStore = defineStore("task", () => {
       const { getTaskEvents } = await import("@/apis/commonApi");
       const res = await getTaskEvents(taskId);
       const data = res.data?.data ?? res.data;
-      const events: Array<Record<string, any>> = data?.events ?? [];
+      const events: WsEvent[] = data?.events ?? [];
       planSteps.value = [];
       nodeStates.value = {};
       rollbackInfo.value = null;
@@ -224,7 +261,7 @@ export const useTaskStore = defineStore("task", () => {
     }
   }
 
-  function handleProgressEvent(taskId: string, data: Record<string, any>) {
+  function handleProgressEvent(taskId: string, data: WsEvent) {
     const event = data?.event;
 
     // 动态时间线状态（plan/node_start/node_end/task_end）——与消息卡片无关，
@@ -573,7 +610,7 @@ export const useTaskStore = defineStore("task", () => {
 
     ws = new TaskWebSocket(
       wsUrl,
-      (data) => handleProgressEvent(taskId, data as Record<string, any>),
+      (data) => handleProgressEvent(taskId, data as WsEvent),
       (status) => {
         wsStatus.value = status;
       },

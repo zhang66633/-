@@ -1,5 +1,6 @@
 import DOMPurify from "dompurify";
-import { type Token, marked } from "marked";
+import type { LanguageFn } from "highlight.js";
+import { type Token, type Tokens, marked } from "marked";
 import markedKatex from "marked-katex-extension";
 
 marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
@@ -19,7 +20,7 @@ async function loadHljs() {
 }
 
 /** 静态语言导入映射 — 避免 Vite 无法分析动态 import 路径 */
-const LANG_IMPORTERS: Record<string, () => Promise<{ default: any }>> = {
+const LANG_IMPORTERS: Record<string, () => Promise<{ default: LanguageFn }>> = {
   python: () => import("highlight.js/lib/languages/python"),
   r: () => import("highlight.js/lib/languages/r"),
   matlab: () => import("highlight.js/lib/languages/matlab"),
@@ -149,12 +150,25 @@ function createHighlightedRenderer() {
   };
 
   // 表格增强：包裹在响应式容器中（单元格用 parseInline 渲染行内格式）
-  renderer.table = ({ header, rows }: { header: any[]; rows: any[][] }) => {
-    const thead = `<thead><tr>${header.map((h: any) => `<th>${renderer.parser.parseInline(h.tokens ?? [])}</th>`).join("")}</tr></thead>`;
+  renderer.table = ({
+    header,
+    rows,
+  }: {
+    header: Tokens.TableCell[];
+    rows: Tokens.TableCell[][];
+  }) => {
+    const thead = `<thead><tr>${header
+      .map((h) => `<th>${renderer.parser.parseInline(h.tokens ?? [])}</th>`)
+      .join("")}</tr></thead>`;
     const tbody = `<tbody>${rows
       .map(
-        (row: any[]) =>
-          `<tr>${row.map((cell: any) => `<td>${renderer.parser.parseInline(cell.tokens ?? [])}</td>`).join("")}</tr>`,
+        (row) =>
+          `<tr>${row
+            .map(
+              (cell) =>
+                `<td>${renderer.parser.parseInline(cell.tokens ?? [])}</td>`,
+            )
+            .join("")}</tr>`,
       )
       .join("")}</tbody>`;
     return `<div class="table-wrapper overflow-x-auto my-4 rounded-lg border border-border"><table class="min-w-full">${thead}${tbody}</table></div>`;

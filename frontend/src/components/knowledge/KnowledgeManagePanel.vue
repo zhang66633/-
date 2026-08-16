@@ -177,7 +177,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Database, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 
-const props = defineProps<{ isContributor: boolean; initialSubType?: string }>();
+const props = defineProps<{
+  isContributor: boolean;
+  initialSubType?: string;
+}>();
 const emit = defineEmits<(e: "refresh-stats") => void>();
 
 // ── Tab 2: Manage ───────────────────────────────────────────────
