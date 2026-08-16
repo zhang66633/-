@@ -36,10 +36,12 @@
           >{{ letters[oi] }}</span>
           <span v-if="opt.icon" class="text-base leading-5 shrink-0">{{ opt.icon }}</span>
           <span class="min-w-0 text-left">
-            <span class="block text-sm leading-5">{{ opt.label }}</span>
-            <span v-if="opt.description" class="mt-0.5 block text-[11px] leading-4 opacity-60">
-              {{ opt.description }}
-            </span>
+            <span class="block text-sm leading-5" v-html="mdInline(opt.label)" />
+            <span
+              v-if="opt.description"
+              class="mt-0.5 block text-[11px] leading-4 opacity-60"
+              v-html="mdInline(opt.description)"
+            />
           </span>
         </span>
         <span
@@ -76,7 +78,15 @@
 </template>
 
 <script setup lang="ts">
+import { renderMarkdown } from "@/utils/markdown";
 import { onBeforeUnmount, onMounted } from "vue";
+
+/** 行内 markdown 渲染：去掉外层 <p>，供选项文本内嵌公式使用 */
+function mdInline(text: string): string {
+  return renderMarkdown(text)
+    .replace(/^<p>/, "")
+    .replace(/<\/p>$/, "");
+}
 
 export interface GuidedOption {
   label: string;
