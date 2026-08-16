@@ -186,6 +186,28 @@ def _get_embedder(user_id: str | None = None):
     )
 
 
+def _sync_kb_index(
+    remove_ids: list[str], add_path: Path | None, user_id: str | None = None
+) -> str:
+    """CRUD 后的向量索引同步(无 embedding key 时降级关键词索引)。
+
+    - 有向量 key: 执行 remove/add,embedder 内部会失效检索器缓存,返回 "vector"
+    - 无向量 key: 跳过向量操作,仅失效共享检索器缓存(关键词检索立刻可见),
+      返回 "keyword-only" —— 与导入流水线同一降级策略
+    """
+    from ..knowledge.retriever import invalidate_shared_retriever
+
+    embedder = _get_embedder(user_id)
+    if embedder.embeddings is None:
+        invalidate_shared_retriever()
+        return "keyword-only"
+    for rid in remove_ids:
+        embedder.remove_document(rid)
+    if add_path is not None:
+        embedder.add_document(add_path)
+    return "vector"
+
+
 def _find_yaml_file(kb_type: str, entry_id: str) -> Path | None:
     """Scan knowledge_base/{subdir}/**/*.yaml for the file with matching id."""
     settings = get_settings()
