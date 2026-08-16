@@ -51,6 +51,7 @@ class KBEmbedder:
         kb_root: Path,
         persist_dir: Path,
         embedding_provider: str | None = None,
+        user_id: str | None = None,
     ):
         from ..config import get_settings
 
@@ -62,6 +63,7 @@ class KBEmbedder:
         self.persist_dir = Path(persist_dir)
         self._hash_path = self.persist_dir / _HASH_DB
         self.embedding_provider = provider
+        self.user_id = user_id
         self.embeddings = None
         self._unavailable_reason = ""
 
@@ -80,7 +82,7 @@ class KBEmbedder:
             self.embeddings = OpenAIEmbeddings()
         else:
             # openai_compatible：任何 OpenAI 兼容 embedding 服务（SiliconFlow / 智谱 / DashScope 等）
-            # Key 来源优先级：apikeys 页配置的 purpose=embedding Key > env 配置
+            # Key 来源优先级：apikeys 页当前用户「向量」Key > guest 域 > env 配置
             emb_key, emb_url, emb_model = self._resolve_embedding_config(settings)
             if emb_key:
                 self.embeddings = OpenAIEmbeddings(
@@ -92,22 +94,30 @@ class KBEmbedder:
                 # 延迟失败：构造不报错，检索时自动回退关键词；reindex 时才提示
                 self.embeddings = None
                 self._unavailable_reason = (
-                    "知识库 embedding 未配置：请在 /apikeys 页添加「向量」用途的 Key，"
-                    "或在 backend/.env 设置 KB_EMBEDDING_API_KEY"
+                    "知识库 embedding 未配置：已检查当前用户与游客域的「向量」用途 Key、"
+                    "backend/.env 的 KB_EMBEDDING_API_KEY，均未找到。"
+                    "注意 DeepSeek 官方不支持向量接口。无向量 Key 不影响导入与关键词检索；"
+                    "如需向量检索，请在 /apikeys 页添加「向量」用途的 Key 后点「重建向量索引」。"
                 )
 
     def _resolve_embedding_config(self, settings) -> tuple[str, str, str]:
-        """解析 embedding 配置，返回 (api_key, base_url, model)。"""
+        """解析 embedding 配置，返回 (api_key, base_url, model)。
+
+        查找顺序：当前用户域 → guest 域 → env 配置。
+        """
         try:
             from ..api.apikeys import get_active_api_key
 
-            emb = get_active_api_key("guest", purpose="embedding")
-            if emb and emb.get("key"):
-                return (
-                    emb["key"],
-                    emb.get("base_url") or settings.kb_embedding_base_url,
-                    emb.get("model_name") or settings.kb_embedding_model,
-                )
+            for uid in (self.user_id, "guest"):
+                if not uid:
+                    continue
+                emb = get_active_api_key(uid, purpose="embedding")
+                if emb and emb.get("key"):
+                    return (
+                        emb["key"],
+                        emb.get("base_url") or settings.kb_embedding_base_url,
+                        emb.get("model_name") or settings.kb_embedding_model,
+                    )
         except Exception:
             pass
         return (

@@ -318,6 +318,7 @@ async def kb_reindex(
         embedder = KBEmbedder(
             kb_root=settings.kb_root,
             persist_dir=settings.chroma_dir,
+            user_id=user.login or None,
         )
         count = embedder.build_index(incremental=incremental)
         # 索引重建后失效共享 retriever + loader 缓存，避免下一次检索命中旧 Chroma 集合
@@ -482,6 +483,7 @@ async def upload_knowledge(
         kb_type,
         name,
         problem_ref,
+        user.login or "",
     )
     return KnowledgeUploadJob(job_id=job_id, status="processing")
 
@@ -780,6 +782,7 @@ async def _run_extraction(
     kb_type: str,
     name_hint: str,
     problem_ref: str = "",
+    user_login: str = "",
 ):
     """Background task: LLM extract → validate → write YAML → index.
 
@@ -987,9 +990,17 @@ async def _run_extraction(
                 attach_path = attach_dir / (fd["name"] or "attachment")
                 attach_path.write_bytes(fd["bytes"])
 
-        # 4. Incremental index
-        embedder = _get_embedder()
-        embedder.add_document(out_path)
+        # 4. Incremental index(无 embedding key 时跳过向量索引,BM25/关键词检索仍可用)
+        embedder = _get_embedder(user_login)
+        if embedder.embeddings is None:
+            from ..knowledge.retriever import invalidate_shared_retriever
+
+            # 让共享检索器/loader 缓存失效,关键词检索能立刻看到新条目
+            invalidate_shared_retriever()
+            indexed = "keyword-only"
+        else:
+            embedder.add_document(out_path)
+            indexed = "vector"
 
         _extraction_jobs[job_id] = {
             "status": "completed",
@@ -998,6 +1009,7 @@ async def _run_extraction(
                 "entry_type": kb_type,
                 "file_path": str(out_path.relative_to(settings.project_root)),
                 "yaml_content": yaml_str,
+                "indexed": indexed,
             },
             "error": None,
         }

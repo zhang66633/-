@@ -175,13 +175,14 @@ def _get_retriever():
     return get_shared_retriever()
 
 
-def _get_embedder():
+def _get_embedder(user_id: str | None = None):
     settings = get_settings()
     from ..knowledge.embedder import KBEmbedder
 
     return KBEmbedder(
         kb_root=settings.kb_root,
         persist_dir=settings.chroma_dir,
+        user_id=user_id,
     )
 
 
