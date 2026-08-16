@@ -117,11 +117,15 @@ class SessionManager:
             return False
 
     def cancel(self, task_id: str) -> bool:
-        """Mark a task as cancelled and signal the orchestrator to stop."""
+        """Mark a task as cancelled and signal the orchestrator to stop.
+
+        用 get_cancel_event 惰性创建（而非 .get() 只读）——若取消请求早于
+        编排器首次检查（事件尚未创建），信号不会丢失；否则任务会在最后
+        被 update(status="completed") 覆盖回 completed。
+        """
         with self._lock:
-            event = self._cancel_events.get(task_id)
-            if event:
-                event.set()  # 通知后台编排器停止
+            event = self.get_cancel_event(task_id)
+            event.set()  # 通知后台编排器停止
             task = self._tasks.get(task_id)
             if task:
                 task["status"] = "cancelled"

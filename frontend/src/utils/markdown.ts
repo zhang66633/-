@@ -254,28 +254,18 @@ export function extractToc(html: string): TocEntry[] {
 }
 
 /**
- * 流式渲染节流。
+ * 流式渲染：直接走 renderMarkdown（内部有 200 条 LRU 缓存兜底）。
+ *
+ * 不再做模块级单例节流——两个 ThinkingBlock 实例交错调用时，旧实现会在
+ * 50ms 窗口内互相拿到对方的结果（跨实例串味），且流尾 <50ms 的增量被吞。
+ * 后端 node_delta 事件本身已按 100ms/64 字符节流，前端无需重复节流。
  */
-let lastStreamRender = 0;
-let lastStreamResult = "";
-const MIN_INTERVAL = 50;
-
 export function renderMarkdownStreaming(text: string): string {
   if (!text) return "";
-
-  const now = performance.now();
-  if (now - lastStreamRender < MIN_INTERVAL) {
-    return lastStreamResult;
-  }
-
-  lastStreamRender = now;
-  lastStreamResult = renderMarkdown(text);
-  return lastStreamResult;
+  return renderMarkdown(text);
 }
 
 /** 清空缓存 */
 export function clearMarkdownCache() {
   renderCache.clear();
-  lastStreamRender = 0;
-  lastStreamResult = "";
 }

@@ -398,6 +398,9 @@ def invoke_streaming_with_retry(
     last_exc: Exception | None = None
     for attempt in range(retries + 1):
         try:
+            # 重试前发 reset：前端清空已收到的增量，避免失败流与重试流文本重复/乱序
+            if attempt > 0:
+                _pub_event(task_id, "node_delta", node, {"reset": True})
             full.clear()
             buf.clear()
             last_emit[0] = 0.0

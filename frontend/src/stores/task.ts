@@ -268,10 +268,15 @@ export const useTaskStore = defineStore("task", () => {
     // 流式文本增量：累积到对应节点消息（dsh 式逐字渲染）
     if (event === "node_delta") {
       const node = data?.node;
-      const delta: string = data.data?.delta ?? "";
-      if (!delta) return;
       const msgId = streamingNodeMsg.value[node];
       if (!msgId) return;
+      // 流式重试 reset：清空已收到的增量重新累积（避免失败流与重试流重复）
+      if (data.data?.reset) {
+        updateMessage(taskId, msgId, { content: "" } as Partial<Message>);
+        return;
+      }
+      const delta: string = data.data?.delta ?? "";
+      if (!delta) return;
       const bucket = messagesByTask.value[taskId];
       const cur = bucket?.find((m) => m.id === msgId);
       const acc = ((cur?.content as string) ?? "") + delta;
@@ -299,7 +304,10 @@ export const useTaskStore = defineStore("task", () => {
           kind: "tool",
           toolId: toolMsg.id,
         });
-        toolHostMap.value = { ...toolHostMap.value, [toolMsg.id]: hostId };
+        // 键必须与读取端（findToolHost 按 tool_call_id 查）一致：
+        // 优先后端 tool_call_id，缺失时回退前端消息 id
+        const toolKey = data.data?.tool_call_id ?? toolMsg.id;
+        toolHostMap.value = { ...toolHostMap.value, [toolKey]: hostId };
       } else {
         appendMessage(taskId, toolMsg);
       }

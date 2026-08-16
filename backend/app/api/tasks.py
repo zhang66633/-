@@ -41,11 +41,13 @@ def _extract_attachment_text(file_id: str, filename: str) -> str:
         data = path.read_bytes()
 
         if suffix == ".pdf":
-            from .knowledge_routes import _extract_pdf_text
+            # 解析函数定义在 knowledge_search_routes（god-files 拆分后迁移），
+            # 从 knowledge_routes 导入会 ImportError 且被 except 静默吞掉
+            from .knowledge_search_routes import _extract_pdf_text
 
             text = _extract_pdf_text(data)
         elif suffix == ".docx":
-            from .knowledge_routes import _extract_docx_text
+            from .knowledge_search_routes import _extract_docx_text
 
             text = _extract_docx_text(data)
         elif suffix in (".xlsx", ".xls", ".csv", ".tsv"):

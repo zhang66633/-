@@ -444,6 +444,9 @@ async function handleUserSend(text: string, files?: ChatFileRef[]) {
     const taskId = res.data?.task_id ?? res.data?.data?.task_id;
     if (!taskId) throw new Error("未返回 task_id");
     currentTaskId.value = taskId;
+    // 写入 session 持久化（刷新恢复依赖它：onMounted 读 session.taskId 回放）
+    const sess = chatSession.activeSolutionSession;
+    if (sess) (sess as any).taskId = taskId;
     // 连接 WS 实时接收进度与最终答案；task_end 事件会清空 runningMode
     taskStore.connectWebSocket(taskId);
   } catch (e: any) {
