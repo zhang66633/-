@@ -73,10 +73,20 @@
           <div v-if="store.bankLoading" class="space-y-2 p-4">
             <Skeleton v-for="i in 8" :key="i" class="h-8" :class="i % 3 === 0 ? 'w-11/12' : 'w-full'" />
           </div>
+          <div v-else-if="store.bankError" class="flex flex-col items-center justify-center py-20 text-sm text-muted-foreground gap-2">
+            <span class="text-2xl">⚠️</span>
+            <span>{{ store.bankError }}</span>
+            <button
+              class="mt-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent transition-colors"
+              @click="store.loadBank()"
+            >
+              重试
+            </button>
+          </div>
           <div v-else-if="filteredBank.length === 0" class="flex flex-col items-center justify-center py-20 text-sm text-muted-foreground gap-2">
             <span class="text-2xl">📭</span>
             <span>暂无符合条件的题目</span>
-            <span class="text-xs">题库正在编写中,稍后刷新试试</span>
+            <span class="text-xs">试试调整筛选条件</span>
           </div>
           <table v-else class="w-full text-sm">
             <thead class="sticky top-0 bg-background z-10">

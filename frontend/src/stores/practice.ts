@@ -25,6 +25,7 @@ export const usePracticeStore = defineStore("practice", () => {
   const categories = ref<{ name: string; count: number }[]>([]);
   const bankTotal = ref(0);
   const bankLoading = ref(false);
+  const bankError = ref("");
 
   // 筛选条件
   const filterRole = ref("");
@@ -90,13 +91,25 @@ export const usePracticeStore = defineStore("practice", () => {
   );
 
   // ── 操作 ────────────────────────────────────────────
+  /** 加载题库,带瞬时故障重试(首屏请求并发密集时后端可能暂时 503)。 */
   async function loadBank() {
     bankLoading.value = true;
+    bankError.value = "";
     try {
-      const res = await fetchQuizBank();
-      bank.value = res.data.questions;
-      categories.value = res.data.categories;
-      bankTotal.value = res.data.total;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const res = await fetchQuizBank();
+          bank.value = res.data.questions;
+          categories.value = res.data.categories;
+          bankTotal.value = res.data.total;
+          return;
+        } catch (err) {
+          if (attempt >= 2) throw err;
+          await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+        }
+      }
+    } catch {
+      bankError.value = "题库加载失败,请检查后端服务后重试";
     } finally {
       bankLoading.value = false;
     }
@@ -206,8 +219,18 @@ export const usePracticeStore = defineStore("practice", () => {
   async function loadMistakes() {
     mistakesLoading.value = true;
     try {
-      const res = await fetchQuizMistakes();
-      mistakes.value = res.data.questions;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const res = await fetchQuizMistakes();
+          mistakes.value = res.data.questions;
+          return;
+        } catch (err) {
+          if (attempt >= 2) throw err;
+          await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+        }
+      }
+    } catch {
+      /* 与题库一致: 失败保持旧数据,不吞异常以外的提示 */
     } finally {
       mistakesLoading.value = false;
     }
@@ -218,6 +241,7 @@ export const usePracticeStore = defineStore("practice", () => {
     categories,
     bankTotal,
     bankLoading,
+    bankError,
     filterRole,
     filterCategory,
     filterDifficulty,
