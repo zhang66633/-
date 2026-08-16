@@ -68,3 +68,5 @@ backend/_start.bat
 # 项目虚拟环境
 .venv/
 
+tools/
+
