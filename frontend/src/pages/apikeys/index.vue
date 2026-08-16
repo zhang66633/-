@@ -228,8 +228,8 @@ function resetForm() {
 async function load() {
   loading.value = true;
   try {
-    const r: any = await getApiKeys();
-    keys.value = r.data || r || [];
+    const r = await getApiKeys();
+    keys.value = r.data ?? [];
   } catch (e) {
     console.error(e);
     keys.value = [];
@@ -250,8 +250,12 @@ async function handleAdd() {
     addError.value = "";
     resetForm();
     await load();
-  } catch (e: any) {
-    const detail = e?.response?.data?.detail || e?.message || "保存失败";
+  } catch (e) {
+    const err = e as {
+      response?: { data?: { detail?: string } };
+      message?: string;
+    };
+    const detail = err?.response?.data?.detail || err?.message || "保存失败";
     addError.value = detail;
   } finally {
     saving.value = false;

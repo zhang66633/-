@@ -248,7 +248,13 @@ async function doExtract() {
   extractedEntryId.value = "";
   savedNotice.value = "";
   try {
-    const uploadParams: any = {
+    const uploadParams: {
+      text?: string;
+      files?: File[];
+      kb_type: string;
+      name?: string;
+      problem_ref?: string;
+    } = {
       text: impText.value.trim() || undefined,
       files: impFiles.value.length > 0 ? impFiles.value : undefined,
       kb_type: impType.value,
@@ -274,8 +280,9 @@ async function doExtract() {
       tries++;
     }
     if (tries >= 60) extractError.value = "提取超时";
-  } catch (e: any) {
-    extractError.value = `请求失败: ${e?.response?.data?.detail || e}`;
+  } catch (e) {
+    const err = e as { response?: { data?: { detail?: string } } };
+    extractError.value = `请求失败: ${err?.response?.data?.detail ?? e}`;
   } finally {
     extracting.value = false;
   }
@@ -385,8 +392,9 @@ async function paperDoExtract() {
       tries++;
     }
     if (tries >= 60) paperError.value = "提取超时";
-  } catch (e: any) {
-    paperError.value = `请求失败: ${e?.response?.data?.detail || e}`;
+  } catch (e) {
+    const err = e as { response?: { data?: { detail?: string } } };
+    paperError.value = `请求失败: ${err?.response?.data?.detail ?? e}`;
   } finally {
     paperExtracting.value = false;
   }

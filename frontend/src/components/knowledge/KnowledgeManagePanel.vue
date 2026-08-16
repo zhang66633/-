@@ -144,6 +144,14 @@
 
 <script setup lang="ts">
 import {
+  type MethodCardDetail,
+  type MethodCardSummary,
+  type PaperDetail,
+  type PaperSummary,
+  type ProblemDetail,
+  type ProblemSummary,
+  type TemplateDetail,
+  type TemplateSummary,
   deleteMethod,
   deletePaper,
   deleteProblem,
@@ -184,8 +192,83 @@ const props = defineProps<{
 const emit = defineEmits<(e: "refresh-stats") => void>();
 
 // ── Tab 2: Manage ───────────────────────────────────────────────
+/** 管理列表条目：四类 summary 的宽松合并视图（模板按 mgrType 取字段） */
+interface MgrEntry {
+  id: string;
+  name?: string;
+  title?: string;
+  year?: number;
+  competition?: string;
+  problem_id?: string;
+  category?: string[];
+  quality_rating?: number;
+  problem_ref?: string;
+  linked_papers_count?: number;
+  steps_count?: number;
+}
+
+/** 编辑表单：四类详情的展平字段（含 detail 嵌套的透传索引） */
+interface EditForm {
+  id: string;
+  name?: string;
+  title?: string;
+  // method
+  category?: string[];
+  applicable_when?: string[];
+  typical_scenarios?: string[];
+  not_applicable_when?: string[];
+  common_mistakes?: { mistake: string; solution: string }[];
+  code_snippets?: { language: string; description: string; code: string }[];
+  formulas?: { name: string; latex: string; description: string }[];
+  related_cards?: string[];
+  related_papers?: string[];
+  // paper（analysis/model/evaluation/tags 展平）
+  analysis?: unknown;
+  model?: unknown;
+  evaluation?: unknown;
+  analysis_problem_summary?: string;
+  analysis_key_assumptions?: string[];
+  analysis_decision_variables?: string;
+  analysis_objective?: string;
+  analysis_constraints?: string;
+  model_approach?: string;
+  model_innovation?: string;
+  model_solution_method?: string;
+  evaluation_strengths?: string[];
+  evaluation_weaknesses?: string[];
+  evaluation_lessons?: string;
+  tags?: Record<string, string[]>;
+  tags_problem_type?: string[];
+  tags_core_models?: string[];
+  methodology_chain?: string[];
+  problem_context?: string;
+  key_formulas?: { name: string; latex: string; description: string }[];
+  algorithm_outline?: {
+    language: string;
+    description: string;
+    code: string;
+  }[];
+  assumption_analysis?: string[];
+  reusable_patterns?: string[];
+  common_pitfalls?: { mistake: string; solution: string }[];
+  // template
+  steps?: {
+    step: number;
+    name: string;
+    guiding_questions: string[];
+    decision_tree: string[];
+    checklist: string[];
+  }[];
+  applicable_to?: string[];
+  // problem
+  objectives?: string[];
+  deliverables?: string[];
+  // 其余 detail 字段透传
+  [key: string]: unknown;
+}
+
 const mgrType = ref("method");
-const mgrEntries = ref<any[]>([]);
+const mgrEntries = ref<MgrEntry[]>([]);
 const mgrLoading = ref(false);
 const mgrError = ref("");
 const mgrTypes = [
@@ -209,13 +292,13 @@ const mgrBadgeClass = computed(
       problem: "bg-amber-100 text-amber-700",
     })[mgrType.value],
 );
-function mgrSub(e: any) {
-  if (mgrType.value === "method") return (e.category || []).join(", ");
+function mgrSub(e: MgrEntry) {
+  if (mgrType.value === "method") return (e.category ?? []).join(", ");
   if (mgrType.value === "paper")
-    return `${e.year || ""} ${e.competition || ""} ${e.problem_id || ""} ★${e.quality_rating || 3}${e.problem_ref ? " · 🔗已关联" : " · ⚠未关联"}`;
+    return `${e.year ?? ""} ${e.competition ?? ""} ${e.problem_id ?? ""} ★${e.quality_rating ?? 3}${e.problem_ref ? " · 🔗已关联" : " · ⚠未关联"}`;
   if (mgrType.value === "problem")
-    return `${e.year || ""} ${e.competition || ""} ${e.problem_id || ""} · ${e.linked_papers_count || 0}篇论文`;
-  return `${e.steps_count || 0} 个步骤`;
+    return `${e.year ?? ""} ${e.competition ?? ""} ${e.problem_id ?? ""} · ${e.linked_papers_count ?? 0}篇论文`;
+  return `${e.steps_count ?? 0} 个步骤`;
 }
 /** 加载当前类型的条目列表,带瞬时故障重试;失败不覆盖旧数据,只置错误态。 */
 async function loadMgrList() {
@@ -226,16 +309,16 @@ async function loadMgrList() {
       try {
         if (mgrType.value === "method") {
           const r = await listMethods();
-          mgrEntries.value = r.data as any;
+          mgrEntries.value = r.data ?? [];
         } else if (mgrType.value === "paper") {
           const r = await listPapers();
-          mgrEntries.value = r.data as any;
+          mgrEntries.value = r.data ?? [];
         } else if (mgrType.value === "problem") {
           const r = await listProblems();
-          mgrEntries.value = r.data as any;
+          mgrEntries.value = r.data ?? [];
         } else {
           const r = await listTemplates();
-          mgrEntries.value = r.data as any;
+          mgrEntries.value = r.data ?? [];
         }
         return;
       } catch (err) {
@@ -264,26 +347,31 @@ watch(mgrType, () => loadMgrList());
 const editOpen = ref(false);
 const editSaving = ref(false);
 const editLoading = ref(false);
-const editForm = ref<Record<string, any>>({});
-async function openEdit(e: any) {
+const editForm = ref<EditForm>({ id: "" });
+async function openEdit(e: MgrEntry) {
   editLoading.value = true;
   editOpen.value = true;
-  editForm.value = { ...e };
+  editForm.value = { id: e.id, ...e };
   try {
-    let detail: any = null;
+    let detail:
+      | MethodCardDetail
+      | PaperDetail
+      | TemplateDetail
+      | ProblemDetail
+      | null = null;
     if (mgrType.value === "method") detail = (await getMethod(e.id)).data;
     else if (mgrType.value === "paper") detail = (await getPaper(e.id)).data;
     else if (mgrType.value === "template")
       detail = (await getTemplate(e.id)).data;
     else if (mgrType.value === "problem")
       detail = (await getProblem(e.id)).data;
-    if (detail) editForm.value = { ...e, ...detail };
-  } catch (err: any) {
+    if (detail) editForm.value = { id: e.id, ...e, ...detail } as EditForm;
+  } catch (err) {
     console.error("Failed to load detail:", err);
   } finally {
     editLoading.value = false;
   }
-  const t: any = { ...editForm.value };
+  const t: EditForm = { ...editForm.value };
   if (mgrType.value === "method") {
     t.category = Array.isArray(t.category) ? [...t.category] : [];
     t.applicable_when = Array.isArray(t.applicable_when)
@@ -296,13 +384,13 @@ async function openEdit(e: any) {
       ? [...t.not_applicable_when]
       : [];
     t.common_mistakes = Array.isArray(t.common_mistakes)
-      ? t.common_mistakes.map((m: any) => ({ ...m }))
+      ? t.common_mistakes.map((m) => ({ ...m }))
       : [];
     t.code_snippets = Array.isArray(t.code_snippets)
-      ? t.code_snippets.map((c: any) => ({ ...c }))
+      ? t.code_snippets.map((c) => ({ ...c }))
       : [];
     t.formulas = Array.isArray(t.formulas)
-      ? t.formulas.map((f: any) => ({ ...f }))
+      ? t.formulas.map((f) => ({ ...f }))
       : [];
     t.related_cards = Array.isArray(t.related_cards)
       ? [...t.related_cards]
@@ -312,27 +400,44 @@ async function openEdit(e: any) {
       : [];
   }
   if (mgrType.value === "paper") {
-    const ana: any = t.analysis || {};
-    t.analysis_problem_summary = ana.problem_summary || "";
+    const ana = (t.analysis ?? {}) as {
+      problem_summary?: string;
+      key_assumptions?: string[];
+      decision_variables?: string;
+      objective?: string;
+      constraints?: string;
+    };
+    t.analysis_problem_summary = ana.problem_summary ?? "";
     t.analysis_key_assumptions = Array.isArray(ana.key_assumptions)
       ? [...ana.key_assumptions]
       : [];
-    t.analysis_decision_variables = ana.decision_variables || "";
-    t.analysis_objective = ana.objective || "";
-    t.analysis_constraints = ana.constraints || "";
-    const mdl: any = t.model || {};
-    t.model_approach = mdl.approach || "";
-    t.model_innovation = mdl.innovation || "";
-    t.model_solution_method = mdl.solution_method || "";
-    const eva: any = t.evaluation || {};
+    t.analysis_decision_variables = ana.decision_variables ?? "";
+    t.analysis_objective = ana.objective ?? "";
+    t.analysis_constraints = ana.constraints ?? "";
+    const mdl = (t.model ?? {}) as {
+      approach?: string;
+      innovation?: string;
+      solution_method?: string;
+    };
+    t.model_approach = mdl.approach ?? "";
+    t.model_innovation = mdl.innovation ?? "";
+    t.model_solution_method = mdl.solution_method ?? "";
+    const eva = (t.evaluation ?? {}) as {
+      strengths?: string[];
+      weaknesses?: string[];
+      lessons?: string;
+    };
     t.evaluation_strengths = Array.isArray(eva.strengths)
       ? [...eva.strengths]
       : [];
     t.evaluation_weaknesses = Array.isArray(eva.weaknesses)
       ? [...eva.weaknesses]
       : [];
-    t.evaluation_lessons = eva.lessons || "";
-    const tags: any = t.tags || {};
+    t.evaluation_lessons = eva.lessons ?? "";
+    const tags = (t.tags ?? {}) as {
+      problem_type?: string[];
+      core_models?: string[];
+    };
     t.tags_problem_type = Array.isArray(tags.problem_type)
       ? [...tags.problem_type]
       : [];
@@ -342,12 +447,12 @@ async function openEdit(e: any) {
     t.methodology_chain = Array.isArray(t.methodology_chain)
       ? [...t.methodology_chain]
       : [];
-    t.problem_context = t.problem_context || "";
+    t.problem_context = t.problem_context ?? "";
     t.key_formulas = Array.isArray(t.key_formulas)
-      ? t.key_formulas.map((f: any) => ({ ...f }))
+      ? t.key_formulas.map((f) => ({ ...f }))
       : [];
     t.algorithm_outline = Array.isArray(t.algorithm_outline)
-      ? t.algorithm_outline.map((a: any) => ({ ...a }))
+      ? t.algorithm_outline.map((a) => ({ ...a }))
       : [];
     t.assumption_analysis = Array.isArray(t.assumption_analysis)
       ? [...t.assumption_analysis]
@@ -356,17 +461,17 @@ async function openEdit(e: any) {
       ? [...t.reusable_patterns]
       : [];
     t.common_pitfalls = Array.isArray(t.common_pitfalls)
-      ? t.common_pitfalls.map((p: any) => ({ ...p }))
+      ? t.common_pitfalls.map((p) => ({ ...p }))
       : [];
   }
   if (mgrType.value === "template") {
-    t.steps = Array.isArray(t.steps) ? t.steps.map((s: any) => ({ ...s })) : [];
+    t.steps = Array.isArray(t.steps) ? t.steps.map((s) => ({ ...s })) : [];
     t.applicable_to = Array.isArray(t.applicable_to)
       ? [...t.applicable_to]
       : [];
   }
   if (mgrType.value === "problem") {
-    const tags: any = t.tags || {};
+    const tags = (t.tags ?? {}) as { problem_type?: string[] };
     t.tags_problem_type = Array.isArray(tags.problem_type)
       ? [...tags.problem_type]
       : [];
@@ -379,7 +484,7 @@ async function doEditSave() {
   editSaving.value = true;
   try {
     const id = editForm.value.id;
-    const data: any = { ...editForm.value };
+    const data: Record<string, unknown> = { ...editForm.value };
     if (mgrType.value === "method") {
       data.id = undefined;
       await updateMethod(id, data);
@@ -427,7 +532,10 @@ async function doEditSave() {
       data.id = undefined;
       await updateTemplate(id, data);
     } else if (mgrType.value === "problem") {
-      data.tags = { ...data.tags, problem_type: data.tags_problem_type };
+      data.tags = {
+        ...((data.tags as Record<string, unknown> | undefined) ?? {}),
+        problem_type: data.tags_problem_type,
+      };
       data.tags_problem_type = undefined;
       data.id = undefined;
       await updateProblem(id, data);
@@ -435,8 +543,9 @@ async function doEditSave() {
     editOpen.value = false;
     await loadMgrList();
     emit("refresh-stats");
-  } catch (e: any) {
-    alert(`保存失败: ${e?.response?.data?.detail || e}`);
+  } catch (e) {
+    const err = e as { response?: { data?: { detail?: string } } };
+    alert(`保存失败: ${err?.response?.data?.detail ?? e}`);
   } finally {
     editSaving.value = false;
   }
@@ -444,16 +553,17 @@ async function doEditSave() {
 
 // Delete
 const delOpen = ref(false);
-const delTarget = ref<any>(null);
+const delTarget = ref<MgrEntry | null>(null);
 const deleting = ref(false);
-function confirmDel(e: any) {
+function confirmDel(e: MgrEntry) {
   delTarget.value = e;
   delOpen.value = true;
 }
 async function doDelete() {
   deleting.value = true;
   try {
-    const id = delTarget.value.id;
+    const id = delTarget.value?.id;
+    if (!id) return;
     if (mgrType.value === "method") await deleteMethod(id);
     else if (mgrType.value === "paper") await deletePaper(id);
     else if (mgrType.value === "problem") await deleteProblem(id);
@@ -462,8 +572,9 @@ async function doDelete() {
     delTarget.value = null;
     await loadMgrList();
     emit("refresh-stats");
-  } catch (e: any) {
-    alert(`删除失败: ${e?.response?.data?.detail || e}`);
+  } catch (e) {
+    const err = e as { response?: { data?: { detail?: string } } };
+    alert(`删除失败: ${err?.response?.data?.detail ?? e}`);
   } finally {
     deleting.value = false;
   }

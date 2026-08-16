@@ -61,8 +61,8 @@ async function onFileSelected(e: Event) {
       const ref = await uploadChatFile(file);
       attachedFiles.value.push(ref);
     }
-  } catch (err: any) {
-    alert(`文件上传失败: ${err?.message ?? err}`);
+  } catch (err) {
+    alert(`文件上传失败: ${err instanceof Error ? err.message : err}`);
   } finally {
     uploading.value = false;
     input.value = "";

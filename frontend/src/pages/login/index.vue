@@ -159,10 +159,15 @@ async function handleGithubLogin() {
     }
     setupError.value =
       "后端返回空授权链接，请重启后端确保 .env 中 GITHUB_CLIENT_ID 和 GITHUB_CLIENT_SECRET 已填写";
-  } catch (e: any) {
-    const msg = e?.response?.data?.detail || e?.message || "获取授权链接失败";
+  } catch (e) {
+    const err = e as {
+      response?: { data?: { detail?: string } };
+      message?: string;
+    };
+    const msg =
+      err?.response?.data?.detail || err?.message || "获取授权链接失败";
     // 如果是网络错误，给更明确的提示
-    if (!e?.response) {
+    if (!err?.response) {
       setupError.value =
         "无法连接后端，请确认后端已启动 (http://localhost:8000)";
     } else {

@@ -156,7 +156,7 @@ const difficultyLabel = computed(
         intermediate: "进阶",
         advanced: "高阶",
         competition: "竞赛",
-      }) as any
+      }) as Record<string, string>
     )[unit.value?.difficulty ?? "beginner"],
 );
 const difficultyBadge = computed(
@@ -167,7 +167,7 @@ const difficultyBadge = computed(
         intermediate: "border-amber-200 text-amber-700 bg-amber-50",
         advanced: "border-red-200 text-red-700 bg-red-50",
         competition: "border-purple-200 text-purple-700 bg-purple-50",
-      }) as any
+      }) as Record<string, string>
     )[unit.value?.difficulty ?? "beginner"],
 );
 const unitContext = computed(() => {
