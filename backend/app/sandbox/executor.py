@@ -250,6 +250,44 @@ class SandboxExecutor:
                         pass
         except Exception:
             pass  # 持久化失败不影响执行结果
+        finally:
+            self._cleanup_stale_outputs()
+
+    def _cleanup_stale_outputs(self) -> None:
+        """清理陈旧的沙箱输出目录（temp 与 data/chat_images 防磁盘缓慢增长）。
+
+        保留最近 KEEP=50 个目录；只删除修改时间超过 24h 的旧目录，
+        避免误删仍在并发执行中的沙箱工作目录。
+        """
+        import shutil as _shutil
+        import time as _time
+
+        keep = 50
+        cutoff = _time.time() - 86400  # 24 小时
+        roots: list[Path] = [self.output_dir]
+        try:
+            roots.append(get_settings().project_root / "data" / "chat_images")
+        except Exception:
+            pass
+
+        for root in roots:
+            try:
+                if not root.exists():
+                    continue
+                dirs = sorted(
+                    (p for p in root.iterdir() if p.is_dir()),
+                    key=lambda p: p.stat().st_mtime,
+                    reverse=True,
+                )
+                for stale in dirs[keep:]:
+                    try:
+                        if stale.stat().st_mtime < cutoff:
+                            _shutil.rmtree(stale, ignore_errors=True)
+                            logger.info("已清理陈旧沙箱输出目录: %s", stale)
+                    except Exception:
+                        pass
+            except Exception:
+                pass  # 清理失败不影响执行
 
     # ── subprocess 模式 ──────────────────────────────────────────
 

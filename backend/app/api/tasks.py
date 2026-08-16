@@ -345,7 +345,10 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
             return text[:800].strip()
 
         messages = []
-        final_state = state
+        # 累积完整状态：updates 模式每个 chunk 只含当前节点返回的字段，
+        # 逐块 update 合并才能得到完整 final state——否则只保留最后一块，
+        # analysis/model/solving/verification 输出全部存成空串
+        final_state = dict(state)
 
         async for chunk in orchestrator.astream(
             state, {"recursion_limit": 50}, stream_mode="updates"
@@ -387,7 +390,15 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
                             "status": "completed",
                         },
                     )
-                final_state = node_output
+                # messages 字段是各节点的增量列表，单独累积；
+                # 其余字段直接 update（后写覆盖先写，各节点字段互不重叠）
+                if node_output:
+                    if node_output.get("messages"):
+                        final_state.setdefault("messages", [])
+                        final_state["messages"].extend(node_output["messages"])
+                    final_state.update(
+                        {k: v for k, v in node_output.items() if k != "messages"}
+                    )
 
         result = final_state
 
