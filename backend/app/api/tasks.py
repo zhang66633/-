@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
-from ..auth import GitHubUser, get_current_user, require_auth
+from ..auth import GitHubUser, get_current_user
 from ..config import get_settings
 from ..services.session import get_session_manager
 from .apikeys import _resolve_user_id, get_active_api_key
@@ -174,7 +174,7 @@ async def create_task(
 
 
 @tasks_router.get("/tasks/{task_id}/status")
-async def get_task_status(task_id: str, user: GitHubUser = Depends(require_auth)):
+async def get_task_status(task_id: str, user: GitHubUser | None = Depends(get_current_user)):
     """查询方案模式任务的执行进度（用于断点续做判断）。
 
     返回:
@@ -196,7 +196,7 @@ async def get_task_status(task_id: str, user: GitHubUser = Depends(require_auth)
 
 
 @tasks_router.get("/tasks/{task_id}", response_model=TaskResponse)
-async def get_task(task_id: str, user: GitHubUser = Depends(require_auth)):
+async def get_task(task_id: str, user: GitHubUser | None = Depends(get_current_user)):
     task = get_session_manager().get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -204,7 +204,7 @@ async def get_task(task_id: str, user: GitHubUser = Depends(require_auth)):
 
 
 @tasks_router.get("/tasks/{task_id}/messages", response_model=list[MessageResponse])
-async def get_task_messages(task_id: str, user: GitHubUser = Depends(require_auth)):
+async def get_task_messages(task_id: str, user: GitHubUser | None = Depends(get_current_user)):
     task = get_session_manager().get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -212,7 +212,7 @@ async def get_task_messages(task_id: str, user: GitHubUser = Depends(require_aut
 
 
 @tasks_router.get("/tasks/{task_id}/files")
-async def get_task_files(task_id: str, user: GitHubUser = Depends(require_auth)):
+async def get_task_files(task_id: str, user: GitHubUser | None = Depends(get_current_user)):
     """任务文件区：上传的附件 + 生成的图表/结果文件。"""
     task = get_session_manager().get(task_id)
     if not task:
@@ -225,7 +225,7 @@ async def get_task_events(
     task_id: str,
     after: int = Query(0, ge=0, description="跳过前 N 条事件（增量回放）"),
     limit: int = Query(500, ge=1, le=2000, description="返回条数上限"),
-    user: GitHubUser = Depends(require_auth),
+    user: GitHubUser | None = Depends(get_current_user),
 ):
     """回放任务的持久化事件流（协议 v2.1）。
 
@@ -246,7 +246,7 @@ async def get_task_events(
 
 
 @tasks_router.post("/tasks/{task_id}/cancel")
-async def cancel_task(task_id: str, user: GitHubUser = Depends(require_auth)):
+async def cancel_task(task_id: str, user: GitHubUser | None = Depends(get_current_user)):
     success = get_session_manager().cancel(task_id)
     if not success:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -489,7 +489,7 @@ from fastapi.responses import Response, StreamingResponse
 async def export_document(
     task_id: str,
     format: str = Query("md", description="导出格式: md | latex | docx | xlsx | csv"),
-    user: GitHubUser = Depends(require_auth),
+    user: GitHubUser | None = Depends(get_current_user),
 ):
     """导出方案模式生成的结果文档。
 
@@ -715,7 +715,7 @@ def _export_csv(task_id: str) -> Response:
 @tasks_router.get("/tasks/{task_id}/package")
 async def download_package(
     task_id: str,
-    user: GitHubUser = Depends(require_auth),
+    user: GitHubUser | None = Depends(get_current_user),
 ):
     """下载完整结果包（zip：论文 + 数据 + 图表 + 代码）。"""
     from pathlib import Path as _Path

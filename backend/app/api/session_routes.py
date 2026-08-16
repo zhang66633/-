@@ -32,6 +32,7 @@ def _resolve_uid(user: GitHubUser | None) -> str:
 class CreateConversationRequest(BaseModel):
     mode: str = "chat"  # chat | qa | practice | solution | learning
     title: str = "新对话"
+    id: str | None = None  # 客户端会话 id(前端本地 id 与服务端对齐,幂等)
 
 
 class UpdateConversationRequest(BaseModel):
@@ -84,7 +85,7 @@ async def create_conversation(
 ):
     """创建新会话（归属当前用户）。"""
     store = get_sqlite_store()
-    conv = store.create_conversation(user_id=_resolve_uid(user), mode=req.mode, title=req.title)
+    conv = store.create_conversation(user_id=_resolve_uid(user), mode=req.mode, title=req.title, conv_id=req.id)
     return {"conversation": conv}
 
 
