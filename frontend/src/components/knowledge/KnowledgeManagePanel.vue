@@ -207,62 +207,61 @@ interface MgrEntry {
   steps_count?: number;
 }
 
-/** 编辑表单：四类详情的展平字段（含 detail 嵌套的透传索引） */
+/** 编辑表单：四类详情的展平字段（数组用 unknown[] 与 ArrayEditor v-model 对齐） */
 interface EditForm {
   id: string;
   name?: string;
   title?: string;
+  principle?: string;
+  year?: number;
+  competition?: string;
+  problem_id?: string;
+  quality_rating?: number;
+  problem_ref?: string;
+  background?: string;
+  data_description?: string;
+  full_text?: string;
   // method
-  category?: string[];
-  applicable_when?: string[];
-  typical_scenarios?: string[];
-  not_applicable_when?: string[];
-  common_mistakes?: { mistake: string; solution: string }[];
-  code_snippets?: { language: string; description: string; code: string }[];
-  formulas?: { name: string; latex: string; description: string }[];
-  related_cards?: string[];
-  related_papers?: string[];
+  category?: unknown[];
+  applicable_when?: unknown[];
+  typical_scenarios?: unknown[];
+  not_applicable_when?: unknown[];
+  common_mistakes?: unknown[];
+  code_snippets?: unknown[];
+  formulas?: unknown[];
+  related_cards?: unknown[];
+  related_papers?: unknown[];
   // paper（analysis/model/evaluation/tags 展平）
   analysis?: unknown;
   model?: unknown;
   evaluation?: unknown;
   analysis_problem_summary?: string;
-  analysis_key_assumptions?: string[];
-  analysis_decision_variables?: string;
+  analysis_key_assumptions?: unknown[];
+  analysis_decision_variables?: unknown[];
   analysis_objective?: string;
   analysis_constraints?: string;
   model_approach?: string;
   model_innovation?: string;
   model_solution_method?: string;
-  evaluation_strengths?: string[];
-  evaluation_weaknesses?: string[];
+  evaluation_strengths?: unknown[];
+  evaluation_weaknesses?: unknown[];
   evaluation_lessons?: string;
   tags?: Record<string, string[]>;
-  tags_problem_type?: string[];
-  tags_core_models?: string[];
-  methodology_chain?: string[];
+  tags_problem_type?: unknown[];
+  tags_core_models?: unknown[];
+  methodology_chain?: unknown[];
   problem_context?: string;
-  key_formulas?: { name: string; latex: string; description: string }[];
-  algorithm_outline?: {
-    language: string;
-    description: string;
-    code: string;
-  }[];
-  assumption_analysis?: string[];
-  reusable_patterns?: string[];
-  common_pitfalls?: { mistake: string; solution: string }[];
+  key_formulas?: unknown[];
+  algorithm_outline?: unknown[];
+  assumption_analysis?: unknown[];
+  reusable_patterns?: unknown[];
+  common_pitfalls?: unknown[];
   // template
-  steps?: {
-    step: number;
-    name: string;
-    guiding_questions: string[];
-    decision_tree: string[];
-    checklist: string[];
-  }[];
-  applicable_to?: string[];
+  steps?: unknown[];
+  applicable_to?: unknown[];
   // problem
-  objectives?: string[];
-  deliverables?: string[];
+  objectives?: unknown[];
+  deliverables?: unknown[];
   // 其余 detail 字段透传
   [key: string]: unknown;
 }
@@ -351,7 +350,7 @@ const editForm = ref<EditForm>({ id: "" });
 async function openEdit(e: MgrEntry) {
   editLoading.value = true;
   editOpen.value = true;
-  editForm.value = { id: e.id, ...e };
+  editForm.value = { ...e };
   try {
     let detail:
       | MethodCardDetail
@@ -365,7 +364,7 @@ async function openEdit(e: MgrEntry) {
       detail = (await getTemplate(e.id)).data;
     else if (mgrType.value === "problem")
       detail = (await getProblem(e.id)).data;
-    if (detail) editForm.value = { id: e.id, ...e, ...detail } as EditForm;
+    if (detail) editForm.value = { ...e, ...detail } as EditForm;
   } catch (err) {
     console.error("Failed to load detail:", err);
   } finally {
@@ -384,13 +383,13 @@ async function openEdit(e: MgrEntry) {
       ? [...t.not_applicable_when]
       : [];
     t.common_mistakes = Array.isArray(t.common_mistakes)
-      ? t.common_mistakes.map((m) => ({ ...m }))
+      ? t.common_mistakes.map((m) => ({ ...(m as Record<string, unknown>) }))
       : [];
     t.code_snippets = Array.isArray(t.code_snippets)
-      ? t.code_snippets.map((c) => ({ ...c }))
+      ? t.code_snippets.map((c) => ({ ...(c as Record<string, unknown>) }))
       : [];
     t.formulas = Array.isArray(t.formulas)
-      ? t.formulas.map((f) => ({ ...f }))
+      ? t.formulas.map((f) => ({ ...(f as Record<string, unknown>) }))
       : [];
     t.related_cards = Array.isArray(t.related_cards)
       ? [...t.related_cards]
@@ -411,7 +410,12 @@ async function openEdit(e: MgrEntry) {
     t.analysis_key_assumptions = Array.isArray(ana.key_assumptions)
       ? [...ana.key_assumptions]
       : [];
-    t.analysis_decision_variables = ana.decision_variables ?? "";
+    t.analysis_decision_variables = ana.decision_variables
+      ? ana.decision_variables
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
     t.analysis_objective = ana.objective ?? "";
     t.analysis_constraints = ana.constraints ?? "";
     const mdl = (t.model ?? {}) as {
@@ -449,10 +453,10 @@ async function openEdit(e: MgrEntry) {
       : [];
     t.problem_context = t.problem_context ?? "";
     t.key_formulas = Array.isArray(t.key_formulas)
-      ? t.key_formulas.map((f) => ({ ...f }))
+      ? t.key_formulas.map((f) => ({ ...(f as Record<string, unknown>) }))
       : [];
     t.algorithm_outline = Array.isArray(t.algorithm_outline)
-      ? t.algorithm_outline.map((a) => ({ ...a }))
+      ? t.algorithm_outline.map((a) => ({ ...(a as Record<string, unknown>) }))
       : [];
     t.assumption_analysis = Array.isArray(t.assumption_analysis)
       ? [...t.assumption_analysis]
@@ -461,11 +465,11 @@ async function openEdit(e: MgrEntry) {
       ? [...t.reusable_patterns]
       : [];
     t.common_pitfalls = Array.isArray(t.common_pitfalls)
-      ? t.common_pitfalls.map((p) => ({ ...p }))
+      ? t.common_pitfalls.map((p) => ({ ...(p as Record<string, unknown>) }))
       : [];
   }
   if (mgrType.value === "template") {
-    t.steps = Array.isArray(t.steps) ? t.steps.map((s) => ({ ...s })) : [];
+    t.steps = Array.isArray(t.steps) ? t.steps.map((s) => ({ ...(s as Record<string, unknown>) })) : [];
     t.applicable_to = Array.isArray(t.applicable_to)
       ? [...t.applicable_to]
       : [];

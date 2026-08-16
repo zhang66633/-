@@ -141,13 +141,13 @@ function onGlobalMouseUp() {
   if (t.length < 1) return;
 
   selectedText = t;
-  let n = an;
+  let n: Node | null = an;
   while (n && n !== contentRef.value) {
     if (n.nodeName?.match(/^H[1-4]$/)) {
       selectedSection = n.textContent || "";
       break;
     }
-    n = n.parentElement as HTMLElement | null;
+    n = n.parentElement as Node | null;
   }
 
   // 保存选区矩形 → 仿蓝色高亮

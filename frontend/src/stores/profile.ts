@@ -5,7 +5,30 @@ import { ref } from "vue";
 /** 学习画像/进度结构（未知字段透传） */
 interface LearningProfile {
   roles?: string[];
-  achievements?: { is_new?: boolean }[];
+  stats?: {
+    total_answers?: number;
+    accuracy?: number;
+    streak_days?: number;
+    unlocked_achievements?: number;
+    total_achievements?: number;
+    wrong_questions?: number;
+    mastered_questions?: number;
+  };
+  calendar?: { date: string; count: number }[];
+  achievements?: {
+    id: string;
+    name: string;
+    desc: string;
+    icon: string;
+    tier: "bronze" | "silver" | "gold";
+    progress: number;
+    target: number;
+    unlocked: boolean;
+    unlocked_at: string | null;
+    is_new: boolean;
+  }[];
+  weekly?: { message?: string };
+  needs_review?: { skill_id: string; retention: number }[];
   [key: string]: unknown;
 }
 

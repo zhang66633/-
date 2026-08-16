@@ -13,7 +13,7 @@
       <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mt-2">完成率</p>
     </div>
     <div class="rounded-md border border-border bg-card p-4 text-center">
-      <p class="font-mono text-3xl font-medium tabular-nums">{{ achievements.filter((a: { unlocked: boolean }) => a.unlocked).length }}<span class="text-base text-muted-foreground">/{{ achievements.length }}</span></p>
+      <p class="font-mono text-3xl font-medium tabular-nums">{{ achievements.filter((a) => a.unlocked).length }}<span class="text-base text-muted-foreground">/{{ achievements.length }}</span></p>
       <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mt-2">成就解锁</p>
     </div>
   </div>

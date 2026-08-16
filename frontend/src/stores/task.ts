@@ -14,6 +14,8 @@ interface WsEventData {
   summary?: string;
   desc?: string;
   output_length?: number;
+  images_count?: number;
+  stdout?: string;
   passed?: boolean;
   rollback_target?: string;
   skipped?: boolean;
@@ -21,6 +23,7 @@ interface WsEventData {
   reset?: boolean;
   tool_name?: string;
   tool_call_id?: string;
+  id?: string;
   input?: Record<string, unknown>;
   output?: unknown[];
   status?: string;
@@ -42,6 +45,7 @@ interface WsEvent {
   node?: string;
   task_id?: string;
   timestamp?: string;
+  id?: string;
   data?: WsEventData;
 }
 
@@ -149,15 +153,18 @@ export const useTaskStore = defineStore("task", () => {
     if (toolCallId) {
       const hit = [...list]
         .reverse()
-        .find((m) => m.msg_type === "tool" && m.tool_call_id === toolCallId);
-      if (hit) return hit; // 联合类型已按 msg_type 收窄为 ToolMessage
+        .find(
+          (m): m is ToolMessage =>
+            m.msg_type === "tool" && m.tool_call_id === toolCallId,
+        );
+      if (hit) return hit;
     }
     if (toolName) {
       return (
         [...list]
           .reverse()
           .find(
-            (m) =>
+            (m): m is ToolMessage =>
               m.msg_type === "tool" &&
               m.tool_name === toolName &&
               (m.status === "running" || !m.output),
@@ -305,6 +312,7 @@ export const useTaskStore = defineStore("task", () => {
     // 流式文本增量：累积到对应节点消息（dsh 式逐字渲染）
     if (event === "node_delta") {
       const node = data?.node;
+      if (!node) return;
       const msgId = streamingNodeMsg.value[node];
       if (!msgId) return;
       // 流式重试 reset：清空已收到的增量重新累积（避免失败流与重试流重复）
@@ -439,6 +447,7 @@ export const useTaskStore = defineStore("task", () => {
     // 这样 BubbleAgent + ThinkingBlock 可以渲染可折叠的思考过程
     if (event === "node_end") {
       const node = data?.node;
+      if (!node) return;
       // 流式节点收尾：内容已由 node_delta 逐字累积，只结束 streaming 态。
       // 求解/预处理有工具循环：循环文本一次性补推、最终报告用 summary 兜底
       const streamMsgId = streamingNodeMsg.value[node];

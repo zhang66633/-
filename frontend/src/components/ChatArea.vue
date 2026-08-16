@@ -128,7 +128,7 @@ import ChatScrollButton from "@/components/chat/ChatScrollButton.vue";
 import ChatThinking from "@/components/chat/ChatThinking.vue";
 import ChatToolbar from "@/components/chat/ChatToolbar.vue";
 import { useTaskStore } from "@/stores/task";
-import type { Message } from "@/types/response";
+import type { Message, ToolOutputEntry } from "@/types/response";
 import { useVirtualizer } from "@tanstack/vue-virtual";
 import {
   computed,
@@ -199,7 +199,7 @@ const artifactImages = computed<string[]>(() => {
     if (m.msg_type !== "tool") continue;
     const out = m.output; // msg_type === "tool" 已收窄为 ToolMessage（output: unknown[] | null）
     if (!Array.isArray(out)) continue;
-    for (const o of out) {
+    for (const o of out as ToolOutputEntry[]) {
       if (Array.isArray(o?.images)) {
         for (const u of o.images) {
           if (typeof u === "string" && !urls.includes(u)) urls.push(u);

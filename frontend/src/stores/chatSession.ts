@@ -308,7 +308,7 @@ export const useChatSessionStore = defineStore(
         status?: ToolStatus;
         output?: unknown[];
         answered?: boolean;
-        error?: boolean | string;
+        error?: boolean;
         duration_ms?: number;
       },
     ) {

@@ -9,7 +9,7 @@
     <div v-for="(item, i) in items" :key="i" class="flex gap-2 items-start">
       <!-- 简单模式：每行一个输入框 -->
       <template v-if="!fields">
-        <Input :model-value="item" :placeholder="placeholder" class="flex-1 h-8 text-sm" @update:model-value="(v) => updateItem(i, v)" />
+        <Input :model-value="scalarValue(item)" :placeholder="placeholder" class="flex-1 h-8 text-sm" @update:model-value="(v) => updateItem(i, v)" />
       </template>
       <!-- 结构化模式：每行多字段 -->
       <div v-else class="flex-1 flex flex-wrap gap-2 p-2 border border-border rounded-md">
@@ -41,22 +41,32 @@ interface FieldDef {
 
 const props = withDefaults(
   defineProps<{
-    modelValue: unknown[];
+    modelValue?: unknown[];
     fields?: FieldDef[]; // 提供则结构化模式，不提供则简单模式
     label?: string;
     placeholder?: string;
-    emptyValue?: unknown;
+    emptyValue?: string | Record<string, unknown>;
   }>(),
   { emptyValue: "" },
 );
 
 const emit = defineEmits<{ "update:modelValue": [v: unknown[]] }>();
 
-const items = computed(() => props.modelValue);
+const items = computed(() => props.modelValue ?? []);
 
-/** 结构化模式：取字段值（未知结构用索引访问） */
-function itemValue(item: unknown, key: string): unknown {
-  return (item as Record<string, unknown> | null)?.[key];
+/** 结构化模式：取字段值（未知结构用索引访问，输入框需要标量） */
+function itemValue(item: unknown, key: string): string | number | undefined {
+  const v = (item as Record<string, unknown> | null)?.[key];
+  if (typeof v === "string" || typeof v === "number") return v;
+  if (v === undefined || v === null) return undefined;
+  return String(v);
+}
+
+/** 简单模式：标量条目转输入框可绑定值 */
+function scalarValue(item: unknown): string | number | undefined {
+  if (typeof item === "string" || typeof item === "number") return item;
+  if (item === undefined || item === null) return undefined;
+  return String(item);
 }
 
 function add() {

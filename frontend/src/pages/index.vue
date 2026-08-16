@@ -296,10 +296,11 @@ const showKeyInput = ref(false);
 
 async function checkMyKey() {
   try {
-    const r = await request.get<{ has_key: boolean; key: string | null }>(
-      "/apikeys/mine",
-    );
-    myKey.value = r.data || r;
+    const r = await request.get<{
+      has_key: boolean;
+      key: { masked_key: string; provider: string; model_name: string } | null;
+    }>("/apikeys/mine");
+    myKey.value = r.data || { has_key: false, key: null };
     showKeyInput.value = !myKey.value.has_key;
   } catch {
     myKey.value = { has_key: false, key: null };
