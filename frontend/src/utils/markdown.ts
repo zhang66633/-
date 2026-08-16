@@ -184,12 +184,16 @@ const paperRenderer = createHighlightedRenderer();
 
 /**
  * DOMPurify 安全配置：启用 MathML 配置（保留 KaTeX 的 MathML 无障碍输出），
- * 并补充 KaTeX 输出集中默认未列入白名单的标签。
+ * 并补充 KaTeX 输出集中默认未列入白名单的标签与属性。
  * 注意：USE_PROFILES 一旦设置会重置白名单，须显式保留 html/svg 配置以免误伤正文。
+ *
+ * ADD_ATTR xmlns 必须保留：KaTeX 的 MathML 层带 xmlns 命名空间声明，
+ * 被清洗后 Firefox 等优先用 MathML 渲染的浏览器公式会损坏（练习/学习页公式渲染错误）。
  */
 const SANITIZE_CONFIG = {
   USE_PROFILES: { html: true, svg: true, svgFilters: true, mathMl: true },
   ADD_TAGS: ["semantics", "annotation", "annotation-xml"],
+  ADD_ATTR: ["xmlns"],
 };
 
 /**
