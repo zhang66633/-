@@ -27,7 +27,10 @@ class SessionManager:
     """
 
     def __init__(self, persist_path: Path | None = None):
-        self._lock = threading.Lock()
+        # RLock 而非 Lock：cancel() 曾持锁调用 get_cancel_event() 二次抢锁，
+        # 非重入锁直接自死锁，把 uvicorn 单 worker 主循环永久卡死（py-spy 实锤）。
+        # 可重入锁是防御底线，嵌套取锁的结构问题在 cancel() 内另行消除。
+        self._lock = threading.RLock()
         self._tasks: dict[str, dict] = {}
         self._cancel_events: dict[str, threading.Event] = {}
         self._persist_path = persist_path
@@ -59,7 +62,7 @@ class SessionManager:
 
         with self._lock:
             self._tasks[task_id] = task
-            self._save()
+        self._save()
 
         return task
 
@@ -104,35 +107,40 @@ class SessionManager:
                 return None
             fields["updated_at"] = datetime.now(UTC).isoformat()
             task.update(fields)
-            self._save()
-            return task
+        # 磁盘写在锁外（_save 内部只短暂持锁取内存快照）
+        self._save()
+        return task
 
     def delete(self, task_id: str) -> bool:
         """Delete a task. Returns True if it existed."""
         with self._lock:
-            if task_id in self._tasks:
+            existed = task_id in self._tasks
+            if existed:
                 del self._tasks[task_id]
-                self._save()
-                return True
-            return False
+        if existed:
+            self._save()
+        return existed
 
     def cancel(self, task_id: str) -> bool:
         """Mark a task as cancelled and signal the orchestrator to stop.
 
-        用 get_cancel_event 惰性创建（而非 .get() 只读）——若取消请求早于
-        编排器首次检查（事件尚未创建），信号不会丢失；否则任务会在最后
-        被 update(status="completed") 覆盖回 completed。
+        惰性创建取消事件——若取消请求早于编排器首次检查，信号不会丢失；
+        否则任务会在最后被 update(status="completed") 覆盖回 completed。
+
+        注意：这里必须内联操作 _cancel_events。曾通过 get_cancel_event()
+        在持锁状态下二次抢锁，Lock 不可重入直接自死锁、uvicorn 主循环
+        永久停摆（py-spy 实锤的事故）——勿改回嵌套调用。
         """
         with self._lock:
-            event = self.get_cancel_event(task_id)
+            event = self._cancel_events.setdefault(task_id, threading.Event())
             event.set()  # 通知后台编排器停止
             task = self._tasks.get(task_id)
-            if task:
+            found = task is not None
+            if found:
                 task["status"] = "cancelled"
                 task["updated_at"] = datetime.now(UTC).isoformat()
-                self._save()
-                return True
-            return False
+        self._save()
+        return found
 
     def get_cancel_event(self, task_id: str) -> threading.Event:
         """Get or create a cancel event for a task.
@@ -152,14 +160,19 @@ class SessionManager:
     # ── persistence ────────────────────────────────────────────────
 
     def _save(self):
+        """持久化会话。dumps 在锁内取一致性快照，磁盘写在锁外。
+
+        write_text 是可能被杀毒软件/磁盘卡顿放大的系统 IO，绝不能持锁做——
+        否则所有等 _lock 的线程（含 uvicorn 主循环里的端点）都会被 IO 卡顿
+        连坐阻塞。
+        """
         if not self._persist_path:
             return
+        with self._lock:
+            payload = json.dumps(self._tasks, ensure_ascii=False, indent=2)
         try:
             self._persist_path.parent.mkdir(parents=True, exist_ok=True)
-            self._persist_path.write_text(
-                json.dumps(self._tasks, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
+            self._persist_path.write_text(payload, encoding="utf-8")
         except Exception:
             logger.warning("Failed to persist sessions", exc_info=True)
 

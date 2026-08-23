@@ -132,9 +132,9 @@ async def create_task(
     user: GitHubUser | None = Depends(get_current_user),
 ):
     """创建建模任务，后台启动编排器。"""
-    # 检查是否有可用的 API Key
+    # 检查是否有可用的 API Key（读 apikeys.json 文件 IO，不占主循环）
     uid = _resolve_user_id(user=user)
-    active_key = get_active_api_key(uid)
+    active_key = await asyncio.to_thread(get_active_api_key, uid)
     if not active_key:
         raise HTTPException(
             status_code=400,
@@ -144,7 +144,10 @@ async def create_task(
     session_mgr = get_session_manager()
     # 把上传附件（题目PDF/数据Excel等）的内容提取进问题上下文，
     # 否则分类节点只能看到用户输入的一句话，无法理解题目。
-    full_problem = _build_problem_with_attachments(req.problem, req.files)
+    # PDF/Excel 解析是重 IO+CPU，同样丢线程池
+    full_problem = await asyncio.to_thread(
+        _build_problem_with_attachments, req.problem, req.files
+    )
     task = session_mgr.create(problem=full_problem, mode=req.mode)
     task_id = task["task_id"]
 
@@ -160,9 +163,10 @@ async def create_task(
         )
 
     # 初始化工作记忆（问题状态文档 + 检查点目录）
+    # mkdir/write_text 属磁盘 IO，与上面同理不占主循环
     from app.services.working_memory import WorkingMemory
 
-    WorkingMemory(task_id).init_session(full_problem)
+    await asyncio.to_thread(WorkingMemory(task_id).init_session, full_problem)
 
     # 在独立线程中运行编排器（节点含同步阻塞调用 llm.invoke / subprocess），
     # 以免阻塞事件循环导致 HTTP 响应体无法刷新、WS 进度卡住
@@ -247,7 +251,9 @@ async def get_task_events(
 
 @tasks_router.post("/tasks/{task_id}/cancel")
 async def cancel_task(task_id: str, user: GitHubUser | None = Depends(get_current_user)):
-    success = get_session_manager().cancel(task_id)
+    # cancel 含 sessions.json 全量落盘——绝不能在主循环线程里同步做
+    # （曾与编排器线程争锁一起把事件循环堵死，所有请求 60s 无响应）
+    success = await asyncio.to_thread(get_session_manager().cancel, task_id)
     if not success:
         raise HTTPException(status_code=404, detail="任务不存在")
     return {"success": True, "message": "任务已取消"}
