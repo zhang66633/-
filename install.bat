@@ -38,16 +38,15 @@ echo [3/5] 安装后端依赖(首次约 3-8 分钟,取决于网络)...
 if errorlevel 1 ( echo [错误] 后端依赖安装失败,请检查网络后重试 & pause & exit /b 1 )
 
 REM ── 3. 生成 .env ────────────────────────────────
-if not exist "backend\.env" (
-  echo [4/5] 生成 backend\.env(含随机 JWT_SECRET)...
-  copy /y "backend\.env.example" "backend\.env" >nul
-  REM 生成随机 JWT_SECRET 并写入
-  for /f "delims=" %%t in ('".venv\Scripts\python.exe" -c "import secrets;print(secrets.token_hex(32))"') do set NEWSECRET=%%t
-  ".venv\Scripts\python.exe" -c "import io;p=r'backend\.env';s=io.open(p,encoding='utf-8').read().replace('JWT_SECRET=change-me-to-a-random-string','JWT_SECRET=%NEWSECRET%');io.open(p,'w',encoding='utf-8').write(s)"
-  REM 端口统一 8002(与 start.py 一致);沙箱默认 subprocess(Docker 可选)
-  ".venv\Scripts\python.exe" -c "import io;p=r'backend\.env';s=io.open(p,encoding='utf-8').read();s=s.replace('PORT=8000','PORT=8002').replace('SANDBOX_BACKEND=docker','SANDBOX_BACKEND=subprocess');io.open(p,'w',encoding='utf-8').write(s)"
+REM 坑实录：括号块内 echo 文案带中文括号会让整块解析崩溃；for /f 捕获带引号
+REM 命令输出会被拆坏引号——两者叠加导致新用户安装必卡死在本步。故改为：
+REM 单条 python 内联完成 复制模板+注入随机 JWT_SECRET，batch 不捕获任何变量，
+REM 且块内 echo 文案绝不带括号。
+if exist "backend\.env" (
+  echo [4/5] backend.env 已存在, 跳过
 ) else (
-  echo [4/5] backend\.env 已存在,跳过
+  echo [4/5] 生成 backend.env 并注入随机 JWT_SECRET
+  ".venv\Scripts\python.exe" -c "import io,pathlib,secrets;s=io.open('backend/.env.example',encoding='utf-8').read();io.open(pathlib.Path('backend/.env'),'w',encoding='utf-8').write(s.replace('JWT_SECRET=change-me-to-a-random-string','JWT_SECRET='+secrets.token_hex(32)))"
 )
 
 REM ── 4. 前端依赖 ─────────────────────────────────

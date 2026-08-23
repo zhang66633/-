@@ -59,7 +59,7 @@ echo
 echo "=============================================="
 echo " 安装完成!"
 echo
-echo " 启动:  bash start.py        (同时启动前后端)"
+echo " 启动:  python3 start.py      (同时启动前后端)"
 echo " 前端:  http://localhost:5174"
 echo " 后端:  http://127.0.0.1:8002/docs"
 echo
