@@ -490,7 +490,6 @@ async def upload_knowledge(
 
 def _ocr_pdf_text(file_bytes: bytes) -> str:
     """对扫描版/无文字层 PDF 做 OCR 提取（pymupdf 渲染 + RapidOCR）。"""
-    import io
 
     try:
         import fitz  # pymupdf
@@ -505,7 +504,7 @@ def _ocr_pdf_text(file_bytes: bytes) -> str:
         import numpy as np
 
         ocr = RapidOCR()
-        doc = fitz.open(io.BytesIO(file_bytes))
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
         pages = []
         for page in doc:
             pix = page.get_pixmap(dpi=150)
