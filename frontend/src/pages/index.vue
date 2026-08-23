@@ -244,8 +244,10 @@
 import { getKBStats } from "@/apis/knowledgeApi";
 import NextRecommendationCard from "@/components/learning/NextRecommendationCard.vue";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useGuidedTour } from "@/composables/useGuidedTour";
 import { useLearningStore } from "@/stores/learning";
 import { useProfileStore } from "@/stores/profile";
+import { useTourStore } from "@/stores/tour";
 import request from "@/utils/request";
 import {
   ArrowRight,
@@ -269,6 +271,8 @@ const router = useRouter();
 const route = useRoute();
 const profileStore = useProfileStore();
 const learningStore = useLearningStore();
+const tourStore = useTourStore();
+const guidedTour = useGuidedTour();
 
 const deniedMessage = ref("");
 watch(
@@ -361,6 +365,11 @@ const statItems = ref([
 ]);
 
 onMounted(async () => {
+  // 新手首次访问: 稍候页面渲染稳定后自动启动功能导览(完成/跳过一次即不再弹)
+  if (tourStore.shouldAutoStart) {
+    window.setTimeout(() => guidedTour.start(), 800);
+  }
+
   // 画像(继续学习卡;失败静默降级)
   profileStore.checkProfile();
   try {

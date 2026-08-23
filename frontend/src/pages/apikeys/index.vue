@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-full flex-col overflow-hidden">
+  <div class="flex h-full flex-col overflow-hidden" data-tour="apikeys-page">
     <header class="flex items-center justify-between border-b px-6 py-4 shrink-0">
       <div class="flex items-center gap-3">
         <Button variant="ghost" size="icon" :class="SCALE_PRESS_ONLY" @click="router.back()">

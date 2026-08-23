@@ -61,7 +61,7 @@ const hubQuickActions = [
           <span class="font-display text-lg font-medium">学习工位</span>
           <span class="font-mono text-[10px] text-muted-foreground">· 智能体对话式教学</span>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" data-tour="learn-role">
           <span class="font-mono text-[10px] text-muted-foreground">角色</span>
           <select
             class="rounded-md border border-border bg-background px-3 py-1.5 text-sm"

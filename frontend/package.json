@@ -17,6 +17,7 @@
     "@vueuse/core": "^12.7.0",
     "axios": "^1.8.4",
     "dompurify": "^3.4.12",
+    "driver.js": "^1.8.0",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
     "lucide-vue-next": "^0.475.0",

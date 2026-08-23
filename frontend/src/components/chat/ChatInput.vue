@@ -112,7 +112,7 @@ function sendMessage() {
       </div>
     </div>
 
-    <div class="flex items-end gap-2">
+    <div class="flex items-end gap-2" data-tour="chat-input">
       <!-- 附件按钮 -->
       <button
         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background hover:bg-accent transition-colors disabled:opacity-50"

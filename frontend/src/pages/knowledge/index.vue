@@ -20,7 +20,7 @@
       </div>
 
         <!-- Tabs:章节式等宽标签 + 下划线高亮,无胶囊背景 -->
-        <div class="flex items-center gap-6 border-b mt-8 mb-8">
+        <div class="flex items-center gap-6 border-b mt-8 mb-8" data-tour="knowledge-tabs">
           <button v-for="(tab, i) in tabs" :key="tab.value"
             class="relative flex items-center gap-2 py-3 text-sm transition-colors"
             :class="activeTab === tab.value ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"

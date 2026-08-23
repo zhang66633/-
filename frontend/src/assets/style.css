@@ -170,3 +170,58 @@
     }
   }
 }
+
+/* ═══ 新手导览 (driver.js) 主题适配 ═══
+   引用项目 CSS 变量,深浅色自动跟随 ThemeToggle;不加 @layer 保证覆盖库默认值 */
+.driver-popover {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px hsl(20 14% 5% / 0.18);
+  font-family: inherit;
+  max-width: 360px;
+  padding: 1rem 1.15rem;
+}
+.driver-popover-title {
+  font-family: "Newsreader", "Geist Sans", serif;
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.4rem;
+}
+.driver-popover-description {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+.driver-popover-close-btn {
+  color: hsl(var(--muted-foreground) / 0.6);
+}
+.driver-popover-close-btn:hover {
+  color: hsl(var(--foreground));
+}
+.driver-popover-footer {
+  margin-top: 0.9rem;
+}
+/* 次要按钮: 上一步 */
+.driver-popover-prev-btn {
+  background: transparent !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: calc(var(--radius) - 8px);
+  color: hsl(var(--muted-foreground)) !important;
+}
+.driver-popover-prev-btn:hover {
+  background: hsl(var(--accent) / 0.5) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+/* 主按钮: 下一步 / 完成 */
+.driver-popover-next-btn {
+  background: hsl(var(--primary)) !important;
+  border: 1px solid hsl(var(--primary)) !important;
+  border-radius: calc(var(--radius) - 8px);
+  color: hsl(var(--primary-foreground)) !important;
+}
+.driver-popover-next-btn:hover {
+  opacity: 0.9;
+}

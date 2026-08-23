@@ -1,5 +1,6 @@
 <template>
   <aside
+    data-tour="sidebar"
     :class="[
       collapsed ? 'w-12' : '',
       'relative flex flex-col border-r bg-background h-screen sticky top-0 shrink-0 overflow-hidden',
@@ -166,6 +167,14 @@
         <component :is="item.icon" class="h-3.5 w-3.5 shrink-0 opacity-60" />
         <span :class="isNavActive(item.path) ? 'font-display font-medium' : ''">{{ item.label }}</span>
       </button>
+      <!-- 新手功能导览入口: 随时可重看完整导览 -->
+      <button
+        class="flex w-full items-center gap-3 py-1.5 pr-4 pl-2.5 text-xs transition-colors text-muted-foreground/70 hover:text-foreground hover:bg-accent/30"
+        @click="guidedTour.start()"
+      >
+        <Compass class="h-3.5 w-3.5 shrink-0 opacity-60" />
+        <span>功能导览</span>
+      </button>
     </div>
 
     <div v-if="!collapsed" class="border-t px-3 py-3 shrink-0">
@@ -200,6 +209,7 @@
 
 <script setup lang="ts">
 import VersionSwitcher from "@/components/VersionSwitcher.vue";
+import { useGuidedTour } from "@/composables/useGuidedTour";
 import { bottomItems, learnGroup, paperGroup } from "@/config/navItems";
 import { NAV_ITEM } from "@/config/styles";
 import { useAuthStore } from "@/stores/auth";
@@ -209,7 +219,14 @@ import {
   useChatSessionStore,
 } from "@/stores/chatSession";
 import { APP_NAME } from "@/types/const";
-import { Check, Home, PanelLeftClose, Pencil, X } from "lucide-vue-next";
+import {
+  Check,
+  Compass,
+  Home,
+  PanelLeftClose,
+  Pencil,
+  X,
+} from "lucide-vue-next";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -273,6 +290,7 @@ function dragKey(e: KeyboardEvent) {
 }
 
 const auth = useAuthStore();
+const guidedTour = useGuidedTour();
 
 const router = useRouter();
 const route = useRoute();

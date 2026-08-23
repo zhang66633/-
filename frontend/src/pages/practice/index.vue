@@ -19,7 +19,7 @@
       </div>
 
       <!-- Tab 切换 -->
-      <div v-if="!inSession && !sessionDone" class="flex items-center gap-6 border-b px-6 shrink-0">
+      <div v-if="!inSession && !sessionDone" class="flex items-center gap-6 border-b px-6 shrink-0" data-tour="practice-tabs">
         <button
           v-for="tab in tabs"
           :key="tab.value"

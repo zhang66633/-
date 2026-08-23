@@ -22,7 +22,7 @@
       />
     </div>
     <Transition name="slide-right">
-      <div v-if="rightPanelOpen" class="w-80 shrink-0 border-l bg-background p-4 overflow-y-auto">
+      <div v-if="rightPanelOpen" class="w-80 shrink-0 border-l bg-background p-4 overflow-y-auto" data-tour="solution-timeline">
         <ProgressTimeline
           :steps="agentSteps"
           :running="taskStore.isRunning"

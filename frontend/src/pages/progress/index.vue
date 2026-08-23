@@ -1,6 +1,6 @@
 <template>
   <div class="h-full overflow-y-auto">
-    <div class="mx-auto max-w-4xl px-6 sm:px-10 py-12 sm:py-16">
+    <div class="mx-auto max-w-4xl px-6 sm:px-10 py-12 sm:py-16" data-tour="progress-page">
       <p class="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">§ 成长档案</p>
       <h1 class="font-display text-3xl sm:text-4xl font-medium tracking-tight">你的学习之旅</h1>
 
