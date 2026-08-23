@@ -51,22 +51,27 @@ if exist "backend\.env" (
 
 REM ── 4. 前端依赖 ─────────────────────────────────
 echo [5/5] 安装前端依赖 pnpm install(首次约 2-5 分钟)...
-pushd frontend
-pnpm install
-if errorlevel 1 ( echo [错误] 前端依赖安装失败 & popd & pause & exit /b 1 )
-popd
+REM call 必须写：pnpm 本体是 pnpm.cmd 批处理，批处理调批处理不写 call 会直接
+REM 终止本脚本（横幅与错误处理都不执行，exit code 还是 0，最难排查的一种死法）。
+REM --dir 显式指定目录，本步与「当前目录」完全无关（pushd 失败时 cmd 不会中止）。
+if not exist "frontend\package.json" ( echo [错误] 未找到 frontend\package.json,仓库文件不完整,请重新下载解压 & pause & exit /b 1 )
+call pnpm install --dir "%~dp0frontend"
+if errorlevel 1 ( echo [错误] 前端依赖安装失败 & pause & exit /b 1 )
 
 REM ── 5. 可选: Docker 沙箱镜像 ─────────────────────
-if "%~1"=="--docker" (
-  echo [可选] 构建沙箱镜像 mathmodel-sandbox ...
-  docker build -t mathmodel-sandbox -f backend\Dockerfile.sandbox backend
-  if errorlevel 1 (
-    echo [警告] 沙箱镜像构建失败,继续使用 subprocess 模式(功能不受影响)
-  ) else (
-    ".venv\Scripts\python.exe" -c "import io;p=r'backend\.env';s=io.open(p,encoding='utf-8').read().replace('SANDBOX_BACKEND=subprocess','SANDBOX_BACKEND=docker');io.open(p,'w',encoding='utf-8').write(s)"
-    echo [可选] 已启用 docker 硬隔离沙箱
-  )
-)
+REM 坑实录：多行括号块被跳过时，cmd 按括号扫描找块尾，echo 文案里的括号会
+REM 让它提前"找到"块尾，把块内命令当普通行执行（幽灵分支）。本段一律用
+REM goto 线性流程，不存在可被跳过的括号块。
+if not "%~1"=="--docker" goto docker_done
+echo [可选] 构建沙箱镜像 mathmodel-sandbox ...
+docker build -t mathmodel-sandbox -f backend\Dockerfile.sandbox backend
+if errorlevel 1 goto docker_failed
+".venv\Scripts\python.exe" -c "import io;p=r'backend\.env';s=io.open(p,encoding='utf-8').read().replace('SANDBOX_BACKEND=subprocess','SANDBOX_BACKEND=docker');io.open(p,'w',encoding='utf-8').write(s)"
+echo [可选] 已启用 docker 硬隔离沙箱
+goto docker_done
+:docker_failed
+echo [警告] 沙箱镜像构建失败,继续使用 subprocess 模式(功能不受影响)
+:docker_done
 
 echo.
 echo ==============================================
