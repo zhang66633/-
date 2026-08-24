@@ -1,0 +1,81 @@
+method_card:
+  id: mc_011
+  name: 粒子群优化算法
+  name_en: Particle Swarm Optimization (PSO)
+  category:
+  - 优化
+  - 启发式算法
+  - 群体智能
+  principle: '粒子群优化是一种基于群体协作的随机搜索算法，模拟鸟群觅食行为。每个粒子在搜索空间中飞行，
+
+    其位置代表问题的候选解。粒子根据自身历史最优位置（个体最优 pbest）和整个群体的历史最优位置
+
+    （全局最优 gbest）来调整飞行方向和速度。
+
+
+    **速度更新公式**：
+
+    v_i(t+1) = w·v_i(t) + c1·r1·(pbest_i - x_i(t)) + c2·r2·(gbest - x_i(t))
+
+
+    **位置更新公式**：
+
+    x_i(t+1) = x_i(t) + v_i(t+1)
+
+
+    其中 w 为惯性权重（控制搜索范围），c1/c2 为学习因子（分别控制个体经验和群体经验的影响），
+
+    r1/r2 为 [0,1] 随机数。通过调整 w 从大到小可实现从全局搜索向局部搜索的平滑过渡。
+
+    '
+  formulas:
+  - v_i(t+1) = w·v_i(t) + c1·r1·(pbest_i - x_i(t)) + c2·r2·(gbest - x_i(t))
+  - x_i(t+1) = x_i(t) + v_i(t+1)
+  - w = w_max - (w_max - w_min) * t / T
+  applicable_when:
+  - 目标函数不可微或难以求梯度
+  - 搜索空间连续，需要全局最优解
+  - 问题维度不太高（通常 n < 1000）
+  - 约束条件可通过罚函数法处理
+  typical_scenarios:
+  - 连续函数优化：求多元函数极值
+  - 参数标定：模型参数最优估计，如传染病模型参数拟合
+  - 资源调度：作业车间调度、人员排班
+  - 路径规划：无人机/机器人路径优化
+  - 神经网络训练：替代梯度下降优化网络权值
+  common_mistakes:
+  - 粒子数设置过大导致计算量巨大；建议 20-50 个粒子起步
+  - 惯性权重递减方式不当导致过早收敛；建议线性递减或自适应调整
+  - 直接处理离散问题效果差；应使用离散PSO变体或改用遗传算法
+  - 未对跳出局部最优做设计；可引入随机扰动或多种群策略
+  code_snippets:
+  - "# Python: 基本 PSO 框架\nimport numpy as np\n\nclass PSO:\n    def __init__(self, func, dim, n_particles=30,\
+    \ max_iter=100,\n                 bounds=(-10, 10), w=0.7, c1=1.5, c2=1.5):\n        self.func = func\n\
+    \        self.dim = dim\n        self.n_particles = n_particles\n        self.max_iter = max_iter\n\
+    \        lb, ub = bounds\n        self.x = np.random.uniform(lb, ub, (n_particles, dim))\n       \
+    \ self.v = np.random.uniform(-1, 1, (n_particles, dim))\n        self.pbest = self.x.copy()\n    \
+    \    self.pbest_val = np.array([func(xi) for xi in self.x])\n        gbest_idx = np.argmin(self.pbest_val)\n\
+    \        self.gbest = self.pbest[gbest_idx].copy()\n        self.w, self.c1, self.c2 = w, c1, c2\n\
+    \n    def optimize(self):\n        for t in range(self.max_iter):\n            r1, r2 = np.random.rand(2)\n\
+    \            self.v = (self.w * self.v +\n                      self.c1 * r1 * (self.pbest - self.x)\
+    \ +\n                      self.c2 * r2 * (self.gbest - self.x))\n            self.x = self.x + self.v\n\
+    \            vals = np.array([self.func(xi) for xi in self.x])\n            improved = vals < self.pbest_val\n\
+    \            self.pbest[improved] = self.x[improved]\n            self.pbest_val[improved] = vals[improved]\n\
+    \            if np.min(vals) < self.func(self.gbest):\n                self.gbest = self.x[np.argmin(vals)].copy()\n\
+    \        return self.gbest, self.func(self.gbest)\n"
+  related_cards:
+  - mc_003
+  - mc_006
+  - mc_007
+  difficulty: 2
+  quality_rating: 5
+  tags:
+    model_type:
+    - 最优化
+    key_concepts:
+    - 群体智能
+    - 启发式搜索
+    - 并行计算
+    mathematical_tools:
+    - 随机过程
+    - 向量运算

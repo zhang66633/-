@@ -1,0 +1,61 @@
+method_card:
+  name: Prophet预测模型
+  name_en: ''
+  category:
+  - 预测
+  principle: 'Prophet是Facebook开发的时间序列预测模型，适合具有季节性和节假日效应的商务时间序列。
+
+
+    > ⚠️ **维护状态提示**：Prophet 官方已停止积极维护，新项目建议优先使用 `statsmodels`（STL/ETS/ARIMA，本章 §6/§7）或 `chronos` 等现代时序模型；仅在已有
+    Prophet 依赖或题目明确要求时使用本节方案。模型公式与思想仍可参考学习。
+
+
+    **模型公式**：
+
+    $$
+
+    y(t) = g(t) + s(t) + h(t) + \varepsilon_t
+
+    $$
+
+
+    其中：
+
+    - $g(t)$：趋势项（线性或逻辑斯谛）
+
+    - $s(t)$：季节项（傅里叶级数）
+
+    - $h(t)$：节假日效应
+
+    - $\varepsilon_t$：误差项
+
+
+    **趋势项**（线性）：$g(t) = (k + a_k \delta(t) \cdot t + (m + a_m \delta(t))$
+
+
+    **季节项**：$s(t) = \sum_{n=1}^{N} [a_n \cos(\frac{2\pi n t}{P}) + b_n \sin(\frac{2\pi n t}{P})]$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: Prophet预测模型 实现要点
+    code: "from prophet import Prophet\nimport pandas as pd\n\ndef prophet_forecast(df, periods=30, yearly_seasonality=True,\
+      \ weekly_seasonality=True):\n    \"\"\"\n    Prophet时间序列预测\n    :param df: DataFrame with columns\
+      \ 'ds' (datetime) and 'y' (value)\n    :param periods: 预测步数\n    :return: 预测结果\n    \"\"\"\n   \
+      \ # 创建模型\n    model = Prophet(\n        yearly_seasonality=yearly_seasonality,\n        weekly_seasonality=weekly_seasonality,\n\
+      \        daily_seasonality=False,\n        seasonality_mode='additive'\n    )\n\n    # 添加自定义季节性\n\
+      \    model.add_seasonality(name='monthly', period=30.5, fourier_order=5)\n\n    # 拟合模型\n    model.fit(df)\n\
+      \n    # 创建未来日期\n    future = model.make_future_dataframe(periods=periods)\n\n    # 预测\n    forecast\
+      \ = model.predict(future)\n\n    return forecast, model\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - Prophet预测模型
+    chart_types:
+    - '**预测分解图**：趋势、季节、节假日分解'
+    - '**预测区间图**：不确定性区间'
+    - '**组件影响图**：各组件贡献'
+    source: math-modeling-skill
+  id: mc_68

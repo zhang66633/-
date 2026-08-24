@@ -1,0 +1,57 @@
+method_card:
+  id: mc_019
+  name: 数据包络分析
+  name_en: Data Envelopment Analysis (DEA)
+  category:
+  - 评价决策
+  - 效率分析
+  principle: "数据包络分析是一种非参数的效率评价方法，用于评价具有多个输入和多个输出的\n「决策单元」(DMU，如企业、部门、学校)的相对效率。\n\n**CCR 模型**（规模报酬不变）：\n\
+    对于 DMU_k，求解线性规划：\nmax θ_k = Σ_{r} u_r · y_{rk}（最大化效率得分）\ns.t.\n  Σ_{i} v_i · x_{ik} = 1（输入归一化）\n \
+    \ Σ_{r} u_r · y_{rj} - Σ_{i} v_i · x_{ij} ≤ 0, ∀j（效率不超过 1）\n  u_r, v_i ≥ ε（权重非负，ε 为无穷小量）\n\n其中 x_{ij}\
+    \ 为第 j 个 DMU 的第 i 种输入，y_{rj} 为第 j 个 DMU 的第 r 种输出。\n效率值 θ ∈ (0,1]，θ=1 表示 DMU 处于效率前沿面上（DEA 有效）。\n\n\
+    **BCC 模型**（规模报酬可变）：在 CCR 基础上增加凸约束 Σλ_j = 1，\n分离技术效率和规模效率。综合效率(TE) = 纯技术效率(PTE) × 规模效率(SE)。\n"
+  formulas:
+  - CCR 模型：θ_k = max Σ u_r·y_{rk} / Σ v_i·x_{ik}
+  - 对偶规划：min θ, s.t. θ·x_{ik} ≥ Σ λ_j·x_{ij}, y_{rk} ≤ Σ λ_j·y_{rj}
+  - 规模报酬判断：Σλ_j < 1 → 规模报酬递增；= 1 → 不变；> 1 → 递减
+  applicable_when:
+  - 需要评价多个同类型单元的相对效率
+  - 每个决策单元有多个投入和多个产出指标
+  - 投入产出指标的量纲不统一（DEA 对量纲不敏感）
+  - 不需要预设投入产出之间的函数关系
+  typical_scenarios:
+  - 企业效率评价：多家银行/医院/学校的运营效率对比
+  - 资源配置分析：政府部门的投入产出效率评估
+  - 节能减排效率：工业企业的能源消耗与产出效率
+  - 高校评价：科研投入（经费/人员）与产出（论文/专利）的效率
+  - 基金/投资项目绩效评价
+  common_mistakes:
+  - DMU 数量太少（建议 ≥ 2 × (投入数 + 产出数)，否则区分度差）
+  - 指标选择过多导致大量 DMU 效率为 1；筛选关键指标后再做 DEA
+  - 未区分投入/产出方向（投入增多应降低效率，产出增多应提高效率）
+  - 仅用 CCR 不分拆技术效率和规模效率；同时用 BCC 做对比分析
+  code_snippets:
+  - "# Python: DEA CCR 模型 (基于 pulp)\nfrom pulp import *\n\ndef dea_ccr(inputs, outputs, dmu_idx):\n  \
+    \  \\\"\\\"\\\"inputs/outputs: 每个DMU的投入/产出列表\\\"\\\"\\\"\n    n_dmu = len(inputs)\n    n_in, n_out\
+    \ = len(inputs[0]), len(outputs[0])\n    # 对偶规划\n    prob = LpProblem(\"DEA_CCR\", LpMinimize)\n \
+    \   theta = LpVariable(\"theta\", 0, 1)\n    lambdas = [LpVariable(f\"lambda_{j}\", 0) for j in range(n_dmu)]\n\
+    \    prob += theta\n    for i in range(n_in):\n        prob += theta * inputs[dmu_idx][i] >= sum(\n\
+    \            lambdas[j] * inputs[j][i] for j in range(n_dmu))\n    for r in range(n_out):\n      \
+    \  prob += outputs[dmu_idx][r] <= sum(\n            lambdas[j] * outputs[j][r] for j in range(n_dmu))\n\
+    \    prob.solve(PULP_CBC_CMD(msg=False))\n    return value(prob.objective)\n"
+  related_cards:
+  - mc_001
+  - mc_009
+  difficulty: 3
+  quality_rating: 4
+  tags:
+    model_type:
+    - 评价类
+    key_concepts:
+    - 效率前沿
+    - 多投入多产出
+    - 线性规划
+    mathematical_tools:
+    - 线性规划
+    - 对偶理论
+    - 运筹学

@@ -1,0 +1,77 @@
+method_card:
+  name: 灰狼优化算法
+  name_en: Grey Wolf Optimizer, GWO
+  category:
+  - 优化
+  principle: '灰狼优化算法模拟灰狼的社会等级和狩猎行为。算法将种群分为四个等级：α、β、δ和ω，通过前三个等级的个体引导种群向猎物（最优解）移动。
+
+
+    **位置更新公式**：
+
+    $$
+
+    \vec{X}(t+1) = \frac{\vec{X}_1 + \vec{X}_2 + \vec{X}_3}{3}
+
+    $$
+
+
+    其中：
+
+    $$
+
+    \vec{X}_1 = \vec{X}_\alpha - \vec{A}_1 \cdot |\vec{C}_1 \cdot \vec{X}_\alpha - \vec{X}|
+
+    $$
+
+    $$
+
+    \vec{X}_2 = \vec{X}_\beta - \vec{A}_2 \cdot |\vec{C}_2 \cdot \vec{X}_\beta - \vec{X}|
+
+    $$
+
+    $$
+
+    \vec{X}_3 = \vec{X}_\delta - \vec{A}_3 \cdot |\vec{C}_3 \cdot \vec{X}_\delta - \vec{X}|
+
+    $$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 灰狼优化算法 实现要点
+    code: "import numpy as np\n\ndef grey_wolf_optimizer(objective_func, dim, bounds, n_wolves=30, max_iter=100,\
+      \ seed=42):\n    \"\"\"\n    灰狼优化算法（完整可运行）\n    :param objective_func: 目标函数 f(x) -> 标量（最小化）\n  \
+      \  :param dim: 维度\n    :param bounds: 边界 (lower, upper)，可每维不同\n    :param n_wolves: 种群大小\n    :param\
+      \ max_iter: 最大迭代次数\n    :param seed: 随机种子\n    :return: 最优解位置, 最优值\n    \"\"\"\n    rng = np.random.default_rng(seed)\n\
+      \    lower, upper = np.atleast_1d(bounds[0]), np.atleast_1d(bounds[1])\n    lower = np.full(dim,\
+      \ lower[0]) if lower.size == 1 else lower\n    upper = np.full(dim, upper[0]) if upper.size == 1\
+      \ else upper\n\n    # 初始化狼群位置\n    wolves = rng.uniform(lower, upper, (n_wolves, dim))\n    scores\
+      \ = np.array([objective_func(w) for w in wolves])\n\n    # 前三个最优个体：alpha（最优）、beta、delta\n    order\
+      \ = np.argsort(scores)\n    alpha_pos, alpha_score = wolves[order[0]].copy(), scores[order[0]]\n\
+      \    beta_pos, beta_score = wolves[order[1]].copy(), scores[order[1]]\n    delta_pos, delta_score\
+      \ = wolves[order[2]].copy(), scores[order[2]]\n\n    for t in range(max_iter):\n        a = 2 -\
+      \ 2 * t / max_iter  # 线性递减的收敛因子\n        for i in range(n_wolves):\n            # 分别以 alpha/beta/delta\
+      \ 为目标更新位置，取三者的加权\n            new_pos = np.zeros(dim)\n            for leader_pos in (alpha_pos,\
+      \ beta_pos, delta_pos):\n                A = 2 * a * rng.random(dim) - a\n                C = 2\
+      \ * rng.random(dim)\n                D = np.abs(C * leader_pos - wolves[i])\n                new_pos\
+      \ += leader_pos - A * D\n            new_pos /= 3\n            # 边界裁剪\n            wolves[i] = np.clip(new_pos,\
+      \ lower, upper)\n            # 更新最优三头\n            s = objective_func(wolves[i])\n            if\
+      \ s < alpha_score:\n                delta_pos, delta_score = beta_pos.copy(), beta_score\n     \
+      \           beta_pos, beta_score = alpha_pos.copy(), alpha_score\n                alpha_pos, alpha_score\
+      \ = wolves[i].copy(), s\n            elif s < beta_score:\n                delta_pos, delta_score\
+      \ = beta_pos.copy(), beta_score\n                beta_pos, beta_score = wolves[i].copy(), s\n  \
+      \          elif s < delta_score:\n                delta_pos, delta_score = wolves[i].copy(), s\n\
+      \n    return alpha_pos, alpha_score\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 灰狼优化算法
+    chart_types:
+    - '**等级位置图**：α、β、δ在解空间的位置'
+    - '**收敛曲线**：适应度随代数变化'
+    - '**三维轨迹图**： wolves在三维空间的移动轨迹'
+    - '**等级变化图**：个体等级的变化历史'
+    source: math-modeling-skill
+  id: mc_62

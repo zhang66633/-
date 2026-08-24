@@ -1,0 +1,172 @@
+method_card:
+  name: 典型相关分析
+  name_en: Canonical Correlation Analysis, CCA
+  category:
+  - 统计分析
+  - 数值方法
+  principle: '典型相关分析用于研究两组变量之间的整体相关性，通过线性组合找到两组变量之间的最大相关关系。
+
+
+    #### 6.1 基本原理
+
+
+    **问题设定**：
+
+    - 第一组变量：$X = (x_1, x_2, \ldots, x_p)^T$
+
+    - 第二组变量：$Y = (y_1, y_2, \ldots, y_q)^T$
+
+
+    **目标**：寻找线性组合
+
+    $$
+
+    U = a_1 x_1 + a_2 x_2 + \cdots + a_p x_p = a^T X
+
+    $$
+
+    $$
+
+    V = b_1 y_1 + b_2 y_2 + \cdots + b_q y_q = b^T Y
+
+    $$
+
+
+    使得$U$和$V$的相关系数$\rho(U, V)$最大化。
+
+
+    #### 6.2 数学推导
+
+
+    **相关系数**：
+
+    $$
+
+    \rho = \frac{\text{Cov}(U, V)}{\sqrt{\text{Var}(U)\text{Var}(V)}} = \frac{a^T \Sigma_{XY} b}{\sqrt{a^T
+    \Sigma_{XX} a \cdot b^T \Sigma_{YY} b}}
+
+    $$
+
+
+    其中$\Sigma_{XX}$、$\Sigma_{YY}$、$\Sigma_{XY}$分别为协方差矩阵。
+
+
+    **优化问题**：
+
+    $$
+
+    \max_{a, b} a^T \Sigma_{XY} b
+
+    $$
+
+    $$
+
+    \text{s.t. } a^T \Sigma_{XX} a = 1, b^T \Sigma_{YY} b = 1
+
+    $$
+
+
+    **拉格朗日乘数法**得到特征值问题：
+
+    $$
+
+    \Sigma_{XY} \Sigma_{YY}^{-1} \Sigma_{YX} a = \lambda^2 \Sigma_{XX} a
+
+    $$
+
+    $$
+
+    \Sigma_{YX} \Sigma_{XX}^{-1} \Sigma_{XY} b = \lambda^2 \Sigma_{YY} b
+
+    $$
+
+
+    $\lambda^2$为典型相关系数的平方。
+
+
+    #### 6.3 典型变量
+
+
+    第$k$对典型变量：
+
+    $$
+
+    U_k = a_k^T X, \quad V_k = b_k^T Y
+
+    $$
+
+
+    典型相关系数按递减顺序排列：$\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_m$
+
+
+    其中$m = \min(p, q)$
+
+
+    #### 6.4 显著性检验
+
+
+    **Wilks'' Lambda统计量**：
+
+    $$
+
+    \Lambda = \prod_{i=k}^{m} (1 - \lambda_i^2)
+
+    $$
+
+
+    **卡方近似**：
+
+    $$
+
+    \chi^2 = -[n - k - \frac{p + q + 1}{2}] \ln \Lambda
+
+    $$
+
+
+    自由度：$df = (p - k + 1)(q - k + 1)$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 典型相关分析 实现要点
+    code: "import numpy as np\nimport pandas as pd\nfrom scipy import stats\nimport matplotlib.pyplot\
+      \ as plt\n\ndef canonical_correlation_analysis(X, Y):\n    \"\"\"\n    典型相关分析\n    :param X: 第一组变量\
+      \ (n_samples, p)\n    :param Y: 第二组变量 (n_samples, q)\n    :return: 典型相关系数, 典型权重, 典型变量得分\n    \"\"\
+      \"\n    n, p = X.shape\n    q = Y.shape[1]\n\n    # 中心化\n    X = X - X.mean(axis=0)\n    Y = Y -\
+      \ Y.mean(axis=0)\n\n    # 计算协方差矩阵\n    Cxx = np.cov(X, rowvar=False, bias=True)\n    Cyy = np.cov(Y,\
+      \ rowvar=False, bias=True)\n    Cxy = np.cov(X, Y, rowvar=False, bias=True)[:p, q:]\n\n    # 广义特征值问题\n\
+      \    # Cxy @ inv(Cyy) @ Cyx @ a = lambda^2 @ Cxx @ a\n    from scipy.linalg import eigh\n\n    Cyy_inv\
+      \ = np.linalg.inv(Cyy)\n    Cyx = Cxy.T\n    M1 = np.linalg.inv(Cxx) @ Cxy @ Cyy_inv @ Cyx\n\n \
+      \   # 求解特征值和特征向量\n    eigenvalues, eigenvectors_a = eigh(M1)\n    eigenvalues = eigenvalues[::-1]\
+      \  # 降序排列\n    eigenvectors_a = eigenvectors_a[:, ::-1]\n\n    # 计算典型相关系数\n    canonical_correlations\
+      \ = np.sqrt(np.maximum(eigenvalues, 0))\n\n    # 计算b的典型权重\n    eigenvectors_b = []\n    for k in\
+      \ range(len(canonical_correlations)):\n        a_k = eigenvectors_a[:, k]\n        b_k = (1 / canonical_correlations[k])\
+      \ * Cyy_inv @ Cyx @ a_k\n        eigenvectors_b.append(b_k)\n    eigenvectors_b = np.column_stack(eigenvectors_b)\n\
+      \n    # 计算典型变量得分\n    canonical_scores_X = X @ eigenvectors_a\n    canonical_scores_Y = Y @ eigenvectors_b\n\
+      \n    return {\n        'canonical_correlations': canonical_correlations,\n        'coefficients_x':\
+      \ eigenvectors_a,\n        'coefficients_y': eigenvectors_b,\n        'scores_x': canonical_scores_X,\n\
+      \        'scores_y': canonical_scores_Y\n    }\n\ndef cca_significance_test(canonical_corrs, n,\
+      \ p, q, alpha=0.05):\n    \"\"\"\n    CCA显著性检验（Wilks' Lambda）\n    :param canonical_corrs: 典型相关系数数组\n\
+      \    :param n: 样本量\n    :param p: 第一组变量数\n    :param q: 第二组变量数\n    :param alpha: 显著性水平\n    :return:\
+      \ 各对典型变量的显著性\n    \"\"\"\n    m = len(canonical_corrs)\n    results = []\n\n    for k in range(m):\n\
+      \        # Wilks' Lambda\n        wilks_lambda = np.prod(1 - canonical_corrs[k:]**2)\n\n       \
+      \ # 卡方近似\n        t = n - k - (p + q + 1) / 2\n        df = (p - k + 1) * (q - k + 1)\n        chi2\
+      \ = -t * np.log(wilks_lambda)\n\n        p_value = 1 - stats.chi2.cdf(chi2, df)\n        significant\
+      \ = p_value < alpha\n\n        results.append({\n            'pair': k + 1,\n            'canonical_corr':\
+      \ canonical_corrs[k],\n            'wilks_lambda': wilks_lambda,\n            'chi2': chi2,\n  \
+      \          'df': df,\n            'p_value': p_value,\n            'significant': significant\n\
+      \        })\n\n    retu"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 典型相关分析
+    chart_types:
+    - '**典型变量得分图**：典型变量的散点图'
+    - '**相关系数图**：典型相关系数柱状图'
+    - '**载荷图**：原始变量与典型变量的相关性'
+    - '**冗余度分析图**：解释方差比例'
+    - '**显著性检验图**：各对典型变量的显著性'
+    source: math-modeling-skill
+  id: mc_81

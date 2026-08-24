@@ -1,0 +1,57 @@
+method_card:
+  name: 蚁群算法
+  name_en: Ant Colony Optimization, ACO
+  category:
+  - 优化
+  principle: '蚁群算法模拟蚂蚁觅食过程中的信息素沟通机制。蚂蚁在路径上释放信息素，后续蚂蚁根据信息素浓度选择路径，正反馈机制使算法收敛到最优路径。
+
+
+    **状态转移概率**：
+
+    $$
+
+    P_{ij}^k = \begin{cases}
+
+    \frac{[\tau_{ij}]^\alpha [\eta_{ij}]^\beta}{\sum_{s \in allowed_k} [\tau_{is}]^\alpha [\eta_{is}]^\beta},
+    & j \in allowed_k \\
+
+    0, & \text{otherwise}
+
+    \end{cases}
+
+    $$
+
+
+    **信息素更新**：
+
+    $$
+
+    \tau_{ij} = (1 - \rho) \cdot \tau_{ij} + \sum_{k=1}^m \Delta \tau_{ij}^k
+
+    $$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 蚁群算法 实现要点
+    code: "# 常用库：aco, networkx\nimport numpy as np\n\ndef ant_colony_optimization(distance_matrix, n_ants=20,\
+      \ n_iterations=100,\n                           alpha=1, beta=2, evaporation_rate=0.1):\n    n_cities\
+      \ = len(distance_matrix)\n    pheromone = np.ones((n_cities, n_cities)) / n_cities\n\n    for iteration\
+      \ in range(n_iterations):\n        # 所有蚂蚁构建路径\n        paths = []\n        for ant in range(n_ants):\n\
+      \            path = construct_path(pheromone, distance_matrix, alpha, beta)\n            paths.append(path)\n\
+      \n        # 更新信息素\n        pheromone *= (1 - evaporation_rate)\n        for path in paths:\n   \
+      \         for i in range(len(path) - 1):\n                pheromone[path[i], path[i+1]] += 1 / path_length(path,\
+      \ distance_matrix)\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 蚁群算法
+    chart_types:
+    - '**路径图**：蚂蚁移动路径可视化'
+    - '**信息素热力图**：信息素浓度分布'
+    - '**收敛曲线**：最优解质量变化'
+    - '**蚂蚁分布图**：蚂蚁在解空间的分布'
+    source: math-modeling-skill
+  id: mc_59

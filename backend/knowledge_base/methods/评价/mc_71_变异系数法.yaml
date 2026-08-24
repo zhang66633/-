@@ -1,0 +1,81 @@
+method_card:
+  name: 变异系数法
+  name_en: Coefficient of Variation Method
+  category:
+  - 评价
+  principle: '变异系数法是一种客观赋权方法，根据各指标的变异程度确定权重。变异程度越大，说明该指标区分能力越强，权重越大。
+
+
+    #### 7.1 数据标准化
+
+
+    **标准化**：
+
+    $$
+
+    r_{ij} = \frac{x_{ij} - \bar{x}_j}{s_j}
+
+    $$
+
+
+    其中$\bar{x}_j$和$s_j$分别是指标$j$的均值和标准差。
+
+
+    #### 7.2 计算变异系数
+
+
+    $$
+
+    CV_j = \frac{s_j}{|\bar{x}_j|}
+
+    $$
+
+
+    为避免均值接近0的情况，可使用：
+
+    $$
+
+    CV_j = \frac{s_j}{\bar{x}_j + \varepsilon}
+
+    $$
+
+
+    其中$\varepsilon$是一个小正数。
+
+
+    #### 7.3 计算权重
+
+
+    $$
+
+    w_j = \frac{CV_j}{\sum_{k=1}^{n} CV_k}
+
+    $$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 变异系数法 实现要点
+    code: "import numpy as np\n\ndef coefficient_of_variation_weight(data):\n    \"\"\"\n    变异系数法计算权重\n\
+      \    :param data: 数据矩阵 (样本×指标)\n    :return: 权重向量, 变异系数\n    \"\"\"\n    data = np.array(data, dtype=float)\n\
+      \    m, n = data.shape\n\n    # 计算均值和标准差\n    means = data.mean(axis=0)\n    stds = data.std(axis=0,\
+      \ ddof=1)\n\n    # 计算变异系数\n    cvs = stds / np.abs(means)\n    cvs[np.isnan(cvs)] = 0  # 处理均值为0的情况\n\
+      \n    # 计算权重\n    weights = cvs / cvs.sum()\n\n    return weights, cvs\n\ndef cv_evaluation(data):\n\
+      \    \"\"\"\n    变异系数法综合评价\n    :param data: 数据矩阵 (样本×指标)\n    :return: 各样本综合得分\n    \"\"\"\n  \
+      \  weights, _ = coefficient_of_variation_weight(data)\n\n    # 数据标准化\n    means = data.mean(axis=0)\n\
+      \    stds = data.std(axis=0, ddof=1)\n    normalized = (data - means) / stds\n\n    # 计算综合得分\n \
+      \   scores = normalized @ weights\n\n    return scores, weights\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 变异系数法
+    chart_types:
+    - '**变异系数对比图**：各指标CV值'
+    - '**权重分布图**：各指标权重'
+    - '**数据分布箱线图**：各指标数据分布'
+    - '**标准化数据图**：标准化后的数据'
+    - '**敏感性分析图**：数据变化对权重影响'
+    source: math-modeling-skill
+  id: mc_71

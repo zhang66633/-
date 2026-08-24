@@ -43,3 +43,4 @@ paper:
     lessons: 可以学习如何利用微积分和空间几何建立复杂形状容器的体积模型，以及如何通过最小二乘法拟合实际数据来识别未知参数和验证模型。
   quality_rating: 4
   source: 2010A：储油罐的变位识别与罐容表标定 (2).pdf
+  problem_ref: prob_022

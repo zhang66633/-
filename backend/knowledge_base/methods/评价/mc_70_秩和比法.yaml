@@ -1,0 +1,93 @@
+method_card:
+  name: 秩和比法
+  name_en: Rank Sum Ratio, RSR
+  category:
+  - 评价
+  principle: '秩和比法是一种将多指标转化为秩次（排名）进行综合评价的方法，计算简单，适用范围广。
+
+
+    #### 6.1 编秩
+
+
+    **编秩规则**：
+
+
+    | 指标类型 | 编秩方法 |
+
+    |---------|---------|
+
+    | 高优指标（越大越好） | 按升序编秩：最小值编1，次小编2，... |
+
+    | 低优指标（越小越好） | 按降序编秩：最大值编1，次大编2，... |
+
+
+    **相同数值**：取平均秩次。
+
+
+    #### 6.2 计算秩和比
+
+
+    $$
+
+    RSR_i = \frac{1}{m \cdot n} \sum_{j=1}^{n} R_{ij}
+
+    $$
+
+
+    其中$m$是样本数，$n$是指标数，$R_{ij}$是方案$i$在指标$j$上的秩次。
+
+
+    $RSR_i \in [1/m, 1]$，值越大说明方案越优。
+
+
+    #### 6.3 分档评价（可选）
+
+
+    根据RSR值进行分档：
+
+
+    | 分档 | RSR范围 |
+
+    |------|---------|
+
+    | 上等 | $RSR \geq \bar{x} + 0.5s$ |
+
+    | 中等 | $\bar{x} - 0.5s < RSR < \bar{x} + 0.5s$ |
+
+    | 下等 | $RSR \leq \bar{x} - 0.5s$ |
+
+
+    其中$\bar{x}$和$s$分别是RSR的均值和标准差。'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 秩和比法 实现要点
+    code: "import numpy as np\nimport pandas as pd\n\ndef rank_sum_ratio(data, directions=None):\n   \
+      \ \"\"\"\n    秩和比法\n    :param data: 数据矩阵 (样本×指标)\n    :param directions: 指标方向，1为高优，-1为低优\n    :return:\
+      \ RSR值, 秩次矩阵\n    \"\"\"\n    data = np.array(data)\n    m, n = data.shape\n\n    if directions\
+      \ is None:\n        directions = np.ones(n)\n    else:\n        directions = np.array(directions)\n\
+      \n    # 编秩\n    ranks = np.zeros((m, n))\n    for j in range(n):\n        if directions[j] == 1:\
+      \  # 高优指标\n            # 升序排名\n            rank_values = pd.Series(data[:, j]).rank(method='average')\n\
+      \        else:  # 低优指标\n            # 降序排名（取负后排名）\n            rank_values = pd.Series(-data[:,\
+      \ j]).rank(method='average')\n        ranks[:, j] = rank_values.values\n\n    # 计算RSR\n    rsr =\
+      \ ranks.sum(axis=1) / (m * n)\n\n    return rsr, ranks\n\ndef rsr_classification(rsr):\n    \"\"\
+      \"\n    RSR分档评价\n    :param rsr: RSR值数组\n    :return: 各样本分档结果\n    \"\"\"\n    mean_rsr = rsr.mean()\n\
+      \    std_rsr = rsr.std()\n\n    classifications = []\n    for value in rsr:\n        if value >=\
+      \ mean_rsr + 0.5 * std_rsr:\n            classifications.append('上等')\n        elif value <= mean_rsr\
+      \ - 0.5 * std_rsr:\n            classifications.append('下等')\n        else:\n            classifications.append('中等')\n\
+      \n    return classifications\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 秩和比法
+    chart_types:
+    - '**RSR值对比图**：各方案RSR值'
+    - '**分档直方图**：RSR分档分布'
+    - '**秩次热力图**：秩次矩阵可视化'
+    - '**排序对比图**：RSR排序与其他方法对比'
+    - '**箱线图**：RSR值分布'
+    source: math-modeling-skill
+  id: mc_70

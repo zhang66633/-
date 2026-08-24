@@ -1,0 +1,71 @@
+method_card:
+  id: mc_056
+  name: 零和矩阵对策
+  name_en: Zero-Sum Matrix Game
+  category:
+  - 博弈论
+  - 优化
+  principle: 零和矩阵对策研究两名局中人在有限策略空间下的对抗决策：任意局势下双方赢得之和恒为0，一方所得即为另一方所失。用矩阵A表示局中人Ⅰ的赢得，局中人Ⅱ的赢得为-A。若存在纯策略鞍点，满足最大最小等于最小最大，则对应策略为稳定解；否则需引入混合策略，即以概率分布选择各纯策略，使期望赢得x^T
+    A y。求解混合策略可转化为线性规划：局中人Ⅰ最大化其最坏情况下的最小期望收益u，约束为各列期望收益不低于u；局中人Ⅱ通过其对偶问题最小化最大期望损失。这样得到最优混合策略和对策值。
+  formulas:
+  - name: 矩阵对策记法
+    latex: $$G=\{S_1,S_2;A\}$$
+    description: A为局中人Ⅰ的赢得矩阵，局中人Ⅱ的赢得矩阵为-A。
+  - name: 纯策略鞍点条件
+    latex: $$\max_i\min_j a_{ij}=\min_j\max_i a_{ij}=V_G$$
+    description: 满足该等式的纯局势为鞍点或稳定解，V_G为对策值。
+  - name: 混合策略期望赢得
+    latex: $$E(x,y)=x^TAy=\sum_{i=1}^{m}\sum_{j=1}^{n}a_{ij}x_i y_j$$
+    description: x,y分别为双方混合策略概率向量。
+  - name: 局中人Ⅰ线性规划
+    latex: $$\max u \quad s.t. \quad \sum_{i=1}^{m} a_{ij}x_i \ge u,\; j=1,\dots,n,\quad
+      \sum_{i=1}^{m}x_i=1,\; x_i\ge0$$
+    description: 最大化最小期望赢得u。
+  - name: 局中人Ⅱ对偶线性规划
+    latex: $$\min v \quad s.t. \quad \sum_{j=1}^{n} a_{ij}y_j \le v,\; i=1,\dots,m,\quad
+      \sum_{j=1}^{n}y_j=1,\; y_j\ge0$$
+    description: 最小化最大期望损失v，与局中人Ⅰ问题互为对偶。
+  applicable_when:
+  - 只有两名局中人且利益严格对抗的零和对策
+  - 双方策略集均为有限集合
+  - 赢得矩阵A已知且可量化
+  - 需找最优纯策略、混合策略或对策值
+  - 问题可转化为线性规划求解
+  not_applicable_when:
+  - 非零和、合作或多于两人的博弈（除非推广到相应模型）
+  - 策略连续或无限、支付无法给出确定矩阵
+  - 存在信息不对称、动态序贯决策等更复杂结构
+  - 局中人可形成联盟或有外部约束改变支付
+  typical_scenarios:
+  - 军事攻防决策，如轰炸机与战斗机策略选择
+  - 网络安全中的攻击者与防御者策略配置
+  - 零和竞争市场、对抗性招投标
+  - 简单棋类或对抗性游戏的最优策略分析
+  common_mistakes:
+  - mistake: 把囚徒困境等非零和博弈直接当作零和矩阵对策求解
+    solution: 先验证双方赢得之和是否恒为0；非零和应使用纳什均衡或非合作博弈模型。
+  - mistake: 矩阵没有纯策略鞍点时认为对策无解
+    solution: 引入混合策略并求期望赢得鞍点或线性规划解。
+  - mistake: 线性规划不等式方向或目标写反
+    solution: 行局中人应最大化最小期望收益，约束为各列期望收益≥u；列局中人对偶方向相反。
+  - mistake: 忽略概率向量归一化和非负约束
+    solution: 混合策略x和y必须满足分量非负且求和为1。
+  code_snippets:
+  - language: python
+    description: 使用 scipy.linprog 求解零和矩阵对策中局中人Ⅰ的最优混合策略及对策值
+    code: "import numpy as np\nfrom scipy.optimize import linprog\n\ndef solve_zero_sum_game(A):\n\
+      \    m, n = A.shape\n    c = np.zeros(m + 1)\n    c[-1] = -1  # maximize u ->\
+      \ minimize -u\n    A_ub = []\n    b_ub = []\n    for j in range(n):\n      \
+      \  row = np.zeros(m + 1)\n        row[:m] = -A[:, j]\n        row[-1] = 1\n\
+      \        A_ub.append(row)\n        b_ub.append(0)\n    A_eq = np.zeros((1, m\
+      \ + 1))\n    A_eq[0, :m] = 1\n    b_eq = [1.0]\n    bounds = [(0, None)] * m\
+      \ + [(None, None)]\n    res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,\n\
+      \                  bounds=bounds, method='highs')\n    if res.success:\n   \
+      \     p = res.x[:m]\n        v = res.x[-1]\n        return p, v\n    else:\n\
+      \        raise ValueError(res.message)\n\nA = np.array([[0.82, 1.0],\n     \
+      \         [1.0, 0.58]])\np, v = solve_zero_sum_game(A)\nprint('A的最优混合策略:', p)\n\
+      print('对策值:', v)"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

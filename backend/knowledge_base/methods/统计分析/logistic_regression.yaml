@@ -1,0 +1,88 @@
+method_card:
+  id: mc_022
+  name: Logistic 回归
+  name_en: Logistic Regression
+  category:
+  - 统计分析
+  - 分类
+  principle: 'Logistic 回归用于二分类或多分类问题，通过 Sigmoid 函数将线性预测值映射到 (0,1) 概率区间。
+
+
+    **模型形式**（二分类）:
+
+    P(y=1|x) = 1 / (1 + e^{-z})，其中 z = β₀ + β₁x₁ + ... + βₚxₚ
+
+
+    **核心思想**：
+
+    1. 对概率做 logit 变换：logit(p) = ln(p/(1-p)) = β₀ + β₁x₁ + ...
+
+    2. 参数估计：用极大似然估计（MLE），通过梯度下降或 Newton-Raphson 迭代求解
+
+    3. 几率（Odds）：p/(1-p) = e^{β₀+β₁x₁+...}，xⱼ 增加 1 单位 → 几率变为 e^{βⱼ} 倍
+
+    4. 决策边界：p=0.5 对应的 z=0 超平面，即 βᵀx = 0
+
+
+    **多分类扩展**：
+
+    - OvR（一对多）：对每个类别训练一个二分类器
+
+    - Softmax（多项 Logistic）：直接输出 k 类概率分布 P(y=j|x) = e^{zⱼ} / Σe^{zᵢ}
+
+    '
+  formulas:
+  - 'Sigmoid: σ(z) = 1 / (1 + e^{-z})'
+  - 'Logit 变换: logit(p) = ln(p / (1-p))'
+  - '似然函数: L(β) = Π p(xᵢ)^{yᵢ} · (1-p(xᵢ))^{1-yᵢ}'
+  - '梯度: ∂L/∂β = Xᵀ(y - σ(Xβ))'
+  applicable_when:
+  - 因变量 y 为二分类（0/1）或多分类变量
+  - 自变量与 logit(p) 近似线性关系
+  - 样本间相互独立
+  - 样本量充足（每类至少 10-15 个样本 × 自变量数）
+  - 无完全分离（某一自变量的取值能完美预测 y）
+  typical_scenarios:
+  - 信用评分：根据收入、负债、历史记录预测违约概率
+  - 疾病诊断：根据症状、检验指标判断患病概率
+  - 客户流失预测：预测用户是否取消订阅
+  - 竞赛中的二分类评价问题、风险概率估计
+  - 建模假设验证：检验某个因素是否对结果有显著影响
+  common_mistakes:
+  - mistake: 忽略类别不平衡问题（正负样本悬殊）
+    solution: 用 SMOTE 过采样、加权损失函数、或调整分类阈值（非默认 0.5）
+  - mistake: 把 Logistic 回归当回归做，直接比较系数大小
+    solution: 系数含义是几率比的对数，应报告 OR = e^{β} 和置信区间
+  - mistake: 对多分类直接用二分类 Logistic 堆叠
+    solution: 优先用 Softmax 多项 Logistic 回归，它直接优化联合概率
+  - mistake: 自变量高度相关时系数符号和大小不稳定
+    solution: 检查相关系数矩阵，必要时做变量选择（逐步/LASSO）
+  code_snippets:
+  - language: python
+    description: sklearn Logistic 回归 + 评估
+    code: "from sklearn.linear_model import LogisticRegression\nfrom sklearn.metrics import classification_report,\
+      \ roc_auc_score, confusion_matrix\n\ndef logistic_analysis(X_train, X_test, y_train, y_test):\n\
+      \    model = LogisticRegression(max_iter=1000, class_weight='balanced')\n    model.fit(X_train,\
+      \ y_train)\n    y_pred = model.predict(X_test)\n    y_prob = model.predict_proba(X_test)[:, 1]\n\
+      \    return {\n        \"accuracy\": model.score(X_test, y_test),\n        \"auc\": roc_auc_score(y_test,\
+      \ y_prob),\n        \"confusion\": confusion_matrix(y_test, y_pred),\n        \"coef\": dict(zip([f\"\
+      x{i}\" for i in range(X_train.shape[1])],\n                         model.coef_[0]))\n    }\n"
+  related_cards:
+  - mc_021
+  - mc_017
+  difficulty: 3
+  quality_rating: 5
+  tags:
+    model_type:
+    - 分类
+    - 统计分析
+    - 概率模型
+    key_concepts:
+    - Sigmoid
+    - 极大似然估计
+    - 几率比
+    - 决策边界
+    mathematical_tools:
+    - 概率论
+    - 最优化
+    - 统计学

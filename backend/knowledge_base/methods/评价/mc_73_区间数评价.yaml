@@ -1,0 +1,145 @@
+method_card:
+  name: 区间数评价
+  name_en: ''
+  category:
+  - 评价
+  principle: '区间数评价用于处理指标值为区间数（不确定性）的评价问题，通过区间运算得到评价结果的区间。
+
+
+    #### 10.1 区间数基本运算
+
+
+    **区间数**：$\tilde{a} = [a^L, a^U]$，其中$a^L \leq a^U$
+
+
+    **区间加法**：$\tilde{a} + \tilde{b} = [a^L + b^L, a^U + b^U]$
+
+
+    **区间乘法**：$\tilde{a} \times \tilde{b} = [\min(a^L b^L, a^L b^U, a^U b^L, a^U b^U), \max(a^L b^L, a^L
+    b^U, a^U b^L, a^U b^U)]$
+
+
+    **区间数乘以常数**：$k \cdot \tilde{a} = [k a^L, k a^U]$（$k \geq 0$）
+
+
+    #### 10.2 区间数标准化
+
+
+    **正向指标标准化**：
+
+    $$
+
+    \tilde{r}_{ij} = \left[ \frac{a_{ij}^L}{\max_k a_{kj}^U}, \frac{a_{ij}^U}{\max_k a_{kj}^U} \right]
+
+    $$
+
+
+    **负向指标标准化**：
+
+    $$
+
+    \tilde{r}_{ij} = \left[ \frac{\min_k a_{kj}^L}{a_{ij}^U}, \frac{\min_k a_{kj}^U}{a_{ij}^L} \right]
+
+    $$
+
+
+    #### 10.3 区间数TOPSIS
+
+
+    **加权规范化矩阵**：$\tilde{v}_{ij} = w_j \cdot \tilde{r}_{ij}$
+
+
+    **正理想解**：
+
+    $$
+
+    \tilde{V}^+ = \{ \tilde{v}_1^+, \tilde{v}_2^+, \ldots, \tilde{v}_n^+ \}
+
+    $$
+
+
+    **负理想解**：
+
+    $$
+
+    \tilde{V}^- = \{ \tilde{v}_1^-, \tilde{v}_2^-, \ldots, \tilde{v}_n^- \}
+
+    $$
+
+
+    **距离计算**（区间距离）：
+
+    $$
+
+    D(\tilde{a}, \tilde{b}) = \sqrt{(a^L - b^L)^2 + (a^U - b^U)^2}
+
+    $$
+
+
+    #### 10.4 区间数排序
+
+
+    **可能度**：区间数$\tilde{a} \geq \tilde{b}$的可能度
+
+
+    $$
+
+    P(\tilde{a} \geq \tilde{b}) = \frac{\max(0, a^U - b^L) - \max(0, a^L - b^U)}{(a^U - a^L) + (b^U -
+    b^L)}
+
+    $$
+
+
+    **排序方法**：
+
+    1. 计算各方案得分区间
+
+    2. 计算可能度矩阵
+
+    3. 计算排序向量'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 区间数评价 实现要点
+    code: "import numpy as np\nimport matplotlib.pyplot as plt\n\nclass IntervalNumber:\n    \"\"\"区间数类\"\
+      \"\"\n    def __init__(self, lower, upper):\n        self.lower = lower\n        self.upper = upper\n\
+      \n    def __add__(self, other):\n        if isinstance(other, IntervalNumber):\n            return\
+      \ IntervalNumber(self.lower + other.lower, self.upper + other.upper)\n        else:\n          \
+      \  return IntervalNumber(self.lower + other, self.upper + other)\n\n    def __mul__(self, scalar):\n\
+      \        return IntervalNumber(self.lower * scalar, self.upper * scalar)\n\n    def __repr__(self):\n\
+      \        return f\"[{self.lower:.4f}, {self.upper:.4f}]\"\n\n    def midpoint(self):\n        \"\
+      \"\"区间中点\"\"\"\n        return (self.lower + self.upper) / 2\n\n    def width(self):\n        \"\
+      \"\"区间宽度\"\"\"\n        return self.upper - self.lower\n\n    def distance(self, other):\n     \
+      \   \"\"\"区间距离\"\"\"\n        return np.sqrt((self.lower - other.lower)**2 + (self.upper - other.upper)**2)\n\
+      \ndef interval_normalize(data, directions=None):\n    \"\"\"\n    区间数数据标准化\n    :param data: 区间数数据矩阵\
+      \ [(lower, upper), ...]\n    :param directions: 指标方向\n    :return: 标准化后的区间数矩阵\n    \"\"\"\n    data\
+      \ = np.array(data)\n    n_samples, n_cols = data.shape\n\n    if directions is None:\n        directions\
+      \ = np.ones(n_cols)\n    else:\n        directions = np.array(directions)\n\n    normalized = []\n\
+      \    for j in range(n_cols):\n        col = data[:, j]\n        lowers = col[:, 0] if col.ndim >\
+      \ 1 else np.array([x[0] for x in col])\n        uppers = col[:, 1] if col.ndim > 1 else np.array([x[1]\
+      \ for x in col])\n\n        if directions[j] == 1:  # 正向指标\n            max_upper = uppers.max()\n\
+      \            norm_col = [IntervalNumber(l / max_upper, u / max_upper) for l, u in zip(lowers, uppers)]\n\
+      \        else:  # 负向指标\n            min_lower = lowers.min()\n            norm_col = [IntervalNumber(min_lower\
+      \ / u, min_lower / l) for l, u in zip(lowers, uppers)]\n\n        normalized.append(norm_col)\n\n\
+      \    return np.column_stack(normalized)\n\ndef interval_topsis(data, weights, directions=None):\n\
+      \    \"\"\"\n    区间数TOPSIS\n    :param data: 区间数数据矩阵\n    :param weights: 权重向量\n    :param directions:\
+      \ 指标方向\n    :return: 各方案贴近度区间\n    \"\"\"\n    data = np.array(data)\n    n_samples, n_cols = data.shape\n\
+      \    weights = np.array(weights)\n\n    # 标准化\n    normalized = interval_normalize(data, directions)\n\
+      \n    # 加权\n    weighted = []\n    for i in range(n_samples):\n        row = []\n        for j in\
+      \ range(n_cols):\n            row.append(normalized[i, j] * weights[j])\n        weighted.append(row)\n\
+      \n    # 确定正负理想解\n    v_positive = []\n    v_neg"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 区间数评价
+    chart_types:
+    - '**区间值图**：指标值区间'
+    - '**得分区间图**：各方案得分区间'
+    - '**可能度热力图**：方案间优势可能度'
+    - '**不确定性分析图**：区间宽度分析'
+    - '**敏感性分析图**：边界变化对排序影响'
+    source: math-modeling-skill
+  id: mc_73

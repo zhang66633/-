@@ -1,0 +1,157 @@
+method_card:
+  name: 非负矩阵分解
+  name_en: Non-negative Matrix Factorization, NMF
+  category:
+  - 统计分析
+  - 数值方法
+  principle: '非负矩阵分解是一种降维和特征提取方法，将非负矩阵分解为两个非负矩阵的乘积。
+
+
+    #### 7.1 基本原理
+
+
+    **分解形式**：
+
+    $$
+
+    V \approx W H
+
+    $$
+
+
+    其中：
+
+    - $V \in \mathbb{R}^{n \times m}$：非负数据矩阵
+
+    - $W \in \mathbb{R}^{n \times r}$：基矩阵
+
+    - $H \in \mathbb{R}^{r \times m}$：系数矩阵
+
+    - $r$：分解秩（$r < \min(n, m)$）
+
+
+    **约束条件**：
+
+    $$
+
+    W_{ij} \geq 0, \quad H_{ij} \geq 0
+
+    $$
+
+
+    #### 7.2 损失函数
+
+
+    **Frobenius范数损失**：
+
+    $$
+
+    \|V - WH\|_F^2 = \sum_{i,j} (V_{ij} - (WH)_{ij})^2
+
+    $$
+
+
+    **KL散度损失**：
+
+    $$
+
+    D_{KL}(V \| WH) = \sum_{i,j} \left( V_{ij} \log\frac{V_{ij}}{(WH)_{ij}} - V_{ij} + (WH)_{ij} \right)
+
+    $$
+
+
+    #### 7.3 乘法更新规则
+
+
+    **基于Frobenius范数的更新**：
+
+
+    初始化$W$和$H$为随机非负矩阵，然后迭代更新：
+
+
+    $$
+
+    H_{kj} \leftarrow H_{kj} \frac{(W^T V)_{kj}}{(W^T W H)_{kj} + \epsilon}
+
+    $$
+
+
+    $$
+
+    W_{ik} \leftarrow W_{ik} \frac{(V H^T)_{ik}}{(W H H^T)_{ik} + \epsilon}
+
+    $$
+
+
+    其中$\epsilon$是很小的正数，防止除零。
+
+
+    **归一化**：每次更新后对$W$的列进行归一化：
+
+    $$
+
+    W_{ik} \leftarrow \frac{W_{ik}}{\sum_i W_{ik}}
+
+    $$
+
+
+    #### 7.4 NMF与PCA对比
+
+
+    | 特性 | NMF | PCA |
+
+    |-----|-----|-----|
+
+    | 约束 | 非负 | 正交 |
+
+    | 可解释性 | 部分整体结构 | 全局结构 |
+
+    | 基向量 | 稀疏 | 非稀疏 |
+
+    | 适用数据 | 非负数据 | 任意数据 |'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 非负矩阵分解 实现要点
+    code: "import numpy as np\nimport matplotlib.pyplot as plt\nfrom sklearn.decomposition import NMF\n\
+      from sklearn.preprocessing import MinMaxScaler\n\ndef nmf_decomposition(V, n_components, max_iter=200,\
+      \ tol=1e-4, random_state=42):\n    \"\"\"\n    非负矩阵分解\n    :param V: 非负数据矩阵 (n_samples, n_features)\n\
+      \    :param n_components: 分解秩\n    :param max_iter: 最大迭代次数\n    :param tol: 收敛容忍度\n    :param random_state:\
+      \ 随机种子\n    :return: W, H, 重构误差历史\n    \"\"\"\n    model = NMF(n_components=n_components, init='random',\
+      \ random_state=random_state,\n                max_iter=max_iter, tol=tol, verbose=False)\n\n   \
+      \ W = model.fit_transform(V)\n    H = model.components_\n\n    return W, H, model.reconstruction_err_\n\
+      \ndef plot_nmf_components(W, H, feature_names=None, sample_names=None):\n    \"\"\"\n    绘制NMF分解结果\n\
+      \    :param W: 基矩阵 (n_samples, n_components)\n    :param H: 系数矩阵 (n_components, n_features)\n  \
+      \  :param feature_names: 特征名称\n    :param sample_names: 样本名称\n    \"\"\"\n    fig, axes = plt.subplots(1,\
+      \ 2, figsize=(14, 6))\n\n    # 基矩阵热力图\n    im1 = axes[0].imshow(W, cmap='YlOrRd', aspect='auto')\n\
+      \    axes[0].set_xlabel('Component')\n    axes[0].set_ylabel('Sample')\n    axes[0].set_title('Basis\
+      \ Matrix (W)')\n    if sample_names is not None and len(sample_names) <= 20:\n        axes[0].set_yticks(range(len(sample_names)))\n\
+      \        axes[0].set_yticklabels(sample_names)\n    plt.colorbar(im1, ax=axes[0])\n\n    # 系数矩阵热力图\n\
+      \    im2 = axes[1].imshow(H, cmap='YlOrRd', aspect='auto')\n    axes[1].set_xlabel('Feature')\n\
+      \    axes[1].set_ylabel('Component')\n    axes[1].set_title('Coefficient Matrix (H)')\n    if feature_names\
+      \ is not None and len(feature_names) <= 20:\n        axes[1].set_xticks(range(len(feature_names)))\n\
+      \        axes[1].set_xticklabels(feature_names, rotation=90)\n    plt.colorbar(im2, ax=axes[1])\n\
+      \n    plt.tight_layout()\n    plt.show()\n\ndef plot_nmf_basis_images(W, image_shape=(28, 28), n_plot=16):\n\
+      \    \"\"\"\n    绘制NMF基向量图像（用于图像数据）\n    :param W: 基矩阵\n    :param image_shape: 图像尺寸\n    :param\
+      \ n_plot: 显示的基向量数量\n    \"\"\"\n    n_components = min(n_plot, W.shape[1])\n    n_cols = 4\n   \
+      \ n_rows = (n_components + n_cols - 1) // n_cols\n\n    fig, axes = plt.subplots(n_rows, n_cols,\
+      \ figsize=(n_cols * 2, n_rows * 2))\n    axes = axes.flatten()\n\n    for i in range(n_components):\n\
+      \        basis = W[:, i].reshape(image_shape)\n        axes[i].imshow(basis, cmap='gray')\n    \
+      \    axes[i].set_title(f'Basis {i+1}')\n        axes[i].axis('off')\n\n    # 隐藏多余的子图\n    for i\
+      \ in range(n_components, len(axes)):\n        axes[i].axis('off')\n\n    plt.tight_layout()\n  \
+      \  plt.s"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 非负矩阵分解
+    chart_types:
+    - '**基向量图**：基矩阵W的各列可视化'
+    - '**系数矩阵热力图**：系数矩阵H的热力图'
+    - '**重构对比图**：原始与重构对比'
+    - '**收敛曲线**：损失函数变化'
+    - '**特征贡献图**：各基向量的贡献'
+    source: math-modeling-skill
+  id: mc_82

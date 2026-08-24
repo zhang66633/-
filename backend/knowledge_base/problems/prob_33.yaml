@@ -1,0 +1,14 @@
+problem:
+  id: prob_33
+  year: 2008
+  competition: 国赛
+  problem_id: B
+  title: 高等教育学费标准的评价及建议
+  full_text: ''
+  background: ''
+  objectives: []
+  data_description: ''
+  data_files: []
+  deliverables: []
+  tags:
+    source: local_dataset

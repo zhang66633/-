@@ -1,0 +1,124 @@
+method_card:
+  name: 朴素贝叶斯
+  name_en: Naive Bayes
+  category:
+  - 机器学习
+  principle: '朴素贝叶斯基于**贝叶斯定理**和**特征条件独立假设**构建分类器。尽管"朴素"假设在现实中常不成立，它在文本分类、小样本场景下仍表现出色，训练只需统计先验和条件概率，速度极快。
+
+
+    #### 4.1 基本原理
+
+
+    **贝叶斯定理**：
+
+    $$
+
+    P(y|x) = \frac{P(x|y) P(y)}{P(x)} = \frac{P(x_1, x_2, \ldots, x_m | y) P(y)}{P(x)}
+
+    $$
+
+
+    **朴素假设**（特征条件独立）：
+
+    $$
+
+    P(x|y) = \prod_{j=1}^{m} P(x_j | y)
+
+    $$
+
+
+    **分类决策**（最大后验，分母 P(x) 与类别无关可省略）：
+
+    $$
+
+    \hat{y} = \arg\max_{y} P(y) \prod_{j=1}^{m} P(x_j | y)
+
+    $$
+
+
+    **三种变体**（区别在 P(x_j|y) 的建模方式）：
+
+
+    | 变体 | 适用特征 | 条件分布 |
+
+    |------|---------|---------|
+
+    | 高斯朴素贝叶斯 GaussianNB | 连续数值特征 | $P(x_j\|y) = \mathcal{N}(x_j; \mu_{jy}, \sigma_{jy}^2)$ |
+
+    | 多项式朴素贝叶斯 MultinomialNB | 非负计数特征（词频） | 多项式分布 |
+
+    | 伯努利朴素贝叶斯 BernoulliNB | 二值特征（出现/不出现） | 伯努利分布 |
+
+
+    **平滑**：为避免某特征在训练集未出现导致概率为 0，加拉普拉斯平滑 $P(x_j|y) = \frac{N_{jy} + \alpha}{N_y + \alpha \cdot V}$。
+
+
+    #### 4.2 使用条件与常见坑
+
+
+    | 条件/坑 | 说明 | 应对 |
+
+    |---------|------|------|
+
+    | 特征独立假设 | 强相关特征会低估真实概率 | 相关特征严重时换逻辑回归/决策树 |
+
+    | 连续特征分布 | 高斯 NB 假设正态，偏态分布效果差 | 先变换或分箱成离散特征用多项式 NB |
+
+    | 特征零频率 | 测试出现训练未见的特征值 | 默认已加拉普拉斯平滑，可调 alpha |
+
+    | 小样本优势 | 参数少、方差小，小数据表现好 | 是优点，竞赛小样本赛题可用 |
+
+    | 文本/计数任务 | 词频特征下是最强基线之一 | MultinomialNB 配 TF-IDF |
+
+
+    #### 4.3 适用范围
+
+
+    | 题型类型 | 典型问题 | 特征 |
+
+    |---------|---------|------|
+
+    | 文本分类 | 垃圾邮件、情感分析 | 词频/词向量 |
+
+    | 疾病诊断 | 症状推断疾病 | 特征条件独立近似成立 |
+
+    | 实时分类 | 大规模流式预测 | 训练/预测极快 |
+
+    | 小样本分类 | 竞赛少量数据 | 参数少方差小 |'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 朴素贝叶斯 实现要点
+    code: "import numpy as np\nimport matplotlib.pyplot as plt\nfrom sklearn.datasets import load_iris\n\
+      from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB\nfrom sklearn.model_selection\
+      \ import train_test_split\nfrom sklearn.metrics import accuracy_score, classification_report\n\n\
+      def gaussian_nb_classification(X_train, y_train, X_test, y_test, var_smoothing=1e-9):\n    \"\"\"\
+      \n    高斯朴素贝叶斯分类（连续特征）\n    :param X_train: 训练特征\n    :param y_train: 训练标签\n    :param X_test: 测试特征\n\
+      \    :param y_test: 测试标签\n    :param var_smoothing: 方差平滑项，避免方差为 0 导致概率为 0\n    :return: 模型, 预测结果,\
+      \ 准确率, 预测概率\n    \"\"\"\n    model = GaussianNB(var_smoothing=var_smoothing)\n    model.fit(X_train,\
+      \ y_train)\n\n    y_pred = model.predict(X_test)\n    y_proba = model.predict_proba(X_test)\n  \
+      \  acc = accuracy_score(y_test, y_pred)\n\n    print(\"各类别先验 P(y):\", np.round(model.class_prior_,\
+      \ 4))\n    print(\"各特征均值 mu（shape=类别数×特征数）:\\n\", np.round(model.theta_, 4))\n\n    return model,\
+      \ y_pred, y_proba, acc\n\ndef naive_bayes_variant_comparison(X_train, y_train, X_test, y_test):\n\
+      \    \"\"\"\n    三种 NB 变体对比（需特征形式匹配）：\n    - GaussianNB: 连续数值\n    - MultinomialNB: 非负计数\n    -\
+      \ BernoulliNB: 二值\n    \"\"\"\n    results = {}\n    for name, model in [\n        ('GaussianNB',\
+      \ GaussianNB()),\n        ('MultinomialNB', MultinomialNB()),\n        ('BernoulliNB', BernoulliNB()),\n\
+      \    ]:\n        model.fit(X_train, y_train)\n        results[name] = accuracy_score(y_test, model.predict(X_test))\n\
+      \    return results\n\n# 端到端示例（可直接运行）\nif __name__ == '__main__':\n    data = load_iris()\n    X_train,\
+      \ X_test, y_train, y_test = train_test_split(\n        data.data, data.target, test_size=0.3, random_state=42)\n\
+      \    model, y_pred, y_proba, acc = gaussian_nb_classification(X_train, y_train, X_test, y_test)\n\
+      \    print(f\"高斯朴素贝叶斯准确率: {acc:.4f}\")\n    print(classification_report(y_test, y_pred))\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 朴素贝叶斯
+    chart_types:
+    - '**特征条件分布图**：各类别下各特征的分布'
+    - '**决策边界图**：二维特征分类边界'
+    - '**概率输出图**：各类预测概率'
+    - '**性能对比图**：不同 NB 变体对比'
+    source: math-modeling-skill
+  id: mc_87

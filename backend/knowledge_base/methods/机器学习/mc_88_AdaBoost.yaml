@@ -1,0 +1,64 @@
+method_card:
+  name: AdaBoost
+  name_en: Adaptive Boosting
+  category:
+  - 机器学习
+  principle: "AdaBoost是一种自适应提升算法，通过迭代训练弱分类器并调整样本权重来构建强分类器。\n\n#### 7.1 基本原理\n\n**核心思想**：\n- 训练一系列弱分类器\n\
+    - 每轮关注之前分类错误的样本\n- 组合多个弱分类器形成强分类器\n\n**算法流程**：\n\n1. 初始化样本权重：$w_i^{(1)} = 1/n$，$i = 1, 2, \\ldots,\
+    \ n$\n\n2. 对于$t = 1, 2, \\ldots, T$：\n   - 使用权重$w^{(t)}$训练弱分类器$h_t(x)$\n   - 计算分类错误率：$\\epsilon_t\
+    \ = \\sum_{i=1}^{n} w_i^{(t)} \\mathbb{I}(y_i \\neq h_t(x_i))$\n   - 计算分类器权重：$\\alpha_t = \\frac{1}{2}\
+    \ \\ln\\left(\\frac{1-\\epsilon_t}{\\epsilon_t}\\right)$\n   - 更新样本权重：\n     $$\n     w_i^{(t+1)}\
+    \ = \\frac{w_i^{(t)} \\exp(-\\alpha_t y_i h_t(x_i))}{\\sum_{j=1}^{n} w_j^{(t)} \\exp(-\\alpha_t y_j\
+    \ h_t(x_j))}\n     $$\n\n3. 最终分类器：\n   $$\n   H(x) = \\text{sign}\\left( \\sum_{t=1}^{T} \\alpha_t\
+    \ h_t(x) \\right)\n   $$\n\n#### 7.2 AdaBoost变体\n\n**AdaBoost.M1**：二分类版本\n\n**AdaBoost.M2**：多分类版本\n\
+    \n**AdaBoost.R2**：回归版本\n\n#### 7.3 梯度提升\n\n**梯度提升机（GBM）**：\n- 使用梯度下降方向训练新分类器\n- 拟合负梯度（残差）\n- 更灵活，可使用任意损失函数\n\
+    \n**与AdaBoost关系**：\n- AdaBoost是指数损失下的梯度提升\n- GBM推广到任意可微损失函数\n\n#### 7.4 使用条件与常见坑\n\n| 条件/坑 | 说明 |\
+    \ 应对 |\n|---------|------|------|\n| 对噪声/异常敏感 | 异常样本权重被放大 | 数据清洗后再用；噪声多时换随机森林 |\n| 弱分类器选择 | 默认决策树桩（depth=1）\
+    \ | 可试 depth=2-3 平衡偏差/方差 |\n| 类别不平衡 | 提升法对不平衡敏感 | 用 `sample_weight` 或换 BalancedRandomForest |\n| 性能提升有限\
+    \ | 数据已较易分类时收益小 | 对比随机森林/XGBoost（02 §9）再选 |\n| 与 XGBoost 关系 | AdaBoost 是梯度提升的特例 | 追求更强效果用 XGBoost，见\
+    \ 02 §9 |"
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: AdaBoost 实现要点
+    code: "import numpy as np\nimport matplotlib.pyplot as plt\nfrom sklearn.ensemble import AdaBoostClassifier,\
+      \ AdaBoostRegressor\nfrom sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor\nfrom\
+      \ sklearn.metrics import accuracy_score, mean_squared_error\n\ndef adaboost_classification(X_train,\
+      \ y_train, X_test, y_test,\n                             n_estimators=50, learning_rate=1.0, random_state=42):\n\
+      \    \"\"\"\n    AdaBoost分类\n    :param X_train: 训练特征\n    :param y_train: 训练标签\n    :param X_test:\
+      \ 测试特征\n    :param y_test: 测试标签\n    :param n_estimators: 弱分类器数量\n    :param learning_rate: 学习率\n\
+      \    :return: 模型, 预测结果, 准确率, 错误率历史\n    \"\"\"\n    # 基分类器：决策树桩（深度为1）\n    base_clf = DecisionTreeClassifier(max_depth=1)\n\
+      \n    ada = AdaBoostClassifier(\n        estimator=base_clf,\n        n_estimators=n_estimators,\n\
+      \        learning_rate=learning_rate,\n        random_state=random_state\n    )\n\n    ada.fit(X_train,\
+      \ y_train)\n    y_pred = ada.predict(X_test)\n    accuracy = accuracy_score(y_test, y_pred)\n\n\
+      \    # 计算训练过程中的错误率\n    train_errors = []\n    for y_pred_train in ada.staged_predict(X_train):\n\
+      \        err = 1 - accuracy_score(y_train, y_pred_train)\n        train_errors.append(err)\n\n \
+      \   test_errors = []\n    for y_pred_test in ada.staged_predict(X_test):\n        err = 1 - accuracy_score(y_test,\
+      \ y_pred_test)\n        test_errors.append(err)\n\n    return ada, y_pred, accuracy, train_errors,\
+      \ test_errors\n\ndef adaboost_regression(X_train, y_train, X_test, y_test,\n                   \
+      \      n_estimators=50, learning_rate=1.0, loss='linear', random_state=42):\n    \"\"\"\n    AdaBoost回归\n\
+      \    :param X_train: 训练特征\n    :param y_train: 训练目标\n    :param X_test: 测试特征\n    :param y_test:\
+      \ 测试目标\n    :param loss: 损失函数 ('linear', 'square', 'exponential')\n    :return: 模型, 预测结果, MSE\n\
+      \    \"\"\"\n    base_reg = DecisionTreeRegressor(max_depth=3)\n\n    ada = AdaBoostRegressor(\n\
+      \        estimator=base_reg,\n        n_estimators=n_estimators,\n        learning_rate=learning_rate,\n\
+      \        loss=loss,\n        random_state=random_state\n    )\n\n    ada.fit(X_train, y_train)\n\
+      \    y_pred = ada.predict(X_test)\n    mse = mean_squared_error(y_test, y_pred)\n\n    # 计算训练过程中的MSE\n\
+      \    train_mse = []\n    for y_pred_train in ada.staged_predict(X_train):\n        mse_val = mean_squared_error(y_train,\
+      \ y_pred_train)\n        train_mse.append(mse_val)\n\n    test_mse = []\n    for y_pred_test in\
+      \ ada.staged_predict(X_test):\n        mse_val = mean_squared_error(y_test, y_pred_test)\n     \
+      \   test_mse.append(mse_val)\n\n    return ada, y_pred, mse, train_mse, test_mse\n\ndef plot"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - AdaBoost
+    chart_types:
+    - '**错误率曲线**：训练/测试错误率随轮数变化'
+    - '**分类器权重图**：各弱分类器权重'
+    - '**决策边界图**：分类边界可视化'
+    - '**特征重要性图**：特征重要性排序'
+    - '**残差图**：残差随轮数变化（回归）'
+    source: math-modeling-skill
+  id: mc_88

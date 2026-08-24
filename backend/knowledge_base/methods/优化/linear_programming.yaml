@@ -1,0 +1,86 @@
+method_card:
+  id: mc_001
+  name: 线性规划 (Linear Programming)
+  category:
+  - 优化
+  - 数学规划
+  principle: '线性规划是研究线性约束条件下线性目标函数极值问题的数学理论和方法。
+
+    标准形式为：min c^T x, s.t. Ax ≤ b, x ≥ 0。
+
+    核心算法为单纯形法 (Simplex Method) 和内点法 (Interior Point Method)。
+
+    单纯形法在可行域的顶点之间迭代寻找最优解，内点法从可行域内部逼近最优解。
+
+    '
+  formulas:
+  - name: 标准型
+    latex: \min \mathbf{c}^T\mathbf{x} \quad \text{s.t.} \quad A\mathbf{x} \leq \mathbf{b}, \mathbf{x}
+      \geq 0
+    description: c为系数向量，A为约束矩阵，b为右端向量
+  - name: 对偶问题
+    latex: \max \mathbf{b}^T\mathbf{y} \quad \text{s.t.} \quad A^T\mathbf{y} \leq \mathbf{c}, \mathbf{y}
+      \geq 0
+    description: 原问题的对偶形式，用于灵敏度分析和算法推导
+  applicable_when:
+  - 目标函数和所有约束条件均为线性
+  - 决策变量为连续变量
+  - 问题规模在十万变量/约束以内（当前求解器能力）
+  not_applicable_when:
+  - 目标函数或约束为非线性
+  - 变量必须取整数值（此时需用整数规划）
+  - 存在不确定性（此时需用随机规划或鲁棒优化）
+  typical_scenarios:
+  - 生产计划与资源分配
+  - 运输与物流调度
+  - 投资组合优化（简化版）
+  - 配料与混合问题
+  - 网络流问题
+  common_mistakes:
+  - mistake: 忽略变量的非负约束
+    solution: 明确写出所有变量的取值范围，注意现实意义（不能为负）
+  - mistake: 约束条件遗漏导致无界解
+    solution: 检查是否有隐含的资源上限或下限约束，使用灵敏度分析验证
+  - mistake: 认为线性规划一定有整数最优解
+    solution: 线性规划的最优解可能是分数，如需整数解请使用整数规划
+  code_snippets:
+  - language: python
+    description: 使用 scipy.optimize.linprog 求解线性规划
+    code: 'from scipy.optimize import linprog
+
+      import numpy as np
+
+
+      # min c^T x  s.t. A_ub x <= b_ub, A_eq x = b_eq, bounds <= x <= bounds
+
+      c = np.array([-1, 4])  # 目标函数系数（注意符号：min用正号，max用负号）
+
+      A_ub = np.array([[-3, 1], [1, 2]])  # 不等式约束系数
+
+      b_ub = np.array([6, 4])             # 不等式约束右端
+
+
+      result = linprog(-c, A_ub=A_ub, b_ub=b_ub, bounds=(0, None))
+
+      print(f"最优解: x = {result.x}, 最优值: {-result.fun}")
+
+      '
+  related_cards:
+  - mc_002
+  - mc_006
+  - mc_007
+  related_papers:
+  - paper_2023C_01
+  difficulty: 2
+  quality_rating: 5
+  tags:
+    model_type:
+    - 最优化
+    key_concepts:
+    - 单纯形法
+    - 对偶理论
+    - 灵敏度分析
+    - 可行域
+    mathematical_tools:
+    - 线性代数
+    - 凸优化

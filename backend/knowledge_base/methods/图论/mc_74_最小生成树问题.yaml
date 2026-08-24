@@ -1,0 +1,87 @@
+method_card:
+  name: 最小生成树问题
+  name_en: Minimum Spanning Tree, MST
+  category:
+  - 图论
+  principle: '最小生成树是指在一个连通的无向图中，找到一棵包含所有顶点且总权重最小的树。
+
+
+    #### 2.1 Prim算法
+
+
+    从一个顶点开始，逐步添加权重最小的边，直到包含所有顶点。
+
+
+    **算法步骤**：
+
+    1. 选择任意顶点作为起始点
+
+    2. 在已访问顶点和未访问顶点之间找权重最小的边
+
+    3. 将该边和对应顶点加入树
+
+    4. 重复2-3直到所有顶点都被访问
+
+
+    **时间复杂度**：$O(E \log V)$（使用优先队列）
+
+
+    #### 2.2 Kruskal算法
+
+
+    按边的权重从小到大选择，不形成回路则加入，直到有$V-1$条边。
+
+
+    **算法步骤**：
+
+    1. 将所有边按权重排序
+
+    2. 从小到大选择边
+
+    3. 若边连接两个不同连通分量，则加入
+
+    4. 重复2-3直到有$V-1$条边
+
+
+    使用**并查集**检测回路。
+
+
+    **时间复杂度**：$O(E \log E)$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 最小生成树问题 实现要点
+    code: "import heapq\n\ndef prim(graph):\n    \"\"\"\n    Prim最小生成树算法\n    :param graph: 图的邻接表 {顶点:\
+      \ {邻居: 权重}}\n    :return: MST边列表, 总权重\n    \"\"\"\n    if not graph:\n        return [], 0\n\n \
+      \   start = next(iter(graph.keys()))\n    visited = set([start])\n    edges = []\n\n    # 初始化优先队列\n\
+      \    for neighbor, weight in graph[start].items():\n        heapq.heappush(edges, (weight, start,\
+      \ neighbor))\n\n    mst_edges = []\n    total_weight = 0\n\n    while edges and len(visited) < len(graph):\n\
+      \        weight, u, v = heapq.heappop(edges)\n\n        if v in visited:\n            continue\n\
+      \n        visited.add(v)\n        mst_edges.append((u, v, weight))\n        total_weight += weight\n\
+      \n        for neighbor, w in graph[v].items():\n            if neighbor not in visited:\n      \
+      \          heapq.heappush(edges, (w, v, neighbor))\n\n    return mst_edges, total_weight\n\ndef\
+      \ kruskal(edges, vertices):\n    \"\"\"\n    Kruskal最小生成树算法\n    :param edges: 边列表 [(权重, 顶点1, 顶点2),\
+      \ ...]\n    :param vertices: 顶点集合\n    :return: MST边列表, 总权重\n    \"\"\"\n    # 并查集\n    parent =\
+      \ {v: v for v in vertices}\n    rank = {v: 0 for v in vertices}\n\n    def find(x):\n        if\
+      \ parent[x] != x:\n            parent[x] = find(parent[x])\n        return parent[x]\n\n    def\
+      \ union(x, y):\n        px, py = find(x), find(y)\n        if px == py:\n            return False\n\
+      \        if rank[px] < rank[py]:\n            px, py = py, px\n        parent[py] = px\n       \
+      \ if rank[px] == rank[py]:\n            rank[px] += 1\n        return True\n\n    # 按权重排序\n    edges.sort()\n\
+      \n    mst_edges = []\n    total_weight = 0\n\n    for weight, u, v in edges:\n        if union(u,\
+      \ v):\n            mst_edges.append((u, v, weight))\n            total_weight += weight\n      \
+      \      if len(mst_edges) == len(vertices) - 1:\n                break\n\n    return mst_edges, total_weight\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 最小生成树问题
+    chart_types:
+    - '**生成树图**：MST边的高亮显示'
+    - '**构造过程图**：算法逐步构造过程'
+    - '**权重分布图**：边权重的分布'
+    - '**树状结构图**：MST的树形结构'
+    - '**对比图**：不同算法结果对比'
+    source: math-modeling-skill
+  id: mc_74

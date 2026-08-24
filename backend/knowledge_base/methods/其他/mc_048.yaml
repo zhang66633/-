@@ -1,0 +1,68 @@
+method_card:
+  id: mc_048
+  name: 变分法
+  name_en: Calculus of Variations
+  category:
+  - 优化
+  - 微分方程
+  principle: 变分法研究泛函极值问题。泛函是从函数集合到实数的映射，通常写作 J[x(t)] = ∫_{t0}^{tf} F(t, x, x') dt。将函数增量
+    δx 引起的泛函增量线性主部定义为泛函变分；若 J 在 x0(t) 处达到极值，则 δJ[x0(t)] = 0。对最简泛函进行分部积分，并利用固定端点条件
+    δx(t0)=δx(tf)=0，可导出欧拉方程 F_x - d/dt F_{x'} = 0，作为极值曲线的必要条件。端点变动时还需引入横截条件。欧拉方程通解中的常数由端点条件或横截条件确定，从而求取极值曲线。
+  formulas:
+  - name: 最简泛函
+    latex: $$J[x(t)]=\int_{t_1}^{t_2}F(t,x,\dot{x})\,dt$$
+    description: 被积函数 F 包含自变量 t、未知函数 x 及其导数 x'。
+  - name: 泛函变分
+    latex: $$\delta J[x(t)]=\frac{\partial}{\partial \alpha}J[x(t)+\alpha\delta x(t)]\bigg|_{\alpha=0}$$
+    description: 泛函增量的线性主部，可表示为对参数 α 的导数。
+  - name: 极值必要条件
+    latex: $$\delta J[x_0(t)]=0$$
+    description: 若泛函在 x0(t) 处取得极值，则其变分为零。
+  - name: 欧拉方程
+    latex: $$F_x-\frac{d}{dt}F_{\dot{x}}=0$$
+    description: 最简泛函固定端点极值的必要条件。
+  - name: 欧拉方程展开式
+    latex: $$F_{\dot{x}\dot{x}}\ddot{x}+F_{\dot{x}x}\dot{x}+F_{\dot{x}t}-F_x=0$$
+    description: 通常为 x(t) 的二阶微分方程，通解常数由端点条件确定。
+  - name: 横截条件
+    latex: $$\left[F+(\dot{\psi}-\dot{x})F_{\dot{x}}\right]_{t=t_f}=0$$
+    description: 端点沿给定曲线 x=ψ(t) 变动时确定欧拉方程通解常数的条件。
+  - name: F 不依赖 x 的首次积分
+    latex: $$F_{\dot{x}}=c_1$$
+    description: 当 F 不含 x 时，欧拉方程积分一次得到首次积分。
+  - name: 含多个函数的欧拉方程组
+    latex: $$F_y-\frac{d}{dx}F_{y'}=0,\quad F_z-\frac{d}{dx}F_{z'}=0$$
+    description: 含多个未知函数的泛函极值满足欧拉方程组。
+  - name: 含高阶导数的欧拉方程
+    latex: $$F_y-\frac{d}{dx}F_{y'}+\frac{d^2}{dx^2}F_{y''}=0$$
+    description: 含二阶导数泛函的极值必要条件。
+  - name: 奥式方程
+    latex: $$F_z-\frac{\partial}{\partial x}F_{z_x}-\frac{\partial}{\partial y}F_{z_y}=0$$
+    description: 含多元函数泛函的极值必要条件。
+  applicable_when:
+  - 优化目标可写为定积分泛函 J[x]=∫_{t0}^{tf} F(t,x,x') dt
+  - 容许函数与边界条件充分光滑（通常二阶连续可微）
+  - 寻找无约束泛函的极值曲线或必要条件
+  - 端点固定或端点按给定曲线变动（可用横截条件处理）
+  not_applicable_when:
+  - 控制或状态具有闭集约束（应使用最优控制理论/庞特里亚金最大值原理）
+  - F 不依赖于 x' 时，欧拉方程退化为代数方程 F_x=0，常无法满足边界条件
+  - 欧拉方程仅给出必要条件，不能单独证明全局最优性或存在性
+  - 函数不光滑或变分不存在的情形
+  typical_scenarios:
+  - 最速降线问题（伯努利问题）
+  - 最小旋转面问题（悬链线）
+  - 固定端点的最简泛函极值
+  - 端点沿给定曲线变动的横截问题
+  common_mistakes:
+  - mistake: 端点变动时仍按固定端点处理，直接使用边界条件确定欧拉方程通解常数。
+    solution: 应添加横截条件来确定剩余常数，具体条件为端点变分所产生的 [F+(ψ'-x')F_{x'}]_{t=t_f}=0。
+  - mistake: 把欧拉方程得到的极值曲线直接当作全局最优解。
+    solution: 欧拉方程只是必要条件，还需检验二阶条件、凸性与存在性。
+  - mistake: 对 F 不依赖 x' 的情形仍套用二阶微分方程解法。
+    solution: 此时欧拉方程为 F_x=0，通常无法满足边界条件，应判断变分问题是否无解。
+  code_snippets: []
+  related_cards: []
+  related_papers: []
+  difficulty: 4
+  quality_rating: 4

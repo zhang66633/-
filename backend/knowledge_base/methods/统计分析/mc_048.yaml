@@ -1,0 +1,82 @@
+method_card:
+  id: mc_048
+  name: 聚类分析
+  name_en: Cluster Analysis
+  category:
+  - 统计
+  - 机器学习
+  principle: 聚类分析通过数量化相似性度量将多变量样本划分为若干类，使同一类样本相似性较高，不同类样本相似性较低。常用距离作为相似性度量，如Minkowski距离、欧氏距离、马氏距离等。系统聚类法先将每个样本视为一类，计算样本间距离矩阵，再反复合并距离最近的两类并更新类间距离，直到所有样本聚为一类；通过聚类图可展示由粗到细的分类情况，并根据阈值或业务需求确定分类数。类间距离可选用最短距离、最长距离、重心法、类平均法或离差平方和法等，不同类间距离定义会影响最终聚类结构。
+  formulas:
+  - name: Minkowski 距离
+    latex: $$d_q(x,y)=\left(\sum_{k=1}^{p}\left|x_k-y_k\right|^q\right)^{1/q},\quad
+      q>0$$
+    description: 用于定量变量样本间距离的一般形式，q=1 为绝对值距离，q=2 为欧氏距离，q→∞ 为 Chebyshev 距离。
+  - name: 绝对值距离
+    latex: $$d_1(x,y)=\sum_{k=1}^{p}\left|x_k-y_k\right|$$
+    description: Minkowski 距离在 q=1 时的特例，也称曼哈顿距离。
+  - name: 欧氏距离
+    latex: $$d_2(x,y)=\left(\sum_{k=1}^{p}\left|x_k-y_k\right|^2\right)^{1/2}$$
+    description: 最常用的 Minkowski 距离，在坐标轴正交旋转下保持不变。
+  - name: Chebyshev 距离
+    latex: $$d_\infty(x,y)=\max_{1\leq k\leq p}\left|x_k-y_k\right|$$
+    description: Minkowski 距离当 q→∞ 时的极限，反映各坐标最大差异。
+  - name: 马氏距离
+    latex: $$d_M(x,y)=\sqrt{(x-y)^T\Sigma^{-1}(x-y)}$$
+    description: 其中 Σ 为 p 维总体的协方差矩阵，实际中常以样本协方差估计。马氏距离对线性变换不变，不受量纲影响。
+  - name: 最短距离法
+    latex: $$D(G_1,G_2)=\min_{x_i\in G_1,y_j\in G_2} d(x_i,y_j)$$
+    description: 两个类中最近两点间的距离，也叫最近邻法或 single linkage。
+  - name: 最长距离法
+    latex: $$D(G_1,G_2)=\max_{x_i\in G_1,y_j\in G_2} d(x_i,y_j)$$
+    description: 两个类中最远两点间的距离，也叫 complete linkage。
+  - name: 重心法
+    latex: $$D(G_1,G_2)=d(\bar{x},\bar{y})$$
+    description: 用两个类的重心或均值向量之间的距离作为类间距离。
+  - name: 类平均法
+    latex: $$D(G_1,G_2)=\frac{1}{n_1 n_2}\sum_{x_i\in G_1}\sum_{x_j\in G_2} d(x_i,x_j)$$
+    description: 两个类中所有两两样本点距离的平均，n1、n2 分别为两类样本数。
+  - name: 离差平方和法
+    latex: $$D(G_1,G_2)=D_{12}-D_1-D_2$$
+    description: Ward 方法，通过合并引起的离差平方和增量度量类间距离，增量越小说明合并越合适。
+  applicable_when:
+  - 对未知类别的多变量样本进行探索性分类
+  - 变量为定量数据且量纲一致或已标准化
+  - 需要展示从细到粗的层次分类结构
+  - 市场细分、生物分类、业绩分组等场景
+  not_applicable_when:
+  - 不同变量量纲相差悬殊且未标准化
+  - 变量间存在严重多重相关性导致信息重叠
+  - 样本量非常大且层次聚类计算成本过高
+  - 目标是建立对新样本的判别预测模型
+  typical_scenarios:
+  - 企业市场细分与目标市场选择
+  - 生物物种或商品的多指标分类
+  - 销售员业绩水平分群
+  - 多变量样本的探索性聚类结构发现
+  common_mistakes:
+  - mistake: 直接对不同量纲变量计算 Minkowski 距离，导致量值变化大的变量主导聚类结果。
+    solution: 先对变量进行标准化处理，或采用马氏距离等对线性变换不变的距离。
+  - mistake: 忽视变量之间的强相关性，使重复信息被过度强调。
+    solution: 先诊断多重相关性，必要时通过主成分等方法降维后再聚类。
+  - mistake: 随意选择类间距离方法，不关注其对聚类形状和链式效应的影响。
+    solution: 理解 single、complete、average、centroid、ward 等方法的特性，结合数据分布选择。
+  - mistake: 把聚类类别直接当作固定预测模型，用于任意新样本分类。
+    solution: 聚类主要用于探索性分类；若需对新样本分类，应重新聚类或基于聚类结果建立判别规则。
+  code_snippets:
+  - language: matlab
+    description: 使用绝对值距离和最短距离法进行系统聚类，并绘制聚类树、将样本分为3类。
+    code: 'clc,clear
+
+      a=[1,0;1,1;3,2;4,3;2,5];
+
+      y=pdist(a,''cityblock''); yc=squareform(y)
+
+      z=linkage(y)
+
+      [h,t]=dendrogram(z)
+
+      T=cluster(z,''maxclust'',3)'
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

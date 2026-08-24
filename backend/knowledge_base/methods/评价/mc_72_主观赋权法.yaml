@@ -1,0 +1,82 @@
+method_card:
+  name: 主观赋权法
+  name_en: ''
+  category:
+  - 评价
+  principle: '主观赋权法根据决策者的主观判断确定权重，主要包括直接打分法、专家调查法、德尔菲法等。
+
+
+    #### 8.1 直接打分法
+
+
+    专家直接给出各指标的权重或分数，然后进行综合。
+
+
+    **权重归一化**：
+
+    $$
+
+    w_j = \frac{S_j}{\sum_{k=1}^{n} S_k}
+
+    $$
+
+
+    其中$S_j$是指标$j$的专家打分。
+
+
+    #### 8.2 专家调查法
+
+
+    1. 邀请$k$位专家
+
+    2. 每位专家给出权重$w_j^{(i)}$
+
+    3. 综合计算权重：$w_j = \frac{1}{k} \sum_{i=1}^{k} w_j^{(i)}$
+
+
+    #### 8.3 德尔菲法
+
+
+    1. 匿名征求专家意见
+
+    2. 统计反馈给专家
+
+    3. 专家修改意见
+
+    4. 重复2-3步直至收敛'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 主观赋权法 实现要点
+    code: "import numpy as np\n\ndef direct_scoring_weight(scores):\n    \"\"\"\n    直接打分法计算权重\n    :param\
+      \ scores: 指标得分向量\n    :return: 归一化权重\n    \"\"\"\n    scores = np.array(scores)\n    weights = scores\
+      \ / scores.sum()\n    return weights\n\ndef expert_survey_weight(expert_weights):\n    \"\"\"\n\
+      \    专家调查法计算权重\n    :param expert_weights: 专家权重矩阵 (专家×指标)\n    :return: 综合权重, 各专家权重\n    \"\"\"\n\
+      \    expert_weights = np.array(expert_weights)\n    # 确保每行归一化\n    expert_weights = expert_weights\
+      \ / expert_weights.sum(axis=1, keepdims=True)\n\n    # 计算平均权重\n    mean_weights = expert_weights.mean(axis=0)\n\
+      \n    return mean_weights, expert_weights\n\ndef delphi_method(initial_weights, max_rounds=3, convergence_threshold=0.1):\n\
+      \    \"\"\"\n    德尔菲法模拟（简化版）\n    :param initial_weights: 初始专家权重矩阵 (专家×指标)\n    :param max_rounds:\
+      \ 最大轮数\n    :param convergence_threshold: 收敛阈值\n    :return: 最终权重, 每轮权重历史\n    \"\"\"\n    weights_history\
+      \ = [initial_weights.copy()]\n    current_weights = initial_weights.copy()\n\n    for round_num\
+      \ in range(max_rounds - 1):\n        # 计算上一轮的平均权重（反馈给专家）\n        mean_weights = current_weights.mean(axis=0)\n\
+      \n        # 专家根据反馈调整权重（这里用简单模拟：向均值靠近）\n        adjustment_rate = 0.3\n        new_weights = current_weights\
+      \ + adjustment_rate * (mean_weights - current_weights)\n\n        # 归一化\n        new_weights = new_weights\
+      \ / new_weights.sum(axis=1, keepdims=True)\n\n        current_weights = new_weights\n        weights_history.append(current_weights.copy())\n\
+      \n        # 检查收敛\n        std = current_weights.std(axis=0).mean()\n        if std < convergence_threshold:\n\
+      \            break\n\n    final_weights = current_weights.mean(axis=0)\n\n    return final_weights,\
+      \ weights_history\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 主观赋权法
+    chart_types:
+    - '**权重分布图**：各指标权重'
+    - '**专家意见对比图**：各专家意见对比'
+    - '**意见收敛图**：德尔菲法意见收敛'
+    - '**一致性分析图**：专家意见一致性'
+    - '**权重区间图**：权重置信区间'
+    source: math-modeling-skill
+  id: mc_72

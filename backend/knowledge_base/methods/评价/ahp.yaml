@@ -1,0 +1,72 @@
+method_card:
+  id: mc_008
+  name: 层次分析法 (AHP)
+  category:
+  - 评价
+  - 多准则决策
+  - 主观赋权
+  principle: '将复杂决策问题分解为目标层、准则层和方案层，通过两两比较构造判断矩阵，
+
+    计算各层元素的相对权重，最终合成各方案的总权重。核心是一致性检验。
+
+    适用于定性与定量结合的决策问题。
+
+    '
+  formulas:
+  - name: 一致性比例
+    latex: CR = \frac{CI}{RI}
+    description: CR＜0.1时认为判断矩阵一致性可接受
+  applicable_when:
+  - 评价指标可分层级结构
+  - 需要结合专家经验和定量分析
+  - 评价准则之间存在相对重要性比较
+  common_mistakes:
+  - mistake: 判断矩阵未通过一致性检验仍继续使用
+    solution: CR≥0.1时必须调整判断矩阵直到满足要求
+  - mistake: 比较尺度使用不当
+    solution: 使用Saaty 1-9标度，比较结果不超过9
+  code_snippets:
+  - language: python
+    description: 使用 numpy 计算 AHP 权重
+    code: 'import numpy as np
+
+      A = np.array([[1, 3, 5], [1/3, 1, 2], [1/5, 1/2, 1]])
+
+      eigvals, eigvecs = np.linalg.eig(A)
+
+      max_eigval = np.max(eigvals.real)
+
+      weights = eigvecs[:, np.argmax(eigvals)].real
+
+      weights = weights / weights.sum()
+
+      CI = (max_eigval - len(A)) / (len(A) - 1)
+
+      RI_dict = {1:0, 2:0, 3:0.58, 4:0.90, 5:1.12, 6:1.24}
+
+      CR = CI / RI_dict[len(A)]
+
+      print(f"权重: {weights}, CR: {CR:.4f}")
+
+      '
+  typical_scenarios:
+  - 方案比选：多候选方案的优劣排序（选址、选型、选供应商）
+  - 风险评估：对多种风险因素按重要程度排序
+  - 绩效评价：多指标综合评价体系的权重确定
+  - 资源分配：按优先级分配有限资源
+  related_cards:
+  - mc_009
+  - mc_013
+  difficulty: 2
+  quality_rating: 5
+  tags:
+    model_type:
+    - 评价类
+    key_concepts:
+    - 层次结构
+    - 两两比较
+    - 一致性检验
+    - Saaty标度
+    mathematical_tools:
+    - 特征值分解
+    - 矩阵运算

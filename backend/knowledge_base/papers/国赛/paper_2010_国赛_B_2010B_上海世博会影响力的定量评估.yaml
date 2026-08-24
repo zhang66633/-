@@ -41,3 +41,4 @@ paper:
     lessons: 可以学到如何综合运用多种数学模型（预测、评价、优化）解决复杂现实问题，以及如何从不同角度量化大型事件的影响力。
   quality_rating: 4
   source: 2010B：上海世博会影响力的定量评估.pdf
+  problem_ref: prob_34

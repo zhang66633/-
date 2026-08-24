@@ -1,0 +1,140 @@
+method_card:
+  name: 网络流问题
+  name_en: Network Flow Problem
+  category:
+  - 图论
+  principle: '网络流问题研究在网络中从源点到汇点的最大流量。
+
+
+    #### 3.1 最大流问题
+
+
+    **基本概念**：
+
+    - **容量**：每条边的最大流量限制$c(u,v)$
+
+    - **流量**：每条边的实际流量$f(u,v)$
+
+    - **源点**：流出的起点$s$
+
+    - **汇点**：流入的终点$t$
+
+
+    **流量守恒**：
+
+    $$
+
+    \sum_{v} f(v, u) = \sum_{v} f(u, v), \quad \forall u \neq s, t
+
+    $$
+
+
+    **容量限制**：
+
+    $$
+
+    0 \leq f(u, v) \leq c(u, v)
+
+    $$
+
+
+    #### 3.2 Ford-Fulkerson算法
+
+
+    通过寻找增广路径增加流量，直到不存在增广路径。
+
+
+    **残差网络**：
+
+    $$
+
+    c_f(u, v) = \begin{cases}
+
+    c(u, v) - f(u, v), & \text{如果}(u, v) \in E \\
+
+    f(v, u), & \text{如果}(v, u) \in E \\
+
+    0, & \text{否则}
+
+    \end{cases}
+
+    $$
+
+
+    #### 3.3 Edmonds-Karp算法
+
+
+    Ford-Fulkerson的实现，使用BFS找增广路径。
+
+
+    **时间复杂度**：$O(VE^2)$
+
+
+    #### 3.4 Dinic算法
+
+
+    使用层次图和多路增广，效率更高。
+
+
+    **时间复杂度**：$O(V^2E)$
+
+
+    #### 3.5 最小费用最大流
+
+
+    在最大流的基础上使总费用最小。
+
+
+    **目标**：
+
+    $$
+
+    \min \sum_{(u,v) \in E} f(u, v) \cdot cost(u, v)
+
+    $$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 网络流问题 实现要点
+    code: "from collections import deque\n\nclass Edge:\n    def __init__(self, to, rev, capacity, cost=0):\n\
+      \        self.to = to\n        self.rev = rev\n        self.capacity = capacity\n        self.cost\
+      \ = cost\n\nclass MaxFlow:\n    def __init__(self, n):\n        self.n = n\n        self.graph =\
+      \ [[] for _ in range(n)]\n\n    def add_edge(self, fr, to, cap, cost=0):\n        \"\"\"添加边\"\"\"\
+      \n        forward = Edge(to, len(self.graph[to]), cap, cost)\n        backward = Edge(fr, len(self.graph[fr])\
+      \ - 1, 0, -cost)\n        self.graph[fr].append(forward)\n        self.graph[to].append(backward)\n\
+      \n    def max_flow_edmonds_karp(self, s, t):\n        \"\"\"Edmonds-Karp最大流\"\"\"\n        flow\
+      \ = 0\n        n = len(self.graph)\n\n        while True:\n            # BFS寻找增广路径\n           \
+      \ level = [-1] * n\n            queue = deque([s])\n            level[s] = 0\n            parent\
+      \ = [(-1, -1)] * n\n\n            while queue:\n                v = queue.popleft()\n          \
+      \      for i, edge in enumerate(self.graph[v]):\n                    if edge.capacity > 0 and level[edge.to]\
+      \ < 0:\n                        level[edge.to] = level[v] + 1\n                        parent[edge.to]\
+      \ = (v, i)\n                        queue.append(edge.to)\n\n            if level[t] < 0:\n    \
+      \            break\n\n            # 计算增广量\n            min_cap = float('inf')\n            v = t\n\
+      \            while v != s:\n                p, i = parent[v]\n                edge = self.graph[p][i]\n\
+      \                min_cap = min(min_cap, edge.capacity)\n                v = p\n\n            # 更新流量\n\
+      \            v = t\n            while v != s:\n                p, i = parent[v]\n              \
+      \  edge = self.graph[p][i]\n                edge.capacity -= min_cap\n                self.graph[v][edge.rev].capacity\
+      \ += min_cap\n                v = p\n\n            flow += min_cap\n\n        return flow\n\n  \
+      \  def min_cost_max_flow(self, s, t, maxf=float('inf')):\n        \"\"\"最小费用最大流（Successive Shortest\
+      \ Path算法）\"\"\"\n        n = len(self.graph)\n        res = 0\n        h = [0] * n  # 势能\n     \
+      \   prevv = [0] * n\n        preve = [0] * n\n        flow = 0\n\n        while flow < maxf:\n \
+      \           # Dijkstra算法\n            dist = [float('inf')] * n\n            dist[s] = 0\n     \
+      \       in_queue = [False] * n\n            queue = deque([s])\n            in_queue[s] = True\n\
+      \n            while queue:\n                v = queue.popleft()\n                in_queue[v] = False\n\
+      \                for i, edge in enumerate(self.graph[v]):\n                    if edge.capacity\
+      \ > 0 and dist[edge.to] > dist[v] + edge.cost + h[v] - h[e"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 网络流问题
+    chart_types:
+    - '**网络流图**：流量/容量标注'
+    - '**残差网络图**：残差容量可视化'
+    - '**增广路径图**：增广路径高亮'
+    - '**流量分配图**：流量分配情况'
+    - '**瓶颈分析图**：瓶颈边识别'
+    source: math-modeling-skill
+  id: mc_75

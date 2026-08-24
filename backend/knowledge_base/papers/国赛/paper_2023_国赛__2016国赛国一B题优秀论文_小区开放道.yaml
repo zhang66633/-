@@ -1,8 +1,8 @@
 paper:
   id: paper_2023_国赛__2016国赛国一B题优秀论文_小区开放道
-  year: 2023
+  year: 2016
   competition: 国赛
-  problem_id: ''
+  problem_id: B
   title: 小区开放对道路通行的影响
   tags:
     problem_type:
@@ -43,3 +43,4 @@ paper:
     lessons: 可以学习如何构建多指标评价体系并利用投影寻踪进行综合评价，以及如何结合微分方程和元胞自动机模拟交通流，同时注意实际交通中的悖论现象。
   quality_rating: 4
   source: 2016国赛国一B题优秀论文-小区开放道路通行影响.pdf
+  problem_ref: prob_36

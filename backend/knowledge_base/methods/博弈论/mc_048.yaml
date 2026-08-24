@@ -1,0 +1,64 @@
+method_card:
+  id: mc_048
+  name: 零和对策（矩阵对策）
+  name_en: Zero-Sum Game / Matrix Game
+  category:
+  - 博弈论
+  - 优化
+  principle: 零和对策研究两名利益完全对抗的局中人：在任一策略局势下，双方赢得之和为零，一方所得即另一方所失。若赢得矩阵存在鞍点，则纯策略即可达到稳定解；否则需要引入混合策略，以概率向量随机选择各纯策略，使期望赢得满足极小极大原理。混合策略问题可转化为线性规划：局中人I最大化其最小期望赢得，局中人II最小化其最大期望损失，两者互为对偶。
+  formulas:
+  - name: 纯策略鞍点条件
+    latex: $$\max_i \min_j a_{ij}=\min_j \max_i a_{ij}=V_G$$
+    description: 当等式成立时，赢得矩阵存在鞍点，对应最优纯策略与对策值。
+  - name: 混合策略鞍点条件
+    latex: $$\max_{x\in S_1^*} \min_{y\in S_2^*} x^T A y=\min_{y\in S_2^*} \max_{x\in
+      S_1^*} x^T A y=V_G$$
+    description: 任意矩阵对策在混合策略下必存在鞍点。
+  - name: 混合策略最优性条件
+    latex: $$\sum_{i=1}^m a_{ij}x_i\ge V_G,\ j=1,\ldots,n;\quad \sum_{j=1}^n a_{ij}y_j\le
+      V_G,\ i=1,\ldots,m$$
+    description: 最优混合策略需满足的对偶不等式条件。
+  - name: 局中人I线性规划模型
+    latex: $$\max u \quad s.t.\quad \sum_{i=1}^m a_{ij}x_i\ge u,\ j=1,\ldots,n;\quad
+      \sum_{i=1}^m x_i=1;\quad x_i\ge0$$
+    description: 将局中人I的混合策略问题转化为线性规划，u为最小期望赢得下界。
+  - name: 解集线性变换性质
+    latex: $$A_2=A_1+L\Rightarrow V_{G_2}=V_{G_1}+L,\quad T(G_2)=T(G_1);\quad A_2=\alpha
+      A_1\Rightarrow V_{G_2}=\alpha V_{G_1},\quad T(G_2)=T(G_1)$$
+    description: 支付矩阵加减常数或乘以正数时，最优策略集不变。
+  applicable_when:
+  - 只有两名局中人且策略集为有限集合
+  - 双方利益完全对抗，纯局势下赢得之和恒为零
+  - 已知赢得矩阵，需求最优纯策略或最优混合策略
+  - 纯策略鞍点不存在时需要随机化策略
+  not_applicable_when:
+  - 非零和博弈、合作博弈或存在共同利益
+  - 三人及以上局中人，需推广到一般多人对策
+  - 策略集连续或无限维
+  - 支付矩阵未知或随环境变化
+  typical_scenarios:
+  - 军事对抗中的最优攻击/防守策略选择
+  - 两人零和竞争的市场对抗或价格竞争
+  - 有限策略对抗中的稳定策略求解
+  common_mistakes:
+  - mistake: 把局中人II的赢得矩阵直接写成A，而不是零和条件下的-A。
+    solution: 始终明确零和对策中局中人II的支付矩阵为-A，并在计算其损失时使用相应符号。
+  - mistake: 在赢得矩阵不存在鞍点时仍只求纯策略最大最小值，认为已有稳定解。
+    solution: 先检验μ+ν=0是否成立；若不存在纯策略鞍点，则建立混合策略模型。
+  - mistake: 求解混合策略线性规划时遗漏概率归一化或非负约束。
+    solution: 在模型中显式加入∑x_i=1与x_i≥0约束，并正确设置u的自由变量界。
+  code_snippets:
+  - language: python
+    description: 用scipy.optimize.linprog求解零和对策局中人I的最优混合策略
+    code: "from scipy.optimize import linprog\nimport numpy as np\n\nA = np.array([[0.82,\
+      \ 1.0],\n              [1.0, 0.58]])  # 局中人I的赢得矩阵\nm, n = A.shape\n\n# 变量为 [x1,...,xm,\
+      \ u]，目标 max u 等价于 min -u\nc = np.zeros(m + 1)\nc[-1] = -1.0\n\n# 约束：-A.T @ x\
+      \ + u <= 0\nA_ub = np.hstack([-A.T, np.ones((n, 1))])\nb_ub = np.zeros(n)\n\n\
+      # 约束：sum(x) = 1\nA_eq = np.hstack([np.ones((1, m)), np.zeros((1, 1))])\nb_eq\
+      \ = [1.0]\n\nbounds = [(0, None)] * m + [(None, None)]\nres = linprog(c, A_ub=A_ub,\
+      \ b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')\nx = res.x[:m]\n\
+      u = res.x[-1]\nprint('最优混合策略 x =', x)\nprint('对策值 V_G =', u)"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

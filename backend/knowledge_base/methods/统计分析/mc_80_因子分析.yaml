@@ -1,0 +1,104 @@
+method_card:
+  name: 因子分析
+  name_en: Factor Analysis, FA
+  category:
+  - 统计分析
+  - 数值方法
+  principle: '因子分析是用少数潜在变量（因子）解释可观测变量之间的相关性。
+
+
+    #### 5.1 基本模型
+
+
+    **数学模型**：
+
+    $$
+
+    X = \mu + \Lambda F + \epsilon
+
+    $$
+
+
+    其中：
+
+    - $X$是可观测变量向量
+
+    - $\mu$是均值向量
+
+    - $\Lambda$是因子载荷矩阵
+
+    - $F$是公共因子向量
+
+    - $\epsilon$是特殊因子（误差）
+
+
+    #### 5.2 因子提取方法
+
+
+    **主成分法**：基于主成分分析
+
+
+    **主因子法**：基于公共因子方差
+
+
+    **最大似然法**：假设数据多元正态分布
+
+
+    #### 5.3 因子旋转
+
+
+    **目的**：使因子结构更易解释。
+
+
+    **正交旋转**：
+
+    - 方差最大化旋转（Varimax）
+
+    - 四次方最大旋转（Quartimax）
+
+    - 平方最大旋转（Equamax）
+
+
+    **斜交旋转**：
+
+    - Promax旋转
+
+    - Oblimin旋转'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 因子分析 实现要点
+    code: "from sklearn.decomposition import FactorAnalysis\nfrom factor_analyzer import FactorAnalyzer,\
+      \ Rotator\nimport numpy as np\n\ndef perform_factor_analysis(data, n_factors=3, rotation='varimax'):\n\
+      \    \"\"\"\n    因子分析\n    :param data: 数据矩阵\n    :param n_factors: 因子数量\n    :param rotation: 旋转方法\n\
+      \    :return: 因子载荷, 因子得分, 方差解释\n    \"\"\"\n    # 使用factor_analyzer库\n    fa = FactorAnalyzer(n_factors=n_factors,\
+      \ rotation=rotation)\n    fa.fit(data)\n\n    # 因子载荷\n    loadings = fa.loadings_\n\n    # 因子方差\n\
+      \    communalities = fa.get_communalities()\n\n    # 方差解释\n    variance = fa.get_factor_variance()\n\
+      \n    return {\n        'loadings': loadings,\n        'communalities': communalities,\n       \
+      \ 'variance': variance,  # (SS Loadings, Proportion Var, Cumulative Var)\n        'factor_scores':\
+      \ fa.transform(data)\n    }\n\ndef determine_n_factors(data, max_factors=10):\n    \"\"\"\n    确定因子数量（Kaiser准则\
+      \ + 碎石图）\n    :param data: 数据矩阵\n    :param max_factors: 最大因子数\n    :return: 特征值, 推荐因子数\n    \"\"\
+      \"\n    from factor_analyzer.factor_analyzer import calculate_kmo\n\n    # Kaiser准则：特征值>1\n    fa\
+      \ = FactorAnalyzer(n_factors=max_factors, rotation=None)\n    fa.fit(data)\n    ev, v = fa.get_eigenvalues()\n\
+      \n    n_factors_kaiser = sum(ev > 1)\n\n    return ev, n_factors_kaiser\n\ndef plot_factor_loadings(loadings,\
+      \ feature_names, figsize=(10, 8)):\n    \"\"\"\n    绘制因子载荷热力图\n    :param loadings: 载荷矩阵\n    :param\
+      \ feature_names: 特征名称\n    :param figsize: 图大小\n    \"\"\"\n    import seaborn as sns\n    import\
+      \ matplotlib.pyplot as plt\n\n    plt.figure(figsize=figsize)\n    sns.heatmap(loadings, annot=True,\
+      \ cmap='coolwarm',\n                xticklabels=[f'F{i+1}' for i in range(loadings.shape[1])],\n\
+      \                yticklabels=feature_names,\n                center=0, cbar_kws={'label': 'Loading'})\n\
+      \    plt.title('Factor Loadings')\n    plt.xlabel('Factors')\n    plt.ylabel('Variables')\n    plt.tight_layout()\n\
+      \    plt.show()\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 因子分析
+    chart_types:
+    - '**碎石图**：因子特征值'
+    - '**因子载荷图**：变量在因子上的载荷'
+    - '**因子得分图**：样本因子得分'
+    - '**路径图**：因子结构'
+    source: math-modeling-skill
+  id: mc_80

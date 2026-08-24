@@ -1,0 +1,54 @@
+method_card:
+  id: mc_058
+  name: 流水车间排列排序问题的 Johnson 最优算法
+  name_en: Johnson's Rule for Flow Shop Scheduling
+  category:
+  - 优化
+  principle: Johnson 规则用于求解两台机器流水车间排列排序问题，目标是最小化最大完工时间。其基本思想是比较每个工件在两台机器上的加工时间，将第一台机器加工时间较短、第二台机器加工时间较长的工件尽量安排在前，将第二台机器加工时间较短、第一台机器加工时间较长的工件安排在后。具体通过
+    U、V 划分实现：若工件的第一台机器加工时间不超过第二台机器加工时间，则归入 U，并按第一台机器加工时间升序排列；其余归入 V，并按第二台机器加工时间降序排列；U
+    整体排在 V 前。该规则以最早完工时间递推为基础，可在多项式时间内得到最优顺序。
+  formulas:
+  - name: Johnson 排序规则
+    latex: $$\min\{t_{i1},t_{j2}\} \le \min\{t_{j1},t_{i2}\} \Rightarrow i \text{
+      before } j$$
+    description: 比较工件 i 与工件 j 在两台机器上的加工时间，满足该条件时工件 i 应排在工件 j 之前。
+  - name: 最长流程时间 Fmax 递推计算
+    latex: $$c_{s_1,1}=t_{s_1,1},\quad c_{s_1,k}=c_{s_1,k-1}+t_{s_1,k},\quad c_{s_i,1}=c_{s_{i-1},1}+t_{s_i,1},\quad
+      c_{s_i,k}=\max\{c_{s_{i-1},k},c_{s_i,k-1}\}+t_{s_i,k},\quad F_{\max}=c_{s_n,m}$$
+    description: 按给定加工顺序递推各工件在各机器上的最早完工时间，最后得到最大流程时间或加工周期。
+  - name: 三台机器扩展假想机器转换
+    latex: $$t_{iA}=t_{i1}+t_{i2},\quad t_{iB}=t_{i2}+t_{i3}$$
+    description: 当三台机器问题满足特定条件时，将三台机器合并为两台假想机器，再使用 Johnson 规则进行排序。
+  applicable_when:
+  - 两台机器流水车间排列排序问题，所有工件按相同路线依次经过 M1 和 M2。
+  - 目标函数为最小化最长完工时间 Fmax 或 Cmax。
+  - 加工时间已知且确定，工件到达时间为 0，不允许中断。
+  - 三台机器场景下，若每个工件满足 t_i1 >= t_i2 或 t_i3 >= t_i2，可扩展为两台假想机器使用 Johnson 法。
+  not_applicable_when:
+  - 工件加工路线不同的单件作业排序问题。
+  - 机器数 m > 3 且不满足三台机器扩展条件时不能保证最优。
+  - 目标函数不是最小化最大完工时间，例如平均流程时间最短或误期工件数最少。
+  - 动态到达或加工时间为随机变量的排序问题。
+  typical_scenarios:
+  - 两工序流水生产线的工件加工顺序安排
+  - 两台设备加工同一批工件的生产调度
+  - 满足特定条件的三台机器流水车间排列排序
+  common_mistakes:
+  - mistake: 把 Johnson 法的 U 组和 V 组排序方向颠倒。
+    solution: U 按第一台机器加工时间升序排列，V 按第二台机器加工时间降序排列，且 U 排在 V 之前。
+  - mistake: 对一般的 m > 3 台流水车间问题直接套用 Johnson 法求最优解。
+    solution: Johnson 法仅对两台机器或满足特殊条件的三台机器保证最优；一般 m 台机器应使用 Palmer 等启发式或分支定界法。
+  - mistake: 计算 Fmax 时未按最早可能开工时间递推，导致工位等待时间计算错误。
+    solution: 使用 c_{s_i,k}=max(c_{s_{i-1},k},c_{s_i,k-1})+t_{s_i,k} 递推，最后取 c_{s_n,m}。
+  code_snippets:
+  - language: matlab
+    description: Johnson 规则求解两台机器流水车间最大完工时间最小化的示例代码。
+    code: "clc,clear\nt=[5 2 1 7 6 3 7 5;\n   2 6 2 5 6 7 2 1];\nn=size(t,2);\nU=find(t(1,:)<=t(2,:));\n\
+      V=find(t(1,:)>t(2,:));\ntU=t(1,U); tV=t(2,V);\n[stU,ind1]=sort(tU);\n[stV,ind2]=sort(tV,'descend');\n\
+      UV=[U(ind1) V(ind2)];\nst=t(:,UV);\nti1=cumsum(st(1,:));\nti2(1)=ti1(1)+st(2,1);\n\
+      for j=2:n\n    ti2(j)=max(ti1(j),ti2(j-1))+st(2,j);\nend\nsolu=[ti1;ti2];\n\
+      disp(UV)\ndisp(solu)"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

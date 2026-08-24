@@ -1,0 +1,75 @@
+method_card:
+  id: mc_048
+  name: 确定性存贮模型（EOQ/EPQ及变体）
+  name_en: Deterministic Inventory Models (EOQ/EPQ and variants)
+  category:
+  - 优化
+  principle: 存贮论通过建立订货费、存贮保管费和缺货损失费之间的权衡关系，构造单位时间平均总费用函数，并对订货批量Q或订货周期T求一阶导数令其为零，确定最优存贮策略。基础EOQ模型假设需求率D恒定、不允许缺货且补货瞬时；经济生产批量(EPQ)模型引入有限生产/补货速率P（P>D），费用函数中出现(1-D/P)因子；允许缺货模型进一步引入缺货费C_S。多个确定性变体可由一般模型退化得到。
+  formulas:
+  - name: EOQ模型平均总费用
+    latex: $$C(Q)=\frac{1}{2}C_P Q+\frac{C_D D}{Q}$$
+    description: 单位时间平均存贮费与订货费之和，Q为订货批量。
+  - name: EOQ最优订货量
+    latex: $$Q^*=\sqrt{\frac{2 C_D D}{C_P}}$$
+    description: 对平均总费用求导并令为零得到的经济订购批量。
+  - name: EOQ最优订货周期
+    latex: $$T^*=\frac{Q^*}{D}=\sqrt{\frac{2 C_D}{D C_P}}$$
+    description: 最优订货量对应的订货间隔期。
+  - name: EOQ最小平均总费用
+    latex: $$C^*=\sqrt{2 C_D D C_P}$$
+    description: 将最优订货量代入费用函数后的最小单位时间总费用。
+  - name: 一般模型最优存贮周期
+    latex: $$T^*=\sqrt{\frac{2 C_D(C_P+C_S)}{D C_P C_S(1-D/P)}}$$
+    description: 允许缺货且补充需要一定时间的一般模型最优周期。
+  - name: 一般模型经济生产批量
+    latex: $$Q^*=D T^*=\sqrt{\frac{2 C_D D(C_P+C_S)}{C_P C_S(1-D/P)}}$$
+    description: 一般模型的最优每次生产或订货量。
+  - name: EPQ模型最优生产量
+    latex: $$Q^*=\sqrt{\frac{2 C_D D}{C_P(1-D/P)}}$$
+    description: 不允许缺货但补充需一定时间时的最优生产批量。
+  - name: EPQ最小平均总费用
+    latex: $$C^*=\sqrt{2 C_D D C_P(1-D/P)}$$
+    description: EPQ模型对应的最小平均总费用。
+  - name: 允许缺货且补充时间极短模型最优订货量
+    latex: $$Q^*=\sqrt{\frac{2 C_D D(C_P+C_S)}{C_P C_S}}$$
+    description: 允许缺货且补货瞬时（一般模型中P趋于无穷）时的最优订货量。
+  applicable_when:
+  - 需求率D可视为常数，需求连续均匀
+  - 订购费C_D、单位存贮费C_P、缺货费C_S等参数已知且稳定
+  - 补货或生产速率P稳定，且P>D（EPQ及一般模型）
+  - 缺货策略明确：不允许缺货可令C_S趋于无穷，允许缺货则取有限值
+  - 单一物品、无批量折扣且库容和资金约束可忽略
+  not_applicable_when:
+  - 需求具有明显随机性或季节性波动
+  - 存在批量折扣、价格变化或多级供应链联合优化
+  - 多物品联合订购或库存容量、资金约束强
+  - 补货提前期随机或服务水平和缺货成本难以量化
+  typical_scenarios:
+  - 零售或电商企业确定固定需求商品的每次订货量
+  - 制造企业确定生产批量与生产周期
+  - 图书设备等产品的生产-存贮计划
+  - 确定再订货点和安全库存水平
+  common_mistakes:
+  - mistake: 将基本EOQ公式直接用于允许缺货或补货需一定时间的情形，忽略缺货费和生产速率。
+    solution: 根据是否允许缺货和补货时间选择模型一至模型四，采用对应公式。
+  - mistake: 公式中的单位不统一，如年需求与日保管费混用。
+    solution: 统一时间单位，将需求率和费用率换算到同一时间基准。
+  - mistake: 由连续EOQ得到非整数订货次数或批量后直接取小数。
+    solution: 订货次数或批量需为整数时，比较相邻整数方案的全年费用后选优。
+  - mistake: 忽略拖后订货点L=D t0，导致缺货。
+    solution: 若补货存在固定提前期，应设置再订货点L为提前期内需求量。
+  - mistake: 混淆需求率D与生产速度P，或忽略P>D条件。
+    solution: 在生产需一定时间模型中使用(1-D/P)因子，并检查P>D是否成立。
+  code_snippets:
+  - language: python
+    description: 计算基本EOQ和EPQ模型的最优批量、周期与最小费用
+    code: "import math\n\ndef eoq(D, C_D, C_P):\n    Q = math.sqrt(2 * C_D * D / C_P)\n\
+      \    T = Q / D\n    C = math.sqrt(2 * C_D * D * C_P)\n    return Q, T, C\n\n\
+      def epq(D, C_D, C_P, P):\n    Q = math.sqrt(2 * C_D * D / (C_P * (1 - D / P)))\n\
+      \    T = Q / D\n    C = math.sqrt(2 * C_D * D * C_P * (1 - D / P))\n    return\
+      \ Q, T, C\n\nQ1, T1, C1 = eoq(100, 10, 0.005)\nQ2, T2, C2 = epq(100, 10, 0.005,\
+      \ 200)\nprint(Q1, T1, C1)\nprint(Q2, T2, C2)\n"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

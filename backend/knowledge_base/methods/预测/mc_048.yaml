@@ -1,0 +1,66 @@
+method_card:
+  id: mc_048
+  name: 灰色关联分析
+  name_en: Grey Relational Analysis
+  category:
+  - 统计
+  - 评价
+  principle: 灰色关联分析是灰色系统理论中的因素分析方法。它把系统各时期的统计数据视为几何曲线，通过比较曲线间发展态势的相似或相异程度来量化因素间关联度。计算时先对原始序列进行初值化、均值化等无量纲化处理，再以参考序列与比较序列在各时刻的绝对差为基础，利用两级最小差、两级最大差和分辨系数计算关联系数，最后取各时刻关联系数的平均值作为关联度。关联度越大，说明比较序列与参考序列的发展态势越接近。该方法对样本量要求低，不要求典型概率分布，适用于信息不完全、数据缺乏的灰色系统因素分析和多因素综合评价。
+  formulas:
+  - name: 初值化变换
+    latex: $$y(k)=\frac{x(k)}{x(1)},\quad x(1)\neq 0$$
+    description: 使序列无量纲化并具有公共起点，常用于时间序列初始化。
+  - name: 均值化变换
+    latex: $$y(k)=\frac{x(k)}{\bar x},\quad \bar x=\frac{1}{n}\sum_{k=1}^{n}x(k)$$
+    description: 以序列均值作为基准进行无量纲化，保留各时刻相对均值的比例。
+  - name: 关联系数
+    latex: $$\xi_i(k)=\frac{\min_s \min_t |x_0(t)-x_s(t)|+\rho \max_s \max_t |x_0(t)-x_s(t)|}{|x_0(k)-x_i(k)|+\rho
+      \max_s \max_t |x_0(t)-x_s(t)|}$$
+    description: 衡量比较序列 i 与参考序列在 k 时刻的关联程度，其中 ρ 为分辨系数。
+  - name: 关联度
+    latex: $$r_i=\frac{1}{n}\sum_{k=1}^{n}\xi_i(k)$$
+    description: 把各时刻关联系数集中为平均值，用于比较序列对参考序列的整体关联程度。
+  - name: 关联矩阵
+    latex: $$R=(r_{ij})_{m\times l}$$
+    description: 当有 m 个参考因素和 l 个比较因素时，由关联度构成矩阵，用于优势分析。
+  applicable_when:
+  - 样本量较少或数据不满足典型概率分布条件
+  - 因素间关系部分未知、系统属于灰色系统
+  - 需要进行因素主次排序、优势分析或综合评价
+  - 数据量纲不同且需要先进行无量纲化处理
+  not_applicable_when:
+  - 因素间具有明确确定性关系且可用机理模型描述
+  - 需要严格统计检验、置信区间或因果推断
+  - 数据完全不可观测，属于黑色系统
+  - 样本量充足且回归分析等统计推断条件满足
+  typical_scenarios:
+  - 农业、经济、水利等系统的影响因素分析
+  - 运动员专项成绩与多项素质指标的关联排序
+  - 多指标综合评价与优势因素识别
+  - 工程控制与生态系统中的动态关联研究
+  common_mistakes:
+  - mistake: 未经无量纲化直接对原始量纲不同的序列计算关联系数
+    solution: 先进行初值化、均值化等数据变换，消除量纲和数量级影响。
+  - mistake: 对逆向指标仍按正向指标进行初始化处理
+    solution: 对数值越小越优的指标采用反向初始化，如 y(k)=x(1)/x(k)。
+  - mistake: 把关联度解释为因果强度或精确统计相关系数
+    solution: 关联度只反映发展态势的相似程度，主要用于因素排序和优势比较。
+  code_snippets:
+  - language: python
+    description: 灰色关联度计算示例：第0行为参考序列，其余为比较序列；先做初值化或逆向初值化，再计算关联系数和关联度。
+    code: "import numpy as np\n\ndef grey_relational_analysis(X, rho=0.5, positive=None):\n\
+      \    '''\n    X: ndarray, 第0行为参考序列，其余为比较序列。\n    positive: list/bool，指示各序列是否为正向指标。\n\
+      \    返回关联度及排序索引。\n    '''\n    X = np.array(X, dtype=float)\n    if positive\
+      \ is None:\n        positive = [True] * X.shape[0]\n    for i in range(X.shape[0]):\n\
+      \        if positive[i]:\n            X[i] = X[i] / X[i, 0]\n        else:\n\
+      \            X[i] = X[i, 0] / X[i]\n    ref = X[0]\n    comp = X[1:]\n    diff\
+      \ = np.abs(comp - ref)\n    min_diff = diff.min()\n    max_diff = diff.max()\n\
+      \    ksi = (min_diff + rho * max_diff) / (diff + rho * max_diff)\n    r = ksi.mean(axis=1)\n\
+      \    order = np.argsort(-r)\n    return r, order\n\nif __name__ == '__main__':\n\
+      \    A = np.array([\n        [13.6, 14.01, 14.54, 15.64, 15.69],\n        [85,\
+      \ 85, 90, 100, 105]\n    ])\n    r, order = grey_relational_analysis(A)\n  \
+      \  print(r, order)\n"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3

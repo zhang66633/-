@@ -1,0 +1,127 @@
+method_card:
+  name: 马尔科夫链
+  name_en: Markov Chain
+  category:
+  - 综合评价
+  principle: '马尔科夫链是状态空间中从一个状态转移到另一个状态的随机过程。
+
+
+    #### 5.1 基本概念
+
+
+    **马尔科夫性质**：
+
+    $$
+
+    P(X_{t+1} = x_{t+1} | X_t = x_t, X_{t-1} = x_{t-1}, \ldots) = P(X_{t+1} = x_{t+1} | X_t = x_t)
+
+    $$
+
+
+    **转移概率矩阵**：
+
+    $$
+
+    P = \begin{bmatrix}
+
+    p_{11} & p_{12} & \cdots & p_{1n} \\
+
+    p_{21} & p_{22} & \cdots & p_{2n} \\
+
+    \vdots & \vdots & \ddots & \vdots \\
+
+    p_{n1} & p_{n2} & \cdots & p_{nn}
+
+    \end{bmatrix}
+
+    $$
+
+
+    其中$p_{ij} = P(X_{t+1} = j | X_t = i)$，满足$\sum_{j} p_{ij} = 1$。
+
+
+    #### 5.2 状态演化
+
+
+    **初始分布**：$\pi_0$（行向量）
+
+
+    **n步后分布**：
+
+    $$
+
+    \pi_n = \pi_0 P^n
+
+    $$
+
+
+    #### 5.3 稳态分布
+
+
+    若马尔科夫链是不可约、非周期的，则存在稳态分布$\pi$满足：
+
+    $$
+
+    \pi P = \pi, \quad \sum_i \pi_i = 1
+
+    $$
+
+
+    等价于求解特征值1的左特征向量。
+
+
+    #### 5.4 分类
+
+
+    **不可约**：任意状态可达任意状态
+
+    **周期性**：状态只在某些时间步返回
+
+    **常返性**：状态以概率1返回
+
+    **吸收态**：一旦到达则永不离开（$p_{ii} = 1$）'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 马尔科夫链 实现要点
+    code: "import numpy as np\nimport matplotlib.pyplot as plt\n\ndef markov_chain_evolution(initial_dist,\
+      \ transition_matrix, n_steps):\n    \"\"\"\n    马尔科夫链演化\n    :param initial_dist: 初始分布 (行向量)\n \
+      \   :param transition_matrix: 转移概率矩阵\n    :param n_steps: 演化步数\n    :return: 各时刻分布历史\n    \"\"\"\
+      \n    dist = initial_dist.copy()\n    history = [dist.copy()]\n\n    for _ in range(n_steps):\n\
+      \        dist = dist @ transition_matrix\n        history.append(dist.copy())\n\n    return np.array(history)\n\
+      \ndef find_steady_state(transition_matrix):\n    \"\"\"\n    求解稳态分布\n    :param transition_matrix:\
+      \ 转移概率矩阵\n    :return: 稳态分布\n    \"\"\"\n    # 求解特征值问题\n    eigenvalues, eigenvectors = np.linalg.eig(transition_matrix.T)\n\
+      \n    # 找特征值为1的特征向量\n    idx = np.argmax(eigenvalues.real)\n    steady_state = eigenvectors[:, idx].real\n\
+      \    steady_state = steady_state / steady_state.sum()\n\n    return steady_state\n\ndef simulate_markov_chain(initial_state,\
+      \ transition_matrix, n_steps, seed=42):\n    \"\"\"\n    模拟马尔科夫链路径\n    :param initial_state: 初始状态\n\
+      \    :param transition_matrix: 转移概率矩阵\n    :param n_steps: 模拟步数\n    :param seed: 随机种子\n    :return:\
+      \ 状态序列\n    \"\"\"\n    np.random.seed(seed)\n    n_states = transition_matrix.shape[0]\n    states\
+      \ = [initial_state]\n\n    for _ in range(n_steps):\n        current = states[-1]\n        next_state\
+      \ = np.random.choice(n_states, p=transition_matrix[current])\n        states.append(next_state)\n\
+      \n    return np.array(states)\n\ndef classify_states(transition_matrix):\n    \"\"\"\n    状态分类\n\
+      \    :param transition_matrix: 转移概率矩阵\n    :return: 状态类型字典\n    \"\"\"\n    n_states = transition_matrix.shape[0]\n\
+      \    classification = {}\n\n    for i in range(n_states):\n        # 检查吸收态\n        if np.isclose(transition_matrix[i,\
+      \ i], 1.0):\n            classification[i] = 'absorbing'\n        else:\n            # 进一步分类需要可达性分析\n\
+      \            classification[i] = 'transient'\n\n    return classification\n\ndef calculate_absorption_time(transition_matrix):\n\
+      \    \"\"\"\n    计算吸收时间（对于吸收链）\n    :param transition_matrix: 转移概率矩阵\n    :return: 吸收时间的期望矩阵\n \
+      \   \"\"\"\n    # 重排矩阵，使吸收态在前\n    # P = [[I, 0], [R, Q]]\n    # 吸收时间期望矩阵：N = (I - Q)^(-1)\n   \
+      \ # 期望吸收时间：t = N * 1\n\n    n_states = transition_matrix.shape[0]\n    absorbing = [i for i in range(n_states)\
+      \ if np.isclose(transition_matrix[i, i], 1.0)]\n\n    if not absorbing:\n        return None\n\n\
+      \    # 分离Q和R\n    non_absorbing = [i for i in range(n_states) if i not in absorbing]\n    Q = transition_matrix[np.ix_(non_absorbing,\
+      \ non_absorbing)]\n\n    # 计算期望吸收时间\n    I = np.eye(len(non_absorbing))\n    N = np.linalg.inv(I\
+      \ - Q)\n    t = N.sum(axis"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 马尔科夫链
+    chart_types:
+    - '**状态转移图**：状态及转移'
+    - '**时间序列图**：状态随时间变化'
+    - '**稳态热力图**：稳态概率分布'
+    - '**演化树图**：可能的状态路径'
+    - '**首次到达分布**：首次到达时间分布'
+    source: math-modeling-skill
+  id: mc_84

@@ -1,0 +1,195 @@
+method_card:
+  name: 数据预处理
+  name_en: Data Preprocessing
+  category:
+  - 统计分析
+  - 数值方法
+  principle: '数据预处理是数据分析的第一步，包括数据清洗、变换、归约等操作。
+
+
+    #### 1.1 缺失值处理
+
+
+    **删除法**：删除含有缺失值的样本或特征
+
+    - 删除样本：适用于缺失比例小的样本
+
+    - 删除特征：适用于缺失比例大的特征
+
+
+    **填充法**：
+
+    - 均值填充：$x_{ij} = \bar{x}_j$（数值型）
+
+    - 中位数填充：$x_{ij} = \tilde{x}_j$（数值型，有异常值）
+
+    - 众数填充：$x_{ij} = \text{mode}(x_j)$（分类型）
+
+    - KNN填充：用K近邻的均值填充
+
+    - 回归填充：用回归模型预测缺失值
+
+
+    **插值法**：
+
+    - 线性插值：$x_t = \frac{x_{t-1} + x_{t+1}}{2}$
+
+    - 多项式插值
+
+    - 样条插值
+
+
+    #### 1.2 异常值检测与处理
+
+
+    **统计方法**：
+
+    - $3\sigma$原则：$|x_i - \bar{x}| > 3\sigma$
+
+    - 箱线图：$x_i < Q_1 - 1.5 \times IQR$ 或 $x_i > Q_3 + 1.5 \times IQR$
+
+    - Z-score：$|Z| > 3$ 为异常值
+
+
+    $$
+
+    Z_i = \frac{x_i - \bar{x}}{\sigma}
+
+    $$
+
+
+    **距离方法**：
+
+    - K近邻距离
+
+    - LOF（局部异常因子）
+
+
+    **处理方法**：
+
+    - 删除异常值
+
+    - 替换为边界值
+
+    - 对数变换
+
+    - 分箱处理
+
+
+    #### 1.3 数据标准化/归一化
+
+
+    **Min-Max归一化**：
+
+    $$
+
+    x''_i = \frac{x_i - \min(x)}{\max(x) - \min(x)}
+
+    $$
+
+
+    **Z-score标准化**：
+
+    $$
+
+    x''_i = \frac{x_i - \bar{x}}{\sigma}
+
+    $$
+
+
+    **小数定标标准化**：
+
+    $$
+
+    x''_i = \frac{x_i}{10^j}
+
+    $$
+
+
+    其中$j$是使$\max(|x''_i|) < 1$的最小整数。
+
+
+    #### 1.4 特征变换
+
+
+    **对数变换**：$x''_i = \log(x_i + c)$
+
+
+    **Box-Cox变换**：
+
+    $$
+
+    x''_i = \begin{cases}
+
+    \frac{x_i^\lambda - 1}{\lambda}, & \lambda \neq 0 \\
+
+    \ln(x_i), & \lambda = 0
+
+    \end{cases}
+
+    $$
+
+
+    **Yeo-Johnson变换**：可处理负值
+
+    $$
+
+    x''_i = \begin{cases}
+
+    \frac{(x_i + 1)^\lambda - 1}{\lambda}, & \lambda \neq 0, x_i \geq 0 \\
+
+    \ln(x_i + 1), & \lambda = 0, x_i \geq 0 \\
+
+    \frac{(-x_i + 1)^{2-\lambda} - 1}{2 - \lambda}, & \lambda \neq 2, x_i < 0 \\
+
+    -\ln(-x_i + 1), & \lambda = 2, x_i < 0
+
+    \end{cases}
+
+    $$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 数据预处理 实现要点
+    code: "import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport seaborn as\
+      \ sns\nfrom sklearn.preprocessing import StandardScaler, MinMaxScaler, PowerTransformer, RobustScaler\n\
+      from sklearn.impute import SimpleImputer, KNNImputer\nfrom scipy import stats\nimport warnings\n\
+      warnings.filterwarnings('ignore')\n\n# 设置中文字体 - 多字体备选防止渲染问题\nplt.rcParams['font.sans-serif'] = ['SimHei',\
+      \ 'DejaVu Sans', 'Arial Unicode MS', 'Microsoft YaHei', 'Arial']\nplt.rcParams['axes.unicode_minus']\
+      \ = False\n\nclass DataPreprocessor:\n    \"\"\"\n    数据预处理类 - 包含缺失值处理、异常值检测、数据标准化等功能\n    \"\"\"\
+      \n    \n    @staticmethod\n    def handle_missing_values(df, strategy='mean', columns=None, fill_value=None):\n\
+      \        \"\"\"\n        缺失值处理\n        :param df: DataFrame\n        :param strategy: 填充策略 ('mean',\
+      \ 'median', 'most_frequent', 'constant', 'knn')\n        :param columns: 要处理的列名列表，None表示全部数值列\n\
+      \        :param fill_value: 当strategy='constant'时的填充值\n        :return: 处理后的DataFrame, 缺失值统计\n \
+      \       \"\"\"\n        df_processed = df.copy()\n        \n        # 自动选择数值列\n        if columns\
+      \ is None:\n            columns = df.select_dtypes(include=[np.number]).columns.tolist()\n     \
+      \   \n        # 记录缺失值统计\n        missing_stats = df[columns].isnull().sum()\n        missing_stats\
+      \ = missing_stats[missing_stats > 0]\n        \n        if strategy == 'knn':\n            imputer\
+      \ = KNNImputer(n_neighbors=5)\n            df_processed[columns] = imputer.fit_transform(df[columns])\n\
+      \        elif strategy == 'constant':\n            imputer = SimpleImputer(strategy='constant',\
+      \ fill_value=fill_value)\n            df_processed[columns] = imputer.fit_transform(df[columns])\n\
+      \        else:\n            imputer = SimpleImputer(strategy=strategy)\n            df_processed[columns]\
+      \ = imputer.fit_transform(df[columns])\n        \n        return df_processed, missing_stats\n \
+      \   \n    @staticmethod\n    def detect_outliers_zscore(data, threshold=3):\n        \"\"\"\n  \
+      \      使用Z-score检测异常值\n        :param data: 数据数组\n        :param threshold: Z-score阈值\n        :return:\
+      \ 异常值索引, Z-score数组\n        \"\"\"\n        z_scores = np.abs(stats.zscore(data, nan_policy='omit'))\n\
+      \        outlier_indices = np.where(z_scores > threshold)[0]\n        return outlier_indices, z_scores\n\
+      \    \n    @staticmethod\n    def detect_outliers_iqr(data, k=1.5):\n        \"\"\"\n        使用箱线图IQR方法检测异常值\n\
+      \        :param data: 数据数组\n        :param k: IQR倍数，默认1.5\n        :return: 异常值索引, 上下界\n       \
+      \ \"\"\"\n        Q1 = np.percentile(data, 25)\n        Q3 = np.percentile(data, 75)\n        IQR\
+      \ = Q3 - Q1\n        lower_bound = Q1 "
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 数据预处理
+    chart_types:
+    - '**缺失值热力图**：缺失值分布'
+    - '**箱线图**：异常值检测'
+    - '**分布图**：数据分布对比（变换前后）'
+    - '**QQ图**：正态性检验'
+    - '**散点图矩阵**：特征关系'
+    source: math-modeling-skill
+  id: mc_79

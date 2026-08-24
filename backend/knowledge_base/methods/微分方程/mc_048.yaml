@@ -1,0 +1,74 @@
+method_card:
+  id: mc_048
+  name: 偏微分方程有限差分法
+  name_en: Finite Difference Method for Partial Differential Equations
+  category:
+  - 微分方程
+  - 数值方法
+  principle: 先对求解区域进行网格剖分，用有限离散网格点代替连续变化区域；将连续变量的函数替换为网格点上的离散函数，并用网格点上的差商代替导数，从而把偏微分方程定解问题转化为只含有限个未知数的代数方程组，即差分格式。当网格无限变小时，若差分格式的解收敛于原定解问题的解，则该解作为原问题的数值解。
+  formulas:
+  - name: 泊松方程
+    latex: $$\Delta u=\frac{\partial^2 u}{\partial x^2}+\frac{\partial^2 u}{\partial
+      y^2}=f(x,y)$$
+    description: 椭圆型方程的典型形式，描述稳定温度场、静电场等定常过程。
+  - name: 拉普拉斯方程
+    latex: $$\Delta u=\frac{\partial^2 u}{\partial x^2}+\frac{\partial^2 u}{\partial
+      y^2}=0$$
+    description: 泊松方程右端为零时的特例，也称调和方程。
+  - name: 一维热传导方程
+    latex: $$\frac{\partial u}{\partial t}-a\frac{\partial^2 u}{\partial x^2}=0$$
+    description: 抛物型方程的典型形式，用于热传导、扩散等随时间变化的非定常问题。
+  - name: 一阶双曲型方程
+    latex: $$\frac{\partial u}{\partial t}+a\frac{\partial u}{\partial x}=0$$
+    description: 双曲型方程的最简单形式，用于描述波动传播。
+  - name: 二阶波动方程
+    latex: $$\frac{\partial^2 u}{\partial t^2}=a^2\frac{\partial^2 u}{\partial x^2}$$
+    description: 一维振动与波动问题的典型双曲型方程。
+  - name: 五点菱形格式
+    latex: $$\frac{1}{h^2}\left(u_{k+1,j}+u_{k-1,j}+u_{k,j+1}+u_{k,j-1}-4u_{k,j}\right)=f_{k,j}$$
+    description: 当h=τ时泊松方程在正则内点上的差分格式，具有二阶精度。
+  - name: 五点矩形格式
+    latex: $$\frac{1}{2h^2}\left(u_{k+1,j+1}+u_{k-1,j-1}+u_{k+1,j-1}+u_{k-1,j+1}-4u_{k,j}\right)=f_{k,j}$$
+    description: 利用对角相邻点构造的矩形网格差分格式。
+  - name: 热传导显式差分格式
+    latex: $$\frac{u_{k,j+1}-u_{k,j}}{\tau}-a\frac{u_{k+1,j}-2u_{k,j}+u_{k-1,j}}{h^2}=0$$
+    description: 时间向前差商、空间二阶中心差商得到的显式格式。
+  - name: 热传导隐式差分格式
+    latex: $$\frac{u_{k,j}-u_{k,j-1}}{\tau}-a\frac{u_{k+1,j}-2u_{k,j}+u_{k-1,j}}{h^2}=0$$
+    description: 时间向后差商、空间二阶中心差商得到的隐式格式。
+  - name: 热传导中心差分格式
+    latex: $$\frac{u_{k,j+1}-u_{k,j-1}}{2\tau}-a\frac{u_{k+1,j}-2u_{k,j}+u_{k-1,j}}{h^2}=0$$
+    description: 时间中心差商、空间二阶中心差商得到的差分近似。
+  applicable_when:
+  - 求解椭圆型、抛物型、双曲型偏微分方程的适定定解问题
+  - 求解区域可用矩形网格进行结构化剖分
+  - 可用差商代替导数并构造稳定、收敛的差分格式
+  not_applicable_when:
+  - 定解问题不适定，解不唯一或不连续依赖于定解数据
+  - 区域边界非常复杂，结构化矩形网格难以合理表示
+  - 需要长时间稳定模拟但未进行稳定性分析时
+  typical_scenarios:
+  - 稳定温度场、静电场等椭圆型方程问题
+  - 热传导、气体扩散等抛物型方程问题
+  - 一维振动与波动等双曲型方程问题
+  common_mistakes:
+  - mistake: 对非正则内点直接使用五点菱形格式，导致方程数少于未知数
+    solution: 对非正则内点利用边界条件处理，如直接转移或线性插值补全方程。
+  - mistake: 第二、三类边界条件离散时未正确近似偏导数
+    solution: 在边界处采用向前、向后或中心差商近似，并注意保持格式精度。
+  - mistake: 显式格式步长选取不当可能导致数值不稳定
+    solution: 对显式格式进行稳定性和收敛性分析，选择满足稳定性条件的步长。
+  code_snippets:
+  - language: python
+    description: 五点菱形格式求解Laplace方程第一边值问题的简单同步迭代示例
+    code: "import numpy as np\n\ndef solve_laplace(u, f, h, tol=1e-6, max_iter=10000):\n\
+      \    # u: (n+1)x(n+1) grid, boundary values preset\n    # f: right-hand side\
+      \ for interior points\n    n = u.shape[0] - 1\n    for _ in range(max_iter):\n\
+      \        u_old = u.copy()\n        for i in range(1, n):\n            for j\
+      \ in range(1, n):\n                u[i, j] = (u_old[i+1, j] + u_old[i-1, j]\
+      \ + u_old[i, j+1] + u_old[i, j-1] - h**2 * f[i, j]) / 4.0\n        if np.linalg.norm(u\
+      \ - u_old, np.inf) < tol:\n            break\n    return u"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

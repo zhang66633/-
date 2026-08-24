@@ -1,8 +1,8 @@
 paper:
   id: paper_0_国赛__1998A_投资收益与风险的优化模型
-  year: 0
+  year: 1998
   competition: 国赛
-  problem_id: ''
+  problem_id: A
   title: 投资收益与风险的优化模型
   tags:
     problem_type:
@@ -34,3 +34,4 @@ paper:
     lessons: 在处理多目标优化问题时，可以通过排序和优先规则简化求解过程，同时需要理论证明保证解法的合理性。
   quality_rating: 3
   source: 1998A：投资收益与风险的优化模型.pdf
+  problem_ref: ''

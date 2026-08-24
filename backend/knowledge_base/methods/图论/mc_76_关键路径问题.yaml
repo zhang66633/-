@@ -1,0 +1,70 @@
+method_card:
+  name: 关键路径问题
+  name_en: Critical Path Method, CPM
+  category:
+  - 图论
+  principle: '关键路径法用于项目管理中确定项目完成的最短时间和关键活动。
+
+
+    **基本概念**：
+
+    - **活动**：项目中的任务
+
+    - **持续时间**：活动需要的时间
+
+    - **最早开始时间(ES)**：活动可以开始的最早时间
+
+    - **最早完成时间(EF)**：$EF = ES + 持续时间$
+
+    - **最晚完成时间(LF)**：活动必须完成的最晚时间
+
+    - **最晚开始时间(LS)**：$LS = LF - 持续时间$
+
+    - **总时差**：$TF = LS - ES = LF - EF$
+
+
+    **关键路径**：总时差为0的活动组成的路径。'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 关键路径问题 实现要点
+    code: "import networkx as nx\nimport matplotlib.pyplot as plt\n\ndef critical_path_method(activities):\n\
+      \    \"\"\"\n    关键路径法\n    :param activities: 活动列表 {活动名: {'duration': 持续时间, 'predecessors': [前驱活动]}}\n\
+      \    :return: 关键路径, 各活动时间参数\n    \"\"\"\n    # 创建有向图\n    G = nx.DiGraph()\n\n    # 添加活动节点\n   \
+      \ for activity, data in activities.items():\n        G.add_node(activity, duration=data['duration'])\n\
+      \n    # 添加依赖关系边\n    for activity, data in activities.items():\n        for pred in data['predecessors']:\n\
+      \            G.add_edge(pred, activity)\n\n    # 拓扑排序\n    topo_order = list(nx.topological_sort(G))\n\
+      \n    # 正向计算（最早时间）\n    ES = {}\n    EF = {}\n    for activity in topo_order:\n        duration\
+      \ = activities[activity]['duration']\n        predecessors = list(G.predecessors(activity))\n  \
+      \      if predecessors:\n            ES[activity] = max(EF[pred] for pred in predecessors)\n   \
+      \     else:\n            ES[activity] = 0\n        EF[activity] = ES[activity] + duration\n\n  \
+      \  # 反向计算（最晚时间）\n    LF = {activity: EF[activity] for activity in reversed(topo_order)}\n    LS\
+      \ = {}\n\n    for activity in reversed(topo_order):\n        duration = activities[activity]['duration']\n\
+      \        successors = list(G.successors(activity))\n        if successors:\n            LF[activity]\
+      \ = min(LS[succ] for succ in successors)\n        LS[activity] = LF[activity] - duration\n\n   \
+      \ # 计算总时差\n    TF = {activity: LS[activity] - ES[activity] for activity in activities}\n\n    #\
+      \ 找出关键路径（时差为0的活动）\n    critical_activities = [act for act in activities if TF[act] == 0]\n\n   \
+      \ # 构建关键路径\n    critical_path = []\n    for act in critical_activities:\n        if not list(G.predecessors(act)):\
+      \  # 起点\n            path = [act]\n            current = act\n            while list(G.successors(current)):\n\
+      \                for succ in G.successors(current):\n                    if succ in critical_activities:\n\
+      \                        path.append(succ)\n                        current = succ\n           \
+      \             break\n            if len(path) > len(critical_path):\n                critical_path\
+      \ = path\n\n    # 汇总时间参数\n    time_params = {}\n    for activity in activities:\n        time_params[activity]\
+      \ = {\n            'ES': ES[activity],\n            'EF': EF[activity],\n            'LS': LS[activity],\n\
+      \            'LF': LF[activity],\n            'TF': TF[activity]\n        }\n\n    return critical_path,\
+      \ time_params\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 关键路径问题
+    chart_types:
+    - '**网络图**：活动依赖关系图'
+    - '**甘特图**：活动时间安排'
+    - '**关键路径图**：关键路径高亮'
+    - '**时差分析图**：各活动时差'
+    - '**PERT图**：不确定时间的项目管理'
+    source: math-modeling-skill
+  id: mc_76

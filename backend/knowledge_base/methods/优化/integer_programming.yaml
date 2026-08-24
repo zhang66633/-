@@ -1,0 +1,90 @@
+method_card:
+  id: mc_002
+  name: 整数规划
+  name_en: Integer Programming (IP)
+  category:
+  - 优化算法
+  - 数学规划
+  principle: '整数规划是决策变量必须取整数值的优化问题。当部分变量为整数时称为混合整数规划(MIP)，
+
+    全部变量为整数时称为纯整数规划(IP)，变量只能取0或1时称为0-1规划(BIP)。
+
+
+    **为什么需要整数规划**：线性规划假设变量连续可分，但许多实际决策不可分割
+
+    （如建厂数量、人员配备、设备选择）。直接对 LP 最优解四舍五入可能违反约束，
+
+    或不是真正的最优解。
+
+
+    **求解方法**：
+
+    - **分支定界法**：将原问题分解为子问题，通过定界剪枝缩小搜索空间
+
+    - **割平面法**：在 LP 松弛问题中逐步添加切割约束，逼近整数解
+
+    - **分支切割法**：分支定界+割平面的混合方法（最常用，Gurobi/CPLEX 内部实现）
+
+    - **0-1 特殊技巧**：隐枚举法、指派问题的匈牙利算法
+
+
+    **0-1 规划的经典表达**：
+
+    - 选择约束：Σ x_i ≤ k（最多选 k 个）
+
+    - 互斥约束：x_1 + x_2 ≤ 1（两者不能同时选）
+
+    - 依赖约束：x_1 ≤ x_2（选了1必须先选2）
+
+    - Big-M 法：用大数 M 将逻辑条件转化为线性约束
+
+    '
+  formulas:
+  - '标准形式: min c^T·x, s.t. Ax ≤ b, x_i ∈ Z+'
+  - 'MIP: min c^T·x + d^T·y, s.t. Ax + By ≤ b, x ∈ R, y ∈ Z'
+  - '分支定界: z* = max{z_LP, best_incumbent}，若 z_LP ≤ best_incumbent 则剪枝'
+  - 'Big-M: M·x ≥ y（当 x=1 时强制 y≤M）, M·(1-x) ≥ -y（当 x=0 时约束失效）'
+  applicable_when:
+  - 决策变量不可分割（设备数、人员数、仓库数等）
+  - 问题涉及'是/否'的二值决策（是否建厂、是否投资）
+  - 存在'或'逻辑的约束条件（如选择 A 路线或 B 路线）
+  - 问题规模适中（纯整数变量 < 1000，商用求解器可处理）
+  typical_scenarios:
+  - 设施选址：在 N 个备选点中选择 K 个建立设施，最小化总成本
+  - 生产排程：多产品多产线的生产批量规划（MIP 经典场景）
+  - 车辆路径 VRP：决定哪些车访问哪些点（0-1 变量）
+  - 背包问题变体：项目选择、投资组合的 0-1 规划
+  - 人员排班：满足班次覆盖和工时约束的整数规划
+  common_mistakes:
+  - 直接对 LP 解取整：可能违反约束，且通常不是最优解
+  - 忽略 Big-M 的取值：M 太小约束不充分，M 太大数值不稳定
+  - 变量过多导致组合爆炸（n个0-1变量 → 2^n种可能）；考虑启发式或列生成
+  - 未区分纯整数和混合整数：MIP 比纯 IP 好求解得多（CPLEX 对 MIP 优化更好）
+  code_snippets:
+  - "# Python: pulp 整数规划示例 (设施选址)\nfrom pulp import *\n\n# 数据: 3个备选点, 5个客户\nfixed_costs = [1000, 1200,\
+    \ 900]   # 建厂固定成本\ntransport = [[10, 15, 20, 25, 30],\n             [20, 10, 15, 20, 25],\n      \
+    \       [30, 25, 15, 10, 20]]  # 运输成本\nprob = LpProblem(\"Facility_Location\", LpMinimize)\n# y_j:\
+    \ 是否在第j个备选点建厂 (0-1)\ny = [LpVariable(f\"y_{j}\", cat=\"Binary\") for j in range(3)]\n# x_ij: 客户i由工厂j服务的比例\n\
+    x = [[LpVariable(f\"x_{j}_{i}\", 0, 1) for i in range(5)] for j in range(3)]\n# 目标: min 固定成本 + 运输成本\n\
+    prob += (sum(fixed_costs[j] * y[j] for j in range(3)) +\n         sum(transport[j][i] * x[j][i] for\
+    \ j in range(3) for i in range(5)))\n# 约束: 每个客户的需求被满足\nfor i in range(5):\n    prob += sum(x[j][i]\
+    \ for j in range(3)) == 1\n# 约束: 工厂不建就不能服务客户\nfor j in range(3):\n    for i in range(5):\n       \
+    \ prob += x[j][i] <= y[j]\nprob.solve()\n"
+  related_cards:
+  - mc_001
+  - mc_003
+  - mc_008
+  difficulty: 2
+  quality_rating: 5
+  tags:
+    model_type:
+    - 最优化
+    key_concepts:
+    - 分支定界
+    - 0-1规划
+    - 组合优化
+    - 离散决策
+    mathematical_tools:
+    - 线性规划
+    - 松弛
+    - 离散数学

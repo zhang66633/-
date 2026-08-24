@@ -1,0 +1,139 @@
+method_card:
+  name: 逻辑回归
+  name_en: Logistic Regression
+  category:
+  - 机器学习
+  principle: '逻辑回归是一种广义线性分类模型，尽管名字带"回归"，实际用于**二分类与多分类**。它在线性组合后接 sigmoid 激活，输出样本属于正类的概率，是竞赛中性价比最高的基线分类器之一。
+
+
+    #### 1.1 基本原理
+
+
+    **线性组合**：
+
+    $$
+
+    z = w^T x + b
+
+    $$
+
+
+    **sigmoid 函数**（把实数映射到 (0,1)）：
+
+    $$
+
+    \sigma(z) = \frac{1}{1 + e^{-z}}
+
+    $$
+
+
+    **分类概率**：
+
+    $$
+
+    P(y=1|x) = \sigma(w^T x + b) = \frac{1}{1 + e^{-(w^T x + b)}}
+
+    $$
+
+
+    **决策规则**：$P(y=1|x) \geq 0.5$ 判为正类，否则判为负类。决策边界是超平面 $w^T x + b = 0$。
+
+
+    **损失函数**（负对数似然 / 交叉熵，对单样本）：
+
+    $$
+
+    L = -[y \log \hat{p} + (1-y) \log(1-\hat{p})]
+
+    $$
+
+
+    **带正则化的目标**（L2 时）：
+
+    $$
+
+    J(w) = -\frac{1}{n}\sum_{i=1}^{n}\left[ y_i \log \hat{p}_i + (1-y_i) \log(1-\hat{p}_i) \right] + \frac{\lambda}{2}\|w\|^2
+
+    $$
+
+
+    **多分类扩展**：一对多（OvR，每类训一个二分类器）或 Softmax 回归（直接输出各类概率）。
+
+
+    #### 1.2 使用条件与常见坑
+
+
+    | 条件/坑 | 说明 | 应对 |
+
+    |---------|------|------|
+
+    | 特征尺度差异大 | 梯度下降收敛慢 | 先标准化（StandardScaler） |
+
+    | 特征强共线性 | 系数不稳定、解释失真 | 删除相关特征或加 L2 正则 |
+
+    | 类别严重不平衡 | 偏向多数类 | `class_weight=''balanced''` 或过采样 |
+
+    | 非线性可分 | 线性决策面欠拟合 | 换核方法或集成模型（本章 §5/§6） |
+
+    | 过拟合（特征多） | 训练好测试差 | 加 L1/L2 正则、特征选择 |
+
+    | 系数解释 | 系数符号/大小反映特征对对数几率的影响 | 输出时同时给系数表 |
+
+
+    #### 1.3 适用范围
+
+
+    | 题型类型 | 典型问题 | 特征 |
+
+    |---------|---------|------|
+
+    | 二分类 | 信用违约、疾病患病、点击转化 | 类别标签 |
+
+    | 多分类 | 品种识别、等级评定 | 多类别 |
+
+    | 概率输出 | 风险评分、置信度排序 | 需要 P(y=1\|x) |
+
+    | 可解释分类 | 需要系数解读 | 特征影响明确 |'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 逻辑回归 实现要点
+    code: "import numpy as np\nimport matplotlib.pyplot as plt\nfrom sklearn.datasets import load_breast_cancer\n\
+      from sklearn.linear_model import LogisticRegression\nfrom sklearn.preprocessing import StandardScaler\n\
+      from sklearn.model_selection import train_test_split\nfrom sklearn.metrics import accuracy_score,\
+      \ roc_auc_score, roc_curve, classification_report\n\ndef logistic_classification(X_train, y_train,\
+      \ X_test, y_test,\n                            C=1.0, penalty='l2', random_state=42):\n    \"\"\"\
+      \n    逻辑回归分类\n    :param X_train: 训练特征\n    :param y_train: 训练标签\n    :param X_test: 测试特征\n    :param\
+      \ y_test: 测试标签\n    :param C: 正则化强度（越小正则越强）\n    :param penalty: 正则类型 'l1'/'l2'\n    :return: 模型,\
+      \ 预测标签, 预测概率, 准确率, AUC\n    \"\"\"\n    # 逻辑回归对特征尺度敏感，必须标准化\n    scaler = StandardScaler()\n   \
+      \ X_train_s = scaler.fit_transform(X_train)\n    X_test_s = scaler.transform(X_test)\n\n    model\
+      \ = LogisticRegression(C=C, penalty=penalty, solver='liblinear',\n                             \
+      \  random_state=random_state, max_iter=1000)\n    model.fit(X_train_s, y_train)\n\n    y_pred =\
+      \ model.predict(X_test_s)\n    y_proba = model.predict_proba(X_test_s)[:, 1]\n\n    acc = accuracy_score(y_test,\
+      \ y_pred)\n    auc = roc_auc_score(y_test, y_proba)\n\n    print(\"系数（标准化后，含义=特征对对数几率的影响）:\")\n\
+      \    print(f\"  截距 b = {model.intercept_[0]:.4f}\")\n    print(\"  w =\", np.round(model.coef_[0],\
+      \ 4))\n\n    return model, y_pred, y_proba, acc, auc\n\ndef plot_roc_lr(y_test, y_proba):\n    \"\
+      \"\"绘制逻辑回归 ROC 曲线\"\"\"\n    fpr, tpr, _ = roc_curve(y_test, y_proba)\n    auc = roc_auc_score(y_test,\
+      \ y_proba)\n\n    plt.figure(figsize=(8, 6))\n    plt.plot(fpr, tpr, 'b-', label=f'Logistic Regression\
+      \ (AUC = {auc:.3f})')\n    plt.plot([0, 1], [0, 1], 'r--', label='Random')\n    plt.xlabel('False\
+      \ Positive Rate')\n    plt.ylabel('True Positive Rate')\n    plt.title('ROC Curve - Logistic Regression')\n\
+      \    plt.legend()\n    plt.grid(alpha=0.3)\n    plt.show()\n\n# 端到端示例（可直接运行）\nif __name__ == '__main__':\n\
+      \    data = load_breast_cancer()\n    X_train, X_test, y_train, y_test = train_test_split(\n   \
+      \     data.data, data.target, test_size=0.3, random_state=42)\n    model, y_pred, y_proba, acc,\
+      \ auc = logistic_classification(\n        X_train, y_train, X_test, y_test)\n    print(f\"准确率: {acc:.4f},\
+      \ AUC: {auc:.4f}\")\n    print(classification_report(y_test, y_pred))\n    plot_roc_lr(y_test, y_proba)\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 逻辑回归
+    chart_types:
+    - '**决策边界图**：二维特征下的分类边界'
+    - '**ROC 曲线**：不同阈值下的 TPR/FPR'
+    - '**系数图**：各特征系数（含显著性）'
+    - '**概率分布图**：正负类的预测概率分布'
+    - '**校准曲线**：预测概率 vs 实际频率'
+    source: math-modeling-skill
+  id: mc_85

@@ -1,0 +1,55 @@
+method_card:
+  id: mc_010
+  name: 蒙特卡洛模拟 (Monte Carlo Simulation)
+  category:
+  - 统计分析
+  - 数值方法
+  - 随机模拟
+  principle: '通过大量随机抽样来近似求解确定性或随机性问题的数值方法。
+
+    核心依据是大数定律：当样本量足够大时，样本均值趋近于期望值。
+
+    适用于难以获得解析解的积分、期望、概率等计算。
+
+    '
+  formulas:
+  - name: 蒙特卡洛积分估计
+    latex: \hat{I} = \frac{V}{N} \sum_{i=1}^{N} f(x_i)
+    description: V为采样域体积，N为样本数，x_i为均匀随机采样点
+  applicable_when:
+  - 问题可以转化为期望值或积分计算
+  - 解析解难以获得或不存在
+  - 高维问题（传统数值方法有维度灾难）
+  not_applicable_when:
+  - 需要精确解析解
+  - 计算预算极其有限且维度较低（此时用确定性数值方法更优）
+  typical_scenarios:
+  - 复杂系统可靠性评估
+  - 金融衍生品定价
+  - 排队系统性能仿真
+  - 项目风险分析
+  common_mistakes:
+  - mistake: 样本量过小导致结果不稳定
+    solution: 进行收敛性检验，逐步增大样本量直到结果稳定
+  code_snippets:
+  - language: python
+    description: 用蒙特卡洛方法估算圆周率
+    code: "import numpy as np\ndef estimate_pi(n_samples=1000000):\n    x = np.random.uniform(-1, 1, n_samples)\n\
+      \    y = np.random.uniform(-1, 1, n_samples)\n    inside = (x**2 + y**2) <= 1\n    return 4 * np.sum(inside)\
+      \ / n_samples\n"
+  related_cards:
+  - mc_014
+  difficulty: 2
+  quality_rating: 5
+  tags:
+    model_type:
+    - 统计分析
+    key_concepts:
+    - 大数定律
+    - 随机抽样
+    - 数值积分
+    - 期望估计
+    mathematical_tools:
+    - 概率论
+    - 随机过程
+    - 统计推断

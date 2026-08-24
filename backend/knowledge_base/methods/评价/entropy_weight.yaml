@@ -1,0 +1,56 @@
+method_card:
+  id: mc_013
+  name: 熵权法
+  name_en: Entropy Weight Method
+  category:
+  - 评价决策
+  - 信息论
+  principle: "熵权法是一种基于信息熵的客观赋权方法。信息熵度量数据的离散程度：\n某个指标的信息熵越小，说明该指标的变异程度越大，提供的信息量越多，\n在综合评价中的作用越大，其权重也应越大。\n\
+    \n**核心步骤**：\n1. 数据标准化（消除量纲影响）：\n   正向指标: z_ij = (x_ij - min_j) / (max_j - min_j)\n   负向指标: z_ij =\
+    \ (max_j - x_ij) / (max_j - min_j)\n2. 计算比重：p_ij = z_ij / Σ_i z_ij\n3. 计算熵值：e_j = -k · Σ_i (p_ij ·\
+    \ ln p_ij)，其中 k = 1/ln(n)\n4. 计算差异系数：g_j = 1 - e_j\n5. 计算权重：w_j = g_j / Σ_j g_j\n\n**与 AHP 对比**：AHP\
+    \ 依赖专家经验（主观），熵权法完全依靠数据（客观）。\n实际建模中常将两者组合使用，取加权平均。\n"
+  formulas:
+  - e_j = -k · Σ_i (p_ij · ln p_ij)，k = 1/ln(n)
+  - g_j = 1 - e_j（差异系数，越大信息越多）
+  - w_j = g_j / Σ_j g_j（权重归一化）
+  - 组合权重：w_combined = α·w_AHP + (1-α)·w_entropy
+  applicable_when:
+  - 有多条完整样本数据（n > 5条记录）
+  - 指标间差异明显，希望客观反映数据内在规律
+  - 无法或不便依赖专家打分的主观赋权方法
+  - 与其他评价方法（TOPSIS、灰色关联）配合使用
+  typical_scenarios:
+  - 城市竞争力评价：基于统计年鉴数据客观赋权
+  - 企业绩效评价：财务指标的客观权重确定
+  - 供应商选择：多维度指标的客观排序
+  - 配合 TOPSIS：先熵权法确定权重，再 TOPSIS 排序
+  - 生态环境评价中的指标权重分配
+  common_mistakes:
+  - 样本量太少（n<3）时熵值计算不稳定，建议 n≥10
+  - 未区分正负向指标导致标准化方向错误
+  - 直接对原始数据算熵值，未先标准化
+  - 忽略指标间相关性导致信息冗余；建议先做相关性分析
+  code_snippets:
+  - "# Python: 熵权法计算权重\nimport numpy as np\n\ndef entropy_weight(X):\n    \\\"\\\"\\\"X: n×m 矩阵, n个样本,\
+    \ m个指标\\\"\\\"\\\"\n    n, m = X.shape\n    # 1. 标准化 (min-max)\n    Z = (X - X.min(axis=0)) / (X.max(axis=0)\
+    \ - X.min(axis=0) + 1e-10)\n    # 2. 计算比重\n    P = Z / Z.sum(axis=0, keepdims=True)\n    # 3. 计算熵值\
+    \ (设 p=0 时 p*ln(p)=0)\n    k = 1.0 / np.log(n)\n    e = -k * np.sum(P * np.log(P + 1e-10), axis=0)\n\
+    \    # 4. 差异系数 → 权重\n    g = 1 - e\n    w = g / g.sum()\n    return w\n"
+  related_cards:
+  - mc_008
+  - mc_009
+  - mc_012
+  difficulty: 2
+  quality_rating: 5
+  tags:
+    model_type:
+    - 评价类
+    key_concepts:
+    - 信息熵
+    - 客观赋权
+    - 权重确定
+    mathematical_tools:
+    - 信息论
+    - 矩阵运算
+    - 对数运算

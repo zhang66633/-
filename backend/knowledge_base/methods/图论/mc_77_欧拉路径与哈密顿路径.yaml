@@ -1,0 +1,98 @@
+method_card:
+  name: 欧拉路径与哈密顿路径
+  name_en: ''
+  category:
+  - 图论
+  principle: '#### 5.1 欧拉路径
+
+
+    **定义**：经过图中每条边恰好一次的路径。
+
+
+    **存在条件**：
+
+    - 欧拉回路：所有顶点度数为偶数
+
+    - 欧拉路径：恰好两个顶点度数为奇数
+
+
+    **Fleury算法**：
+
+    1. 选择起点（度数为奇数的顶点或任意顶点）
+
+    2. 沿边前进，避免走桥边（除非无其他选择）
+
+    3. 直到回到起点（回路）或无法继续
+
+
+    **Hierholzer算法**：
+
+    1. 从任意顶点开始，沿边前进回到起点形成回路
+
+    2. 若有未访问边，将回路分解并合并
+
+
+    #### 5.2 哈密顿路径
+
+
+    **定义**：经过图中每个顶点恰好一次的路径。
+
+
+    **哈密顿回路**：起点和终点相同的哈密顿路径。
+
+
+    **NP完全问题**：没有多项式时间算法。
+
+
+    **求解方法**：
+
+    - 回溯法（小规模）
+
+    - 动态规划（中等规模）
+
+    - 启式算法（大规模）'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 欧拉路径与哈密顿路径 实现要点
+    code: "def has_eulerian_path(graph):\n    \"\"\"判断是否存在欧拉路径\"\"\"\n    odd_degree_count = 0\n    for\
+      \ vertex in graph:\n        if len(graph[vertex]) % 2 != 0:\n            odd_degree_count += 1\n\
+      \    return odd_degree_count == 0 or odd_degree_count == 2\n\ndef hierholzer_eulerian_circuit(graph,\
+      \ start):\n    \"\"\"Hierholzer算法找欧拉回路\"\"\"\n    circuit = []\n    stack = [start]\n    current_path\
+      \ = {vertex: list(neighbors) for vertex, neighbors in graph.items()}\n\n    while stack:\n     \
+      \   current = stack[-1]\n        if current_path[current]:\n            next_vertex = current_path[current].pop()\n\
+      \            stack.append(next_vertex)\n        else:\n            circuit.append(stack.pop())\n\
+      \n    return circuit[::-1]\n\ndef hamiltonian_path(graph):\n    \"\"\"回溯法找哈密顿路径\"\"\"\n    vertices\
+      \ = list(graph.keys())\n    n = len(vertices)\n    path = []\n    visited = set()\n\n    def backtrack(current):\n\
+      \        path.append(current)\n        visited.add(current)\n\n        if len(path) == n:\n    \
+      \        return True\n\n        for neighbor in graph[current]:\n            if neighbor not in\
+      \ visited:\n                if backtrack(neighbor):\n                    return True\n\n       \
+      \ visited.remove(current)\n        path.pop()\n        return False\n\n    for start in vertices:\n\
+      \        if backtrack(start):\n            return path\n\n    return None\n\ndef tsp_dynamic_programming(dist_matrix):\n\
+      \    \"\"\"\n    TSP 动态规划（Held-Karp），精确解，适用 n ≤ 20\n    :param dist_matrix: 距离矩阵 shape (n,n)\n \
+      \   :return: 最短路径长度, 路径\n    \"\"\"\n    n = len(dist_matrix)\n    # dp[mask][i]: 已访问 mask 集合、最后在\
+      \ i 的最短长度\n    dp = [[float('inf')] * n for _ in range(1 << n)]\n    parent = [[None] * n for _\
+      \ in range(1 << n)]\n    dp[1][0] = 0  # 从城市 0 出发\n\n    for mask in range(1 << n):\n        for\
+      \ i in range(n):\n            if not (mask >> i) & 1 or dp[mask][i] == float('inf'):\n         \
+      \       continue\n            for j in range(n):\n                if (mask >> j) & 1:\n        \
+      \            continue\n                new_mask = mask | (1 << j)\n                nd = dp[mask][i]\
+      \ + dist_matrix[i][j]\n                if nd < dp[new_mask][j]:\n                    dp[new_mask][j]\
+      \ = nd\n                    parent[new_mask][j] = i\n\n    full = (1 << n) - 1\n    best = min(dp[full][i]\
+      \ + dist_matrix[i][0] for i in range(1, n))\n    last_i = min(range(1, n), key=lambda i: dp[full][i]\
+      \ + dist_matrix[i][0])\n    # 回溯路径：从最后到达的城市 last_i 倒推到起点 0\n    path = []\n    mask, cur = full,\
+      \ last_i\n    while cur is not None:\n        path.append(cur)\n        prev = parent[mask][cur]\n\
+      \        mask ^= (1 << cur)\n        cur = prev\n    p"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 欧拉路径与哈密顿路径
+    chart_types:
+    - '**路径图**：欧拉/哈密顿路径可视化'
+    - '**度数分布图**：顶点度数分布'
+    - '**搜索树图**：回溯搜索过程'
+    - '**对比图**：欧拉路径vs哈密顿路径'
+    source: math-modeling-skill
+  id: mc_77

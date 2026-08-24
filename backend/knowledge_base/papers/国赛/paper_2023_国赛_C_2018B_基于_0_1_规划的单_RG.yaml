@@ -1,8 +1,8 @@
 paper:
   id: paper_2023_国赛_C_2018B_基于_0_1_规划的单_RG
-  year: 2023
+  year: 2018
   competition: 国赛
-  problem_id: C
+  problem_id: B
   title: 基于0-1规划的单RGV动态调度模型
   tags:
     problem_type:
@@ -40,3 +40,4 @@ paper:
     lessons: 可以学习如何利用0-1规划思想建立调度模型，以及如何将随机故障等效为加工时间并融入启发式算法中，同时掌握双目标规划的处理方法。
   quality_rating: 4
   source: 2018B：基于 0-1 规划的单 RGV 动态调度模型.pdf
+  problem_ref: prob_37

@@ -1,8 +1,8 @@
 paper:
   id: paper_2003_国赛__2002A_关于_车灯线光源的优化设计_
-  year: 2003
+  year: 2002
   competition: 国赛
-  problem_id: ''
+  problem_id: A
   title: 关于“车灯线光源的优化设计”问题的光学思路
   tags:
     problem_type:
@@ -41,3 +41,4 @@ paper:
     lessons: 在光学优化问题中，应综合运用光度学和几何光学定律，注意光束特性（平行、象散）的判别，并合理简化假设以利于数学处理。
   quality_rating: 3
   source: 2002A：关于_车灯线光源的优化设计_问题的光学思路.pdf
+  problem_ref: prob_31

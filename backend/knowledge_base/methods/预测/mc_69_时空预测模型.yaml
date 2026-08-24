@@ -1,0 +1,64 @@
+method_card:
+  name: 时空预测模型
+  name_en: ''
+  category:
+  - 预测
+  principle: "时空预测模型用于同时考虑时间和空间相关性的预测问题，如交通流量预测、空气质量预测、疫情传播等。\n\n#### 10.1 时空数据特点\n\n**时空相关性**：\n- **时间依赖**：当前状态受历史状态影响\n\
+    - **空间依赖**：当前位置受邻近位置影响\n- **时空交互**：时间和空间相互影响\n\n**时空数据表示**：\n$$\nX \\in \\mathbb{R}^{N \\times T \\\
+    times F}\n$$\n\n其中：$N$是空间节点数，$T$是时间步长，$F$是特征维度。\n\n#### 10.2 经典时空预测模型\n\n**ARIMA时空扩展**：STARIMA\n$$\n\
+    X_t = \\sum_{k=1}^{p} \\Phi_k X_{t-k} + \\sum_{l=1}^{q} \\Theta_l \\epsilon_{t-l} + \\epsilon_t\n\
+    $$\n\n**时空图卷积网络**：STGCN\n\n结合图卷积网络(GCN)和时序卷积网络(TCN)。\n\n**图卷积层**：\n$$\nH^{(l+1)} = \\sigma(\\tilde{D}^{-\\\
+    frac{1}{2}}\\tilde{A}\\tilde{D}^{-\\frac{1}{2}} H^{(l)} W^{(l)})\n$$\n\n其中$\\tilde{A} = A + I$（加入自连接），$\\\
+    tilde{D}_{ii} = \\sum_j \\tilde{A}_{ij}$\n\n**时间卷积层**：使用1D卷积捕获时序模式。\n\n#### 10.3 交通流量预测示例\n\n**基于图神经网络的交通预测**：\n\
+    \n1. **构建道路网络图**：$G = (V, E, W)$\n   - $V$：道路节点\n   - $E$：道路连接\n   - $W$：连接权重（距离、相似度等）\n\n2. **时空注意力机制**：\n\
+    $$\n\\alpha_{ij}^t = \\frac{\\exp(score(s_i^t, s_j^t))}{\\sum_{k \\in \\mathcal{N}(i)} \\exp(score(s_i^t,\
+    \ s_k^t))}\n$$\n\n3. **预测输出**：\n$$\n\\hat{X}_{t+1:t+H} = \\text{Decoder}(\\text{Encoder}(X_{t-T:t},\
+    \ G))\n$$\n\n#### 10.4 评价指标\n\n**RMSE**（均方根误差）：\n$$\nRMSE = \\sqrt{\\frac{1}{NTH} \\sum_{n,t,h} (X_{n,t+h}\
+    \ - \\hat{X}_{n,t+h})^2}\n$$\n\n**MAE**（平均绝对误差）：\n$$\nMAE = \\frac{1}{NTH} \\sum_{n,t,h} |X_{n,t+h}\
+    \ - \\hat{X}_{n,t+h}|\n$$\n\n**MAPE**（平均绝对百分比误差）：\n$$\nMAPE = \\frac{100\\%}{NTH} \\sum_{n,t,h} \\\
+    left|\\frac{X_{n,t+h} - \\hat{X}_{n,t+h}}{X_{n,t+h}}\\right|\n$$"
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 时空预测模型 实现要点
+    code: "import numpy as np\nimport pandas as pd\nimport torch\nimport torch.nn as nn\nimport networkx\
+      \ as nx\nimport matplotlib.pyplot as plt\n\n# 构建时空图\ndef build_spatial_graph(adj_matrix, threshold=0.1):\n\
+      \    \"\"\"\n    构建空间图\n    :param adj_matrix: 邻接矩阵或距离矩阵\n    :param threshold: 连接阈值\n    :return:\
+      \ NetworkX图\n    \"\"\"\n    G = nx.Graph()\n    n = adj_matrix.shape[0]\n\n    for i in range(n):\n\
+      \        for j in range(i+1, n):\n            if adj_matrix[i, j] > threshold:\n               \
+      \ G.add_edge(i, j, weight=adj_matrix[i, j])\n\n    return G\n\ndef compute_normalized_laplacian(adj_matrix):\n\
+      \    \"\"\"\n    计算归一化拉普拉斯矩阵\n    :param adj_matrix: 邻接矩阵\n    :return: 归一化拉普拉斯矩阵\n    \"\"\"\n\
+      \    A = adj_matrix + np.eye(adj_matrix.shape[0])  # 自连接\n    D = np.diag(A.sum(axis=1))\n    D_inv_sqrt\
+      \ = np.linalg.inv(np.sqrt(D))\n    L = np.eye(A.shape[0]) - D_inv_sqrt @ A @ D_inv_sqrt\n    return\
+      \ torch.FloatTensor(L)\n\n# 时空图卷积层\nclass STGCNBlock(nn.Module):\n    \"\"\"时空图卷积块\"\"\"\n    def\
+      \ __init__(self, in_channels, out_channels, num_nodes):\n        super().__init__()\n        self.temporal_conv\
+      \ = nn.Conv2d(in_channels, out_channels, kernel_size=(1, 3), padding=(0, 1))\n        self.graph_conv\
+      \ = GraphConv(out_channels, out_channels, num_nodes)\n        self.bn = nn.BatchNorm2d(out_channels)\n\
+      \        self.relu = nn.ReLU()\n\n    def forward(self, x, laplacian):\n        # x: (batch, channels,\
+      \ time, nodes)\n        x = self.temporal_conv(x)\n        x = self.graph_conv(x, laplacian)\n \
+      \       x = self.bn(x)\n        x = self.relu(x)\n        return x\n\nclass GraphConv(nn.Module):\n\
+      \    \"\"\"图卷积层\"\"\"\n    def __init__(self, in_channels, out_channels, num_nodes):\n        super().__init__()\n\
+      \        self.theta = nn.Parameter(torch.FloatTensor(in_channels, out_channels))\n        nn.init.xavier_uniform_(self.theta)\n\
+      \n    def forward(self, x, laplacian):\n        # x: (batch, channels, time, nodes)\n        batch,\
+      \ channels, time, nodes = x.shape\n        x = x.permute(0, 2, 3, 1)  # (batch, time, nodes, channels)\n\
+      \        x = torch.matmul(x, self.theta)  # (batch, time, nodes, out_channels)\n        # 图卷积: x\
+      \ = L @ x\n        x = torch.matmul(laplacian, x)  # (batch, time, nodes, out_channels)\n      \
+      \  x = x.permute(0, 3, 1, 2)  # (batch, out_channels, time, nodes)\n        return x\n\n# 简化的时空预测模型\n\
+      class STGCNPredictor(nn.Module):\n    \"\"\"时空图卷积预测模型\"\"\"\n    def __init__(self, input_dim, hidden_dim,\
+      \ output_dim, num_nodes, seq_len, pred_len):\n        super().__init__()\n        self.seq_len =\
+      \ seq_len\n        self.pred_len = pred_len\n\n        self.stgcn1 = STGCNBlock(input_di"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 时空预测模型
+    chart_types:
+    - '**时空热力图**：预测值在时空上的分布'
+    - '**路网流量图**：道路网络上的预测流量'
+    - '**等值线图**：连续空间上的预测值'
+    - '**时间序列对比**：多位置预测对比'
+    - '**误差空间分布**：预测误差的空间分布'
+    source: math-modeling-skill
+  id: mc_69

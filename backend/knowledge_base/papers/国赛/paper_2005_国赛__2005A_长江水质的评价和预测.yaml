@@ -2,7 +2,7 @@ paper:
   id: paper_2005_国赛__2005A_长江水质的评价和预测
   year: 2005
   competition: 国赛
-  problem_id: ''
+  problem_id: A
   title: 长江水质的评价和预测
   tags:
     problem_type:
@@ -48,3 +48,4 @@ paper:
     lessons: 可以学习如何将多源监测数据通过归一化和加权综合转化为单一评判指标，以及如何利用反应扩散方程和回归分析相结合解决环境评价与预测问题。
   quality_rating: 4
   source: 2005A：长江水质的评价和预测.pdf
+  problem_ref: prob_32

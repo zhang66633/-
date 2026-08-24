@@ -1,0 +1,78 @@
+method_card:
+  id: mc_048
+  name: 马尔可夫链模型
+  name_en: Markov Chain Model
+  category:
+  - 预测
+  - 统计
+  principle: 马尔可夫链模型用于描述具有马氏性的离散状态随机序列：系统未来状态的条件分布只依赖于当前状态，而与过去历史无关。建模时先确定状态空间E（有限或可列）和参数集合，再估计一步转移概率p_{ij}=P(ξ_{n+1}=j|ξ_n=i)，构成行和为1的转移矩阵P。多步转移可通过Chapman-Kolmogorov方程递推，第n步分布为P(n)=P(0)P^n。若转移矩阵正则，即存在k使P^k每个元素为正，则链具有遍历性，n步转移矩阵趋于稳态矩阵，其行向量为稳定分布π，满足π=πP且∑π_j=1。该模型常用于离散状态随机系统的短期预测与长期稳态分析。
+  formulas:
+  - name: 马尔可夫性
+    latex: $$P\{\xi_{n+m}=j\mid \xi_n=i,\xi_{n-1}=i_{n-1},\dots,\xi_1=i_1\}=P\{\xi_{n+m}=j\mid
+      \xi_n=i\}$$
+    description: 系统未来状态只依赖于当前状态，与之前的历史状态无关。
+  - name: 时齐性与m步转移概率
+    latex: $$p_{ij}(m)=P\{\xi_{n+m}=j\mid \xi_n=i\}$$
+    description: 时齐马氏链的转移概率只与时间间隔m有关，与起始时刻n无关。
+  - name: 转移概率矩阵基本性质
+    latex: $$0\le p_{ij}(m)\le 1,\quad \sum_{j\in E}p_{ij}(m)=1,\quad p_{ij}(0)=\delta_{ij}$$
+    description: 转移概率非负且行和为1，0步转移矩阵为单位矩阵。
+  - name: Chapman-Kolmogorov方程
+    latex: $$p_{ij}(n+m)=\sum_{k\in E}p_{ik}(n)p_{kj}(m)$$
+    description: 多步转移概率可分解为经过中间状态的转移概率求和。
+  - name: 第n步概率分布
+    latex: $$P(n)=P(0)P^n$$
+    description: 已知初始分布P(0)时，第n步状态概率分布等于初始分布乘转移矩阵的n次幂。
+  - name: 遍历性与极限分布
+    latex: $$\pi=\pi P,\quad \sum_j\pi_j=1,\quad \pi_j>0$$
+    description: 正则马氏链存在唯一的稳定分布π，满足π=πP且概率归一。
+  applicable_when:
+  - 系统未来状态只与当前状态有关，马氏性成立。
+  - 状态空间为有限集或可列集，即离散状态空间。
+  - 转移概率具有时齐性，只与时间间隔有关而与起始时刻无关。
+  - 可以基于规律、经验或观测数据估计一步转移概率。
+  - 需要预测多步转移概率或长期稳定状态分布。
+  not_applicable_when:
+  - 系统未来状态显著依赖较远历史，马氏性不成立。
+  - 状态空间为连续空间，不适合直接使用离散状态马氏链。
+  - 转移概率随时间明显变化，时齐性假设不成立。
+  - 观测数据不足，无法可靠估计状态间转移概率。
+  - 系统存在明显外部干预或结构突变，转移机制不稳定。
+  typical_scenarios:
+  - 产品质量在线检验：按“合格/不合格”状态序列建模
+  - 相机租赁门店间转移：预测租赁设备在各门店的分布
+  - 计算机故障状态预测：根据正常/不正常状态观测序列估计转移概率
+  - 顾客购买品牌选择：分析品牌倾向和长期市场份额
+  - 信息传播失真：分析多次传播后信息的真实程度
+  - 带反射壁随机徘徊：构建边界反射马氏链转移矩阵
+  common_mistakes:
+  - mistake: 直接把任意时间序列当作马尔可夫链，未检验马氏性。
+    solution: 先通过业务判断或统计检验确认未来状态只依赖于当前状态。
+  - mistake: 用观测频率估计转移概率时，忘记按行归一化或使用错误分母。
+    solution: 应以每个状态出发的总转移次数为分母，p_ij=n_ij/∑_j n_ij。
+  - mistake: 求极限分布时只解π=πP，忽略归一化条件。
+    solution: 联立π=πP和∑π_j=1，并检查π_j>0。
+  - mistake: 把第n步概率分布直接当作P^n，忽略初始分布。
+    solution: 第n步概率分布应为P(n)=P(0)P^n。
+  - mistake: 对非正则或非遍历链直接断言唯一稳态分布。
+    solution: 先判断转移矩阵是否正则，例如是否存在k使P^k的每个元素都为正。
+  code_snippets:
+  - language: matlab
+    description: 根据状态序列统计转移次数并估计一步转移概率（Matlab）
+    code: "a1='1110010011111110011110111111001111111110001101101';\na2='111011011010111101110111101111110011011111100111';\n\
+      a=[a1 a2];\nf=zeros(2,2);\nfor i=0:1\n    for j=0:1\n        s=[int2str(i),int2str(j)];\n\
+      \        f(i+1,j+1)=length(findstr(s,a));\n    end\nend\nfs=sum(f');\nfor i=1:2\n\
+      \    f(i,:)=f(i,:)./fs(i);\nend\ndisp(f)"
+  - language: python
+    description: 根据状态序列估计转移矩阵并求解稳态分布（Python）
+    code: "import re\nimport numpy as np\n\nseq_str = ('1110010011111110011110111111001111111110001101101'\n\
+      \           '111011011010111101110111101111110011011111100111')\nseq = [int(c)\
+      \ for c in seq_str]\nstates = [0, 1]\nn = len(states)\ntrans = np.zeros((n,\
+      \ n), dtype=float)\nfor x, y in zip(seq[:-1], seq[1:]):\n    trans[int(x), int(y)]\
+      \ += 1\nrow_sum = trans.sum(axis=1, keepdims=True)\nP = trans / row_sum\n\n\
+      A = np.vstack([P.T - np.eye(n), np.ones(n)])\nb = np.append(np.zeros(n), 1.0)\n\
+      pi = np.linalg.lstsq(A, b, rcond=None)[0]\nprint(P)\nprint(pi)"
+  related_cards: []
+  related_papers: []
+  difficulty: 3
+  quality_rating: 4

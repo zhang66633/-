@@ -1,0 +1,47 @@
+paper:
+  id: paper_2018_研赛__B18102520096
+  year: 2018
+  competition: 研赛
+  problem_id: B
+  title: 光传送网建模与价值评估
+  tags:
+    problem_type:
+    - 优化
+    - 通信建模
+    - 图论
+    core_models:
+    - 遗传算法
+    - TSP
+    - Dijkstra算法
+    - QAM星座图优化
+    techniques:
+    - MATLAB仿真
+    - 误码率分析
+    - 信噪比容限点计算
+    - 最短路算法
+  analysis:
+    problem_summary: 针对光传送网中QAM调制性能与网络规划问题，计算不同调制格式的BER-SNR关系及SNR容限点，优化QAM星座图，并构建最大化网络价值的传送网规划模型。
+    key_assumptions:
+    - 每个符号等概率出现
+    - 相邻星座点距离相等
+    - 传输容量随传输距离增加而减小
+    - 网络规划在有限资源条件下进行
+    objective: 最大化光传送网络价值，并优化QAM星座图以降低SNR容限点、延长链路总长度
+    constraints: 有限资源、传输距离、传输容量、网络拓扑、纠前误码率门限等；单跨距离分为80km和100km
+  model:
+    approach: 从QAM调制解调原理出发建立BER与SNR关系；将光传送网规划转化为图论中的网络价值最大化优化问题；采用遗传算法结合TSP搜索网络拓扑，Dijkstra算法求最短路径；通过MATLAB仿真调整星座点位置和数量优化星座图性能。
+    innovation: 改进16QAM星座点位置和数量，获得比原始8QAM更低的SNR容限点；将遗传算法与TSP结合用于传送网价值最大化求解。
+    solution_method: 遗传算法、TSP、Dijkstra算法、MATLAB仿真、星座图优化搜索
+  evaluation:
+    strengths:
+    - 结合智能优化算法与经典图论算法，求解思路较完整
+    - 从底层物理建模，考虑距离、容量与误码率之间的关系
+    - 通过MATLAB仿真验证星座图优化效果
+    weaknesses:
+    - 论文文本中缺少具体求解结果和灵敏度分析
+    - 遗传算法与TSP结合在大规模网络下的收敛性和复杂度未充分说明
+    - 部分建模细节与代码展示不完整
+    lessons: 将复杂的光传送网规划问题抽象为图论优化问题，并利用遗传算法、TSP和Dijkstra算法联合求解，是通信网络建模的典型思路。
+  quality_rating: 4
+  source: B18102520096.pdf
+  problem_ref: prob_40

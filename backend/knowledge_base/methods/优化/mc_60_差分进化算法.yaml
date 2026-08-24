@@ -1,0 +1,46 @@
+method_card:
+  name: 差分进化算法
+  name_en: Differential Evolution, DE
+  category:
+  - 优化
+  principle: '差分进化算法是一种基于群体差异的进化算法，通过差分变异操作产生新个体。算法简单高效，特别适合连续优化问题。
+
+
+    **基本操作**：
+
+    1. **变异**：$V_i = X_{r1} + F \cdot (X_{r2} - X_{r3})$
+
+    2. **交叉**：$U_{ij} = \begin{cases} V_{ij}, & \text{rand} \leq CR \text{ or } j = j_{rand} \\ X_{ij},
+    & \text{otherwise} \end{cases}$
+
+    3. **选择**：贪心选择更优个体
+
+
+    **参数**：
+
+    - $F$：缩放因子（0.4-1.0）
+
+    - $CR$：交叉概率（0.1-0.9）'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 差分进化算法 实现要点
+    code: "# 常用库：scipy.optimize.differential_evolution, DEAP\nfrom scipy.optimize import differential_evolution\n\
+      \ndef objective_function(x):\n    return sum(x**2)\n\nbounds = [(-10, 10), (-10, 10), (-10, 10)]\n\
+      result = differential_evolution(objective_function, bounds,\n                                 strategy='best1bin',\n\
+      \                                 maxiter=1000,\n                                 popsize=15,\n\
+      \                                 tol=1e-6)\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 差分进化算法
+    chart_types:
+    - '**进化曲线**：适应度随代数变化'
+    - '**种群分布图**：个体在解空间的分布'
+    - '**差异向量图**：变异操作示意图'
+    - '**参数敏感性图**：参数F和CR的影响'
+    source: math-modeling-skill
+  id: mc_60

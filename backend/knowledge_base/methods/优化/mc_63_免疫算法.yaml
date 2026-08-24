@@ -1,0 +1,59 @@
+method_card:
+  name: 免疫算法
+  name_en: Immune Algorithm, IA
+  category:
+  - 优化
+  principle: '免疫算法模拟生物免疫系统的抗原识别、抗体产生、克隆选择、免疫记忆等机制。算法通过抗体与抗原的亲和度以及抗体之间的抑制关系维持种群多样性。
+
+
+    **核心操作**：
+
+    1. **抗原识别**：识别待优化问题
+
+    2. **抗体产生**：生成候选解
+
+    3. **亲和度计算**：评估解的质量
+
+    4. **克隆选择**：优质抗体克隆扩增
+
+    5. **亲和突变**：克隆抗体高频变异
+
+    6. **免疫抑制**：相似抗体相互抑制'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 免疫算法 实现要点
+    code: "import numpy as np\n\ndef immune_algorithm(objective_func, dim, bounds, n_antibodies=50,\n\
+      \                     clone_factor=5, mutation_rate=0.1, max_iter=100, seed=42):\n    \"\"\"\n \
+      \   免疫算法（完整可运行，克隆选择 + 免疫抑制）\n    :param objective_func: 目标函数 f(x) -> 标量（最小化）\n    :param dim: 维度\n\
+      \    :param bounds: 边界 (lower, upper)\n    :param n_antibodies: 抗体种群规模\n    :param clone_factor:\
+      \ 克隆倍数\n    :param mutation_rate: 变异强度（高斯扰动标准差）\n    :param max_iter: 最大迭代次数\n    :param seed: 随机种子\n\
+      \    :return: 最优抗体位置, 最优亲和度\n    \"\"\"\n    rng = np.random.default_rng(seed)\n    lower, upper\
+      \ = bounds[0], bounds[1]\n    antibodies = rng.uniform(lower, upper, (n_antibodies, dim))\n    best_antibody\
+      \ = antibodies[0].copy()\n    best_affinity = objective_func(best_antibody)\n\n    for t in range(max_iter):\n\
+      \        # 亲和度（越小越好，最小化）\n        affinity = np.array([objective_func(ab) for ab in antibodies])\n\
+      \n        # 更新全局最优\n        j = int(np.argmin(affinity))\n        if affinity[j] < best_affinity:\n\
+      \            best_affinity = affinity[j]\n            best_antibody = antibodies[j].copy()\n\n \
+      \       # 变异幅度随迭代衰减：先大步探索，后小步精细搜索\n        sigma = mutation_rate * (1 - t / max_iter) + 1e-6\n\n\
+      \        # 选择优质抗体（亲和度前一半）进行克隆\n        selected_indices = np.argsort(affinity)[:n_antibodies //\
+      \ 2]\n        selected = antibodies[selected_indices]\n\n        # 克隆扩增：优质抗体按克隆倍数复制，高斯变异（幅度衰减）\n\
+      \        clones = [best_antibody.copy()]  # 精英保留，保证收敛\n        for ab in selected:\n           \
+      \ for _ in range(clone_factor):\n                clone = ab + rng.normal(0, sigma, dim)\n      \
+      \          clones.append(np.clip(clone, lower, upper))\n\n        # 免疫抑制：对克隆池按亲和度择优，重组成与种群相同规模\n\
+      \        clone_pool = np.array(clones)\n        clone_aff = np.array([objective_func(c) for c in\
+      \ clone_pool])\n        keep = np.argsort(clone_aff)[:n_antibodies]\n        antibodies = clone_pool[keep]\n\
+      \n    return best_antibody, best_affinity\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 免疫算法
+    chart_types:
+    - '**抗体分布图**：抗体在解空间的分布'
+    - '**亲和度热力图**：抗体与抗原的亲和度'
+    - '**克隆扩增图**：克隆过程可视化'
+    - '**多样性曲线**：种群多样性变化'
+    source: math-modeling-skill
+  id: mc_63

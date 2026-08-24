@@ -1,0 +1,123 @@
+method_card:
+  name: 元胞自动机
+  name_en: Cellular Automata, CA
+  category:
+  - 综合评价
+  principle: '元胞自动机是离散动力系统，由元胞空间、状态集、邻域和演化规则组成。
+
+
+    #### 4.1 基本要素
+
+
+    **元胞空间**：规则的网格（一维、二维）
+
+
+    **状态集**：有限状态集，如$\{0, 1\}$
+
+
+    **邻域**：
+
+    - Von Neumann邻域：上下左右4个邻居
+
+    - Moore邻域：周围8个邻居
+
+
+    **演化规则**：$S_i^{t+1} = f(S_{N(i)}^t)$
+
+
+    其中$S_i^t$是元胞$i$在时刻$t$的状态，$N(i)$是元胞$i$的邻域。
+
+
+    #### 4.2 初等元胞自动机（一维）
+
+
+    256种规则，由规则号8位二进制决定。
+
+
+    **Wolfram分类**：
+
+    - Class I：演化到均匀状态
+
+    - Class II：演化到周期结构
+
+    - Class III：混沌行为
+
+    - Class IV：复杂结构（如Rule 110）
+
+
+    #### 4.3 生命游戏（Game of Life）
+
+
+    Conway的经典二维CA。
+
+
+    **规则**：
+
+    1. 活细胞周围有2-3个活邻居则存活
+
+    2. 死细胞周围恰好有3个活邻居则复活
+
+    3. 其他情况细胞死亡
+
+
+    #### 4.4 交通流元胞自动机
+
+
+    **Nagel-Schreckenberg模型**：
+
+
+    步骤：
+
+    1. 加速：$v_i \to \min(v_i + 1, v_{max})$
+
+    2. 减速：$v_i \to \min(v_i, gap_i)$
+
+    3. 随机慢化：以概率$p$，$v_i \to \max(v_i - 1, 0)$
+
+    4. 移动：$x_i \to x_i + v_i$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 元胞自动机 实现要点
+    code: "import numpy as np\nimport matplotlib.pyplot as plt\nimport matplotlib.animation as animation\n\
+      \ndef elementary_ca(rule_number, n_cells=100, n_steps=100, initial_state=None):\n    \"\"\"\n  \
+      \  初等元胞自动机\n    :param rule_number: 规则号 (0-255)\n    :param n_cells: 元胞数量\n    :param n_steps: 演化步数\n\
+      \    :param initial_state: 初始状态，None则中间为1\n    :return: 演化历史矩阵\n    \"\"\"\n    # 解析规则\n    rule\
+      \ = np.array([int(b) for b in f'{rule_number:08b}'])\n\n    # 初始化\n    if initial_state is None:\n\
+      \        state = np.zeros(n_cells, dtype=int)\n        state[n_cells // 2] = 1\n    else:\n    \
+      \    state = np.array(initial_state, dtype=int)\n\n    history = [state.copy()]\n\n    for _ in\
+      \ range(n_steps - 1):\n        new_state = np.zeros_like(state)\n        for i in range(n_cells):\n\
+      \            # 获取邻居状态（周期边界）\n            left = state[(i - 1) % n_cells]\n            center = state[i]\n\
+      \            right = state[(i + 1) % n_cells]\n\n            # 将3位二进制转为索引\n            pattern =\
+      \ left * 4 + center * 2 + right\n            new_state[i] = rule[7 - pattern]\n\n        state =\
+      \ new_state\n        history.append(state.copy())\n\n    return np.array(history)\n\ndef game_of_life(n_rows=50,\
+      \ n_cols=50, n_steps=100, initial_density=0.2):\n    \"\"\"\n    生命游戏\n    :param n_rows: 行数\n \
+      \   :param n_cols: 列数\n    :param n_steps: 演化步数\n    :param initial_density: 初始活细胞密度\n    :return:\
+      \ 演化历史\n    \"\"\"\n    # 随机初始化\n    state = (np.random.random((n_rows, n_cols)) < initial_density).astype(int)\n\
+      \    history = [state.copy()]\n\n    for _ in range(n_steps - 1):\n        new_state = state.copy()\n\
+      \n        # 计算邻居（8个方向）\n        for i in range(n_rows):\n            for j in range(n_cols):\n \
+      \               # 统计周围活邻居数\n                neighbors = 0\n                for di in [-1, 0, 1]:\n\
+      \                    for dj in [-1, 0, 1]:\n                        if di == 0 and dj == 0:\n  \
+      \                          continue\n                        ni, nj = (i + di) % n_rows, (j + dj)\
+      \ % n_cols\n                        neighbors += state[ni, nj]\n\n                # 应用规则\n     \
+      \           if state[i, j] == 1:\n                    if neighbors < 2 or neighbors > 3:\n     \
+      \                   new_state[i, j] = 0\n                else:\n                    if neighbors\
+      \ == 3:\n                        new_state[i, j] = 1\n\n        state = new_state\n        history.append(state.copy())\n\
+      \n    return np.array(history)\n\ndef traffic_ca(n_cells=100, n_steps=200, density=0.3, v_max=5,\
+      \ p_slow=0.1):\n    \"\"\"\n    Nagel-Schreckenberg交通流模型\n    :param n_cells: 道路长度\n    :param n_steps:\
+      \ 演化步数\n    :param density: 车辆密度\n    :param v"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 元胞自动机
+    chart_types:
+    - '**时空图**：一维CA演化（时间向下）'
+    - '**状态图**：二维CA各时刻状态'
+    - '**统计图**：活细胞数随时间变化'
+    - '**相图**：参数空间中的行为'
+    - '**动画**：演化过程动画'
+    source: math-modeling-skill
+  id: mc_83

@@ -1,0 +1,82 @@
+method_card:
+  name: 鲁棒优化
+  name_en: Robust Optimization, RO
+  category:
+  - 优化
+  principle: '鲁棒优化处理参数不确定性的优化问题，寻找在所有可能的不确定性实现下都能保持可行性和良好性能的解。
+
+
+    **不确定性集类型**：
+
+
+    1. **盒子不确定性集**：
+
+    $$
+
+    U = \{\xi : |\xi_j - \bar{\xi}_j| \leq \hat{\xi}_j, \forall j\}
+
+    $$
+
+
+    2. **椭球不确定性集**：
+
+    $$
+
+    U = \{\xi : (\xi - \bar{\xi})^T \Sigma^{-1} (\xi - \bar{\xi}) \leq \Gamma^2\}
+
+    $$
+
+
+    3. **多面体不确定性集**（Bertsimas-Sim模型）：
+
+    $$
+
+    U = \{\xi : \xi_j = \bar{\xi}_j + \eta_j \hat{\xi}_j, \|\eta\|_1 \leq \Gamma, \|\eta\|_\infty \leq
+    1\}
+
+    $$
+
+
+    **鲁棒对应问题**：
+
+    $$
+
+    \min_x \max_{\xi \in U} f(x, \xi)
+
+    $$
+
+    $$
+
+    \text{s.t. } g(x, \xi) \leq 0, \forall \xi \in U
+
+    $$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 鲁棒优化 实现要点
+    code: "import numpy as np\nfrom scipy.optimize import minimize\n\ndef robust_optimization_nominal(objective_func,\
+      \ constraint_func,\n                                nominal_params, uncertainty_budgets,\n     \
+      \                           bounds, method='SLSQP'):\n    \"\"\"\n    鲁棒优化：使用Bertsimas-Sim模型\n \
+      \   uncertainty_budgets: 每个参数的不确定性预算Gamma\n    \"\"\"\n    def robust_objective(x):\n        # 最坏情况目标（保守策略）\n\
+      \        worst_obj = objective_func(x, nominal_params)\n        # 考虑参数扰动\n        for i, (param,\
+      \ budget) in enumerate(zip(nominal_params, uncertainty_budgets)):\n            perturbation = budget\
+      \ * np.sign(x[i]) if budget > 0 else 0\n            worst_obj = max(worst_obj, objective_func(x,\
+      \ nominal_params + perturbation))\n        return worst_obj\n\n    def robust_constraint(x):\n \
+      \       # 鲁棒约束：满足所有不确定性实现\n        return constraint_func(x, nominal_params)\n\n    result = minimize(robust_objective,\n\
+      \                     x0=np.random.rand(len(nominal_params)),\n                     bounds=bounds,\n\
+      \                     constraints={'type': 'ineq', 'fun': robust_constraint},\n                \
+      \     method=method)\n\n    return result.x\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 鲁棒优化
+    chart_types:
+    - '**不确定性集图**：参数不确定性的范围'
+    - '**鲁棒解与名义解对比**：解的性能对比'
+    - '**情景分析图**：不同情景下的解表现'
+    - '**敏感度分析图**：鲁棒性水平与目标关系'
+    source: math-modeling-skill
+  id: mc_66

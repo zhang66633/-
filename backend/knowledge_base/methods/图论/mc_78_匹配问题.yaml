@@ -1,0 +1,79 @@
+method_card:
+  name: 匹配问题
+  name_en: ''
+  category:
+  - 图论
+  principle: '匹配是指图中一组没有公共顶点的边。
+
+
+    #### 6.1 二分图最大匹配
+
+
+    **定义**：在二分图中找边数最多的匹配。
+
+
+    **匈牙利算法**：
+
+    1. 初始匹配为空
+
+    2. 寻找增广路径
+
+    3. 沿增广路径增加匹配
+
+    4. 重复直到无增广路径
+
+
+    **时间复杂度**：$O(VE)$
+
+
+    #### 6.2 最大权匹配
+
+
+    在带权图中找总权重最大的匹配。
+
+
+    **KM算法**（Kuhn-Munkres）：
+
+    - 适用于完全二分图
+
+    - 使用顶标和相等子图
+
+    - 时间复杂度：$O(V^3)$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 匹配问题 实现要点
+    code: "def hungarian_algorithm(cost_matrix):\n    \"\"\"\n    匈牙利算法解决指派问题\n    :param cost_matrix:\
+      \ 成本矩阵\n    :return: 最小成本匹配\n    \"\"\"\n    n = len(cost_matrix)\n    cost_matrix = [row[:] for\
+      \ row in cost_matrix]  # 深拷贝\n\n    # 初始化\n    u = [0] * (n + 1)\n    v = [0] * (n + 1)\n    matching\
+      \ = [0] * (n + 1)\n\n    # 行约减\n    for i in range(1, n + 1):\n        u[i] = min(cost_matrix[i\
+      \ - 1])\n\n    # 列约减\n    for j in range(1, n + 1):\n        v[j] = min(cost_matrix[i - 1][j - 1]\
+      \ - u[i] for i in range(1, n + 1))\n\n    # 寻找匹配\n    for i in range(1, n + 1):\n        while True:\n\
+      \            # 构建相等子图\n            used = [False] * (n + 1)\n            min_slack = [float('inf')]\
+      \ * (n + 1)\n            parent = [0] * (n + 1)\n\n            def dfs(x):\n                used[x]\
+      \ = True\n                for y in range(1, n + 1):\n                    if not used[y]:\n     \
+      \                   slack = cost_matrix[x - 1][y - 1] - u[x] - v[y]\n                        if\
+      \ slack < min_slack[y]:\n                            min_slack[y] = slack\n                    \
+      \        parent[y] = x\n                        if matching[y] == 0 or dfs(matching[y]):\n     \
+      \                       matching[y] = x\n                            return True\n             \
+      \   return False\n\n            if dfs(i):\n                break\n\n            # 更新顶标\n      \
+      \      delta = min(min_slack[y] for y in range(1, n + 1) if not used[y])\n            for x in range(1,\
+      \ n + 1):\n                if used[x]:\n                    u[x] += delta\n            for y in\
+      \ range(1, n + 1):\n                if used[y]:\n                    v[y] -= delta\n\n    # 构建匹配结果\n\
+      \    result = []\n    for j in range(1, n + 1):\n        if matching[j] != 0:\n            result.append((matching[j]\
+      \ - 1, j - 1))\n\n    total_cost = sum(cost_matrix[i][j] for i, j in result)\n\n    return total_cost,\
+      \ [(i, j) for i, j in result]\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 匹配问题
+    chart_types:
+    - '**二分图**：二分图结构可视化'
+    - '**匹配边图**：匹配边高亮'
+    - '**增广路径图**：增广路径显示'
+    - '**权重标注图**：边的权重标注'
+    source: math-modeling-skill
+  id: mc_78

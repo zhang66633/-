@@ -1,0 +1,65 @@
+method_card:
+  id: mc_006
+  name: 模拟退火算法
+  name_en: Simulated Annealing (SA)
+  category:
+  - 优化算法
+  - 启发式算法
+  principle: "模拟退火算法模拟固体退火的物理过程：将固体加热到高温再缓慢冷却，\n粒子在高温时自由移动（全局搜索），温度降低时逐渐趋于有序（局部收敛），\n最终达到能量最低的结晶态（全局最优解）。\n\
+    \n**算法核心**：\n1. 从当前解 x 随机生成邻域解 x'（扰动）\n2. 如果 f(x') < f(x)，接受新解（下山）\n3. 如果 f(x') ≥ f(x)，以概率 P = exp(-Δf\
+    \ / T) 接受新解（上山，跳出局部最优）\n   - 当 T 大时，P ≈ 1（几乎总是接受，随机游走）\n   - 当 T → 0 时，P → 0（只接受改进解，退化为贪心）\n4. 降温\
+    \ T = α·T（α 一般为 0.90~0.99）\n5. 重复直到 T 低于终止温度或达到最大迭代次数\n\n**关键参数**：\n- 初始温度 T0：足够高使接受率 ≈ 1（保证全局搜索）\n\
+    - 冷却速率 α：决定搜索精度和时间（α 越大越慢但越好）\n- 终止温度 T_end：算法停止条件\n- 扰动方式：决定邻域结构，影响搜索效率\n"
+  formulas:
+  - 'Metropolis 准则: P(accept Δf>0) = exp(-Δf / T)'
+  - '降温规则: T_{k+1} = α·T_k, α ∈ (0.8, 0.99)'
+  - 马尔科夫链长度 L_k：每个温度下的迭代次数
+  - '温差驱动: 高温→高接受概率(全局搜索), 低温→低接受概率(局部收敛)'
+  applicable_when:
+  - 解空间是连续或离散的大规模组合优化问题
+  - 目标函数非凸，存在大量局部最优解
+  - 对解的最优性要求不高，但需要合理时间内得到较好解
+  - 问题规模太大，精确算法不可行
+  typical_scenarios:
+  - 旅行商问题 TSP：访问 N 个城市的最短回路（SA 经典场景）
+  - 车间调度：多任务多机器的作业排程
+  - VLSI 芯片布局：集成电路的模块位置优化
+  - 函数优化：多峰函数求全局最优（替代梯度下降）
+  - 参数调优：机器学习超参数搜索
+  common_mistakes:
+  - 初始温度太低导致陷入局部最优；检查初始接受率是否为 1
+  - 冷却过快（α 太小）导致搜索不充分；建议 α ≥ 0.95
+  - 扰动步长不合适：太大导致随机游走，太小搜索过慢
+  - 未做多次独立运行：SA 是随机算法，单次结果可能偶然，建议 5-10 次取最优
+  - 对连续优化问题：SA 不如 CMA-ES 或贝叶斯优化高效
+  code_snippets:
+  - "# Python: 模拟退火求解 TSP\nimport numpy as np\nimport random\n\ndef simulated_annealing_tsp(dist_matrix,\
+    \ T0=1000, alpha=0.99,\n                             T_end=0.1, max_iter=500):\n    n = len(dist_matrix)\n\
+    \    # 初始解: 随机排列\n    tour = list(range(n))\n    random.shuffle(tour)\n    best_tour, best_cost =\
+    \ tour[:], sum(\n        dist_matrix[tour[i]][tour[(i+1)%n]] for i in range(n))\n\n    T = T0\n  \
+    \  while T > T_end:\n        for _ in range(max_iter):\n            # 邻域扰动: 随机交换两个城市 (2-opt 简化版)\n\
+    \            i, j = sorted(random.sample(range(n), 2))\n            new_tour = tour[:i] + tour[i:j+1][::-1]\
+    \ + tour[j+1:]\n            new_cost = sum(dist_matrix[new_tour[k]][new_tour[(k+1)%n]]\n         \
+    \                  for k in range(n))\n            delta = new_cost - best_cost\n            if delta\
+    \ < 0 or random.random() < np.exp(-delta / T):\n                tour, best_cost = new_tour, new_cost\n\
+    \                if best_cost < sum(\n                    dist_matrix[best_tour[k]][best_tour[(k+1)%n]]\n\
+    \                    for k in range(n)):\n                    best_tour = tour[:]\n        T *= alpha\n\
+    \    return best_tour, best_cost\n"
+  related_cards:
+  - mc_003
+  - mc_011
+  - mc_002
+  difficulty: 2
+  quality_rating: 5
+  tags:
+    model_type:
+    - 最优化
+    key_concepts:
+    - Metropolis准则
+    - 退火过程
+    - 全局优化
+    - 随机搜索
+    mathematical_tools:
+    - 随机过程
+    - 玻尔兹曼分布
+    - 马氏链

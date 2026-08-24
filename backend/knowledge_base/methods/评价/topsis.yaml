@@ -1,0 +1,47 @@
+method_card:
+  id: mc_009
+  name: TOPSIS 优劣解距离法
+  category:
+  - 评价
+  - 多准则决策
+  - 客观赋权
+  principle: '通过计算各方案与理想最优解和理想最劣解的距离来排序。
+
+    最优方案应最接近正理想解且最远离负理想解。
+
+    需要先对指标做同向化和归一化处理。
+
+    '
+  applicable_when:
+  - 评价指标可量化
+  - 需要客观排序而非主观赋权
+  - 指标之间存在量纲差异（需要归一化）
+  typical_scenarios:
+  - 供应商选择
+  - 项目方案评价
+  - 城市综合竞争力排名
+  - 水质/空气质量评价
+  code_snippets:
+  - language: python
+    description: TOPSIS 实现
+    code: "import numpy as np\n\ndef topsis(matrix, weights):\n    # 归一化\n    norm = matrix / np.sqrt((matrix**2).sum(axis=0))\n\
+      \    # 加权\n    weighted = norm * weights\n    # 正负理想解\n    ideal_best = np.max(weighted, axis=0)\n\
+      \    ideal_worst = np.min(weighted, axis=0)\n    # 距离\n    d_best = np.sqrt(((weighted - ideal_best)**2).sum(axis=1))\n\
+      \    d_worst = np.sqrt(((weighted - ideal_worst)**2).sum(axis=1))\n    # 相对贴近度\n    return d_worst\
+      \ / (d_best + d_worst)\n"
+  related_cards:
+  - mc_008
+  - mc_013
+  difficulty: 2
+  quality_rating: 5
+  tags:
+    model_type:
+    - 评价类
+    key_concepts:
+    - 正负理想解
+    - 贴近度
+    - 归一化
+    - 距离度量
+    mathematical_tools:
+    - 矩阵运算
+    - 欧氏距离

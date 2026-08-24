@@ -2,7 +2,7 @@ paper:
   id: paper_2008_国赛__2008B__关于高等教育学费标准的评价
   year: 2008
   competition: 国赛
-  problem_id: ''
+  problem_id: B
   title: 关于高等教育学费标准的评价及建议
   tags:
     problem_type:
@@ -40,3 +40,4 @@ paper:
     lessons: 综合多种模型（如层次分析法、灰色预测、蛛网模型）进行多因素评价，并通过熵值法修正主观权重，可提高模型客观性；考虑分类变因能增强模型的适用性。
   quality_rating: 4
   source: 2008B：《关于高等教育学费标准的评价及建议》.PDF
+  problem_ref: prob_33

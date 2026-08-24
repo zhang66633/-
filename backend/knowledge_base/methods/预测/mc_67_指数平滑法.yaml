@@ -1,0 +1,82 @@
+method_card:
+  name: 指数平滑法
+  name_en: Exponential Smoothing
+  category:
+  - 预测
+  principle: '指数平滑法通过对历史数据加权平均进行预测，近期数据权重更大。
+
+
+    #### 7.1 简单指数平滑
+
+
+    适用于无趋势、无季节性的数据。
+
+
+    $$
+
+    F_{t+1} = \alpha y_t + (1 - \alpha) F_t
+
+    $$
+
+
+    其中$\alpha \in (0, 1)$是平滑系数。
+
+
+    #### 7.2 Holt线性趋势法
+
+
+    适用于有趋势、无季节性的数据。
+
+
+    **水平方程**：$L_t = \alpha y_t + (1 - \alpha)(L_{t-1} + T_{t-1})$
+
+
+    **趋势方程**：$T_t = \beta(L_t - L_{t-1}) + (1 - \beta)T_{t-1}$
+
+
+    **预测**：$F_{t+m} = L_t + m T_t$
+
+
+    #### 7.3 Holt-Winters季节性方法
+
+
+    适用于有趋势和季节性的数据。
+
+
+    **水平方程**：$L_t = \alpha \frac{y_t}{S_{t-s}} + (1 - \alpha)(L_{t-1} + T_{t-1})$
+
+
+    **趋势方程**：$T_t = \beta(L_t - L_{t-1}) + (1 - \beta)T_{t-1}$
+
+
+    **季节方程**：$S_t = \gamma \frac{y_t}{L_t} + (1 - \gamma)S_{t-s}$
+
+
+    **预测**：$F_{t+m} = (L_t + m T_t) S_{t-s+m}$'
+  applicable_when: []
+  typical_scenarios: []
+  code_snippets:
+  - language: python
+    description: 指数平滑法 实现要点
+    code: "from statsmodels.tsa.holtwinters import SimpleExpSmoothing, Holt, ExponentialSmoothing\n\n\
+      # 简单指数平滑\ndef simple_exponential_smoothing(data, alpha=0.2):\n    \"\"\"简单指数平滑\"\"\"\n    model\
+      \ = SimpleExpSmoothing(data)\n    fit = model.fit(smoothing_level=alpha, optimized=False)\n    forecast\
+      \ = fit.forecast(steps=1)\n    return forecast, fit\n\n# Holt线性趋势法\ndef holt_linear_trend(data,\
+      \ alpha=0.3, beta=0.1):\n    \"\"\"Holt线性趋势法\"\"\"\n    model = Holt(data)\n    fit = model.fit(smoothing_level=alpha,\
+      \ smoothing_trend=beta, optimized=False)\n    forecast = fit.forecast(steps=5)\n    return forecast,\
+      \ fit\n\n# Holt-Winters季节性方法\ndef holt_winters(data, seasonal_periods=12, trend='add', seasonal='add'):\n\
+      \    \"\"\"Holt-Winters季节性方法\"\"\"\n    model = ExponentialSmoothing(data, trend=trend, seasonal=seasonal,\n\
+      \                                 seasonal_periods=seasonal_periods)\n    fit = model.fit()\n  \
+      \  forecast = fit.forecast(steps=seasonal_periods)\n    return forecast, fit\n"
+  related_papers: []
+  difficulty: 3
+  quality_rating: 3
+  tags:
+    key_concepts:
+    - 指数平滑法
+    chart_types:
+    - '**时序预测图**：历史数据+预测值'
+    - '**分解图**：趋势、季节、残差分解'
+    - '**误差分析图**：预测误差分析'
+    source: math-modeling-skill
+  id: mc_67
