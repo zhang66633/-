@@ -13,4 +13,7 @@
 *.py text eol=lf
 # shell 脚本必须 LF——CRLF 检出会让 bash 报 $'\r': command not found
 *.sh text eol=lf
-*.bat text eol=crlf
+# 批处理必须 CRLF 入库:GitHub ZIP 直发 blob 字节(无检出转换),
+# LF 批处理在部分 Windows 构建上 goto 标签匹配失败/cmd 按字节劈行。
+# text eol=crlf 会把 blob 归一成 LF——故改用 -text 原样入库(工作区保持 CRLF)
+*.bat -text
