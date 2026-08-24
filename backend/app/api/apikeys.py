@@ -24,7 +24,7 @@ _api_keys_file = None
 
 # 服务商预设：base_url 为 OpenAI 兼容端点（不含路径），anthropic 为原生协议
 PROVIDER_PRESETS: dict[str, dict] = {
-    "deepseek": {"base_url": "https://api.deepseek.com", "chat_model": "deepseek-chat"},
+    "deepseek": {"base_url": "https://api.deepseek.com", "chat_model": "deepseek-v4-flash"},
     "qwen": {
         "base_url": "https://dashscope.aliyuncs.com/compatible-mode",
         "chat_model": "qwen-plus",

@@ -18,7 +18,16 @@
       </button>
     </div>
     <div v-else-if="questions.length === 0" class="rounded-md border border-border bg-card p-4 text-sm text-muted-foreground">
-      本单元的自测题正在编写中,稍后再来看看吧。
+      <p>本单元的自测题正在编写中。</p>
+      <button
+        v-if="markState !== 'done'"
+        class="mt-2 cursor-pointer rounded-md border border-border px-3 py-1 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+        :disabled="markState === 'marking'"
+        @click="markUnitDone"
+      >
+        {{ markState === "marking" ? "标记中…" : "学完了？直接标记本单元完成" }}
+      </button>
+      <span v-else class="ml-1 text-emerald-600">✅ 已标记完成</span>
     </div>
     <div v-else class="space-y-8">
       <div v-for="(q, qi) in questions" :key="q.id">
@@ -50,7 +59,15 @@
       <!-- 全部答完的总结 -->
       <div v-if="allDone" class="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
         <span class="font-medium">本轮自测: {{ correctCount }}/{{ questions.length }} 正确</span>
-        <span v-if="correctCount === questions.length" class="ml-2 text-muted-foreground">🎉 全对,可以标记本单元完成了</span>
+        <span v-if="correctCount === questions.length" class="ml-2 text-muted-foreground">
+          {{
+            markState === "done"
+              ? "🎉 全对！已自动标记本单元完成 ✅"
+              : markState === "marking"
+                ? "🎉 全对，正在标记本单元完成…"
+                : "🎉 全对"
+          }}
+        </span>
         <span v-else class="ml-2 text-muted-foreground">建议复习错题后再标记完成</span>
       </div>
     </div>
@@ -63,6 +80,7 @@ import {
   fetchUnitQuiz,
   submitQuizAnswer,
 } from "@/apis/learningApi";
+import { useLearningStore } from "@/stores/learning";
 import { renderMarkdown } from "@/utils/markdown";
 import { Loader2 } from "lucide-vue-next";
 import { computed, onMounted, reactive, ref, watch } from "vue";
@@ -75,6 +93,21 @@ const emit = defineEmits<{
   /** 全部答完时触发 */
   complete: [payload: { correct: number; total: number }];
 }>();
+
+const learning = useLearningStore();
+// 完成标记三态：审查 P0-3 —— 全对自动调 complete 接口，打通单元完成闭环
+const markState = ref<"idle" | "marking" | "done">("idle");
+
+async function markUnitDone() {
+  if (markState.value !== "idle") return;
+  markState.value = "marking";
+  try {
+    await learning.markComplete(props.unitId);
+    markState.value = "done";
+  } catch {
+    markState.value = "idle";
+  }
+}
 
 const loading = ref(false);
 const error = ref("");
@@ -96,13 +129,15 @@ const allDone = computed(
     answeredCount.value === questions.value.length,
 );
 
-// 全部答完 → 通知父页面(如 toast)
+// 全部答完 → 通知父页面(如 toast)；全对则自动标记单元完成（P0-3 闭环）
 watch(allDone, (done) => {
-  if (done) {
-    emit("complete", {
-      correct: correctCount.value,
-      total: questions.value.length,
-    });
+  if (!done) return;
+  emit("complete", {
+    correct: correctCount.value,
+    total: questions.value.length,
+  });
+  if (correctCount.value === questions.value.length) {
+    void markUnitDone();
   }
 });
 

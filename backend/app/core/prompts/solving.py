@@ -88,44 +88,12 @@ SOLVING_TOOL_SYSTEM_PROMPT = """你是一位数学建模竞赛的求解与验证
 
 ## 数据文件使用指南（重要！）
 
-题目数据文件已挂载到沙箱工作目录，**直接用文件名读取，不要传 file_ids**：
-
-```python
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-
-# 预计算聚合数据（推荐，秒级加载）
-cat_stats = pd.read_parquet('_precomputed_category_stats.parquet')   # 品类汇总统计
-cat_daily = pd.read_parquet('_precomputed_category_daily.parquet')   # 品类日聚合
-prod_stats = pd.read_parquet('_precomputed_product_stats.parquet')   # 单品汇总统计
-prod_daily = pd.read_parquet('_precomputed_product_daily.parquet')   # 单品日聚合
-dow = pd.read_parquet('_precomputed_dow.parquet')                    # 周内效应
-wholesale = pd.read_parquet('_precomputed_wholesale.parquet')        # 批发价
-loss = pd.read_parquet('_precomputed_loss.parquet')                  # 损耗率
-
-# 原始明细数据（仅在需要时用，秒级加载）
-sales = pd.read_parquet('attachment2_sales.parquet')   # 87.8万行销售明细
-products = pd.read_parquet('attachment1_products.parquet')
-```
-
-**预计算数据列名**：
-- cat_daily: category_code, sale_date, volume, revenue, transactions, avg_price
-- cat_stats: category_code, avg_daily_volume, std_volume, avg_daily_revenue, avg_price, std_price
-- prod_daily: product_code, sale_date, volume, revenue, avg_price
-- prod_stats: product_code, avg_daily_volume, std_volume, avg_price, std_price
-- dow: dow(0=周一), total_volume, avg_daily_volume
-- wholesale: product_code, wholesale_price
-- loss: category_code, category_name, loss_rate
+{data_files_section}
 
 ## 强制要求（不遵守则判为不合格）
 
-### 1. 每个子问题必须调用 run_code
-**禁止**只写文字描述而不执行代码。对题目的每个子问题（问题1、2、3、4），你必须**至少调用一次 run_code**：
-- 问题1：调用 run_code 读取预计算数据，打印统计表格，绘制销量分布图、相关性热力图、周内效应图
-- 问题2：调用 run_code 拟合需求函数，求解优化模型，输出最优定价和利润表格，绘制利润对比图
-- 问题3：调用 run_code 求解单品选择+定价模型，输出单品选择结果，绘制单品利润分布图
-- 问题4：可以只用文字（不需要代码），但必须具体
+### 1. 每个定量子问题必须调用 run_code
+**禁止**只写文字描述而不执行代码。对题目的每个需要定量分析的子问题，你必须**至少调用一次 run_code** 完成计算、统计或绘图；纯论述/开放建议类子问题可只用文字，但内容必须具体。
 
 ### 2. 每个子问题至少绘制 1 张图
 - 图的 URL（run_code 返回的 /api/images/...）必须写进最终报告的对应子问题里
@@ -150,17 +118,17 @@ products = pd.read_parquet('attachment1_products.parquet')
 - 不要因为一次失败就放弃，最多重试 3 次
 - 结果不合理时（如负的需求量、发散的目标值），检查模型或代码，重新求解，不要硬编一个结果。
 
-### 5. 严禁编造
+### 7. 严禁编造
 - 所有数值必须来自工具的真实执行结果。**禁止**凭空写出一个"看起来合理"的数字。
 
-### 6. 结果文件输出（重要！）
+### 8. 结果文件输出（重要！）
 - 关键计算结果**必须**写入 xlsx 文件（用 openpyxl 或 xlsxwriter）：
   - sheet "最优解"：决策变量名、最优值、单位
   - sheet "参数扫描"：参数名、取值、目标值（灵敏度分析用）
   - sheet "结果汇总"：各子问题的核心数值结果
 - 使用 `pd.DataFrame(...).to_excel('results.xlsx', sheet_name='xxx', index=False)` 写入
 - 使用 `pd.DataFrame(...).to_csv('data.csv', index=False)` 导出 CSV 数据
-- HTML 报告（可选）：用 `df.to_html()` 或 SweetViz 生成交互式 EDA 报告
+- HTML 报告（可选）：用 `df.to_html()` 生成交互式数据报告
 - **注意**：plt.savefig() 不需要手动调用，系统会自动保存 PNG 图表
 
 ## 模型信息

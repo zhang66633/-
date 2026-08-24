@@ -1,6 +1,7 @@
 """图节点函数 — classify / retrieve / plan / agent / format。"""
 
 import json
+import re
 import time
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -682,27 +683,38 @@ def solving_agent_node(state: AgentState) -> dict:
     tool_map = {t.name: t for t in tools}
     llm_with_tools = llm.bind_tools(tools)
 
-    # 构建数据文件上下文（供 LLM 了解有哪些文件可用）
+    # 构建数据文件上下文（注入系统 prompt 的 {data_files_section} 占位符；
+    # 无文件时也要明确告知，防止模型臆造不存在的文件名——审查 P0-1 修复）
     data_files_list = state.get("data_files") or []
-    data_files_context = ""
     if data_files_list:
-        lines = ["\n## 可用数据文件（已挂载到工作目录，代码中直接用文件名读取）"]
+        _lines = ["题目数据文件已挂载到沙箱工作目录，**直接用文件名读取，不要传 file_ids**："]
         for df in data_files_list:
-            lines.append(
+            _lines.append(
                 f"- `{df.get('filename', '?')}`: "
                 f"{df.get('rows', '?')}行, "
                 f"列: {', '.join(df.get('columns', []))}"
             )
-        data_files_context = "\n".join(lines)
+        _lines.append(
+            "用 pd.read_csv / pd.read_excel / pd.read_parquet 按扩展名选择读取方式；"
+            "大文件优先采样或聚合后再分析。"
+        )
+        data_files_section = "\n".join(_lines)
+    else:
+        data_files_section = (
+            "本题**没有预挂载的数据文件**。如需数据支撑，请依据题目描述构造合理的模拟/示例数据，"
+            "并在报告中明确说明数据来源与构造假设；禁止尝试读取任何未列出的文件。"
+        )
 
-    system_prompt = SOLVING_TOOL_SYSTEM_PROMPT.format(model_info=model_text)
+    system_prompt = SOLVING_TOOL_SYSTEM_PROMPT.format(
+        model_info=model_text, data_files_section=data_files_section
+    )
     user_prompt = SOLVING_TOOL_USER_TEMPLATE.format(
         problem=state["problem_raw"],
         model=model_text,
     )
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt + data_files_context),
+        HumanMessage(content=user_prompt),
     ]
 
     all_images: list[str] = []
@@ -1097,8 +1109,10 @@ def verification_agent_node(state: AgentState) -> dict:
 
 
 # ── 论文章节规格（方案模式分章节写作）──────────────────────────────
-# (章节标题, 写作要求) —— 顺序即生成顺序；摘要最后单独生成。
-PAPER_SECTIONS: list[tuple[str, str]] = [
+# 通用骨架 + 核心章「四、模型的建立与求解」按求解报告的子问题清单动态拆分。
+# 铁律：禁止在此硬编码任何具体赛题的小节标题/要求——曾经的定价题专属
+# 小节（品类定价/补货优化等）曾污染所有用户的论文结构（审查 P0-2）。
+_GENERIC_SECTIONS: list[tuple[str, str]] = [
     (
         "一、问题重述",
         "用数学语言重述问题：明确已知量、未知量、优化/分析目标。"
@@ -1114,34 +1128,6 @@ PAPER_SECTIONS: list[tuple[str, str]] = [
         "假设用有序列表，每条一句话，共 4-6 条，不给每条配冗长展开。"
         "符号说明用 Markdown 表格（符号 | 含义 | 单位）。"
         "**铁律：假设和符号全文只在此处定义一次。本章之前和之后的任何章节不得再出现假设列表或符号定义。**",
-    ),
-    # 核心章拆成 4 个子节，每节单独调用 LLM（deepseek-chat 单次输出限制 8192 tokens）
-    (
-        "四、模型的建立与求解 — 4.1 问题1分析",
-        "### 4.1 问题1：各品类销售分布规律分析\n"
-        "严格按此结构：①原理与方法 ②数据预处理 ③求解结果（含表格与图："
-        "材料中每个 /api/images/ 链接至少引用一次并配图注）④结果检验。"
-        "**必须输出完整小节，不要截断。**",
-    ),
-    (
-        "四、模型的建立与求解 — 4.2 问题2建模",
-        "### 4.2 问题2：品类级定价与补货优化\n"
-        "严格按此结构：①需求函数估计（含参数表格）②目标函数与约束（$$公式块$$）"
-        "③求解算法 ④求解结果（最优定价表+补货量表+利润表）⑤结果检验。"
-        "**必须输出完整小节，不要截断。**",
-    ),
-    (
-        "四、模型的建立与求解 — 4.3 问题3建模",
-        "### 4.3 问题3：单品级定价与补货优化\n"
-        "严格按此结构：①单品选择模型（含0-1变量）②目标函数与约束 ③求解算法"
-        "④求解结果（单品选择表+定价表+利润表）⑤结果检验。"
-        "**必须输出完整小节，不要截断。**",
-    ),
-    (
-        "四、模型的建立与求解 — 4.4 问题4",
-        "### 4.4 问题4：数据收集建议\n"
-        "列出需要收集的数据类型，说明理由和可行性。"
-        "**必须输出完整小节，不要截断。**",
     ),
     (
         "五、模型检验与灵敏度分析",
@@ -1168,6 +1154,36 @@ PAPER_SECTIONS: list[tuple[str, str]] = [
         "**本章必须完整写完。**",
     ),
 ]
+
+_SUBPROBLEM_RE = re.compile(r"^#{2,4}\s*子问题\s*(\d+)\s*[：:]\s*(.+?)\s*$", re.MULTILINE)
+
+
+def build_paper_sections(solving_output: str) -> list[tuple[str, str]]:
+    """按求解报告中的「子问题 N：标题」动态拆分核心章；解析不到时退化为单个通用核心章。"""
+    matches = _SUBPROBLEM_RE.findall(solving_output or "")
+    if not matches:
+        return [
+            *_GENERIC_SECTIONS[:3],
+            (
+                "四、模型的建立与求解",
+                "严格按大纲完成：①建模思路 ②模型与算法（$$公式块$$、关键表格）"
+                "③求解结果（材料中每个 /api/images/ 链接至少引用一次并配图注）④结果检验。"
+                "**必须完整写完，不要截断。**",
+            ),
+            *_GENERIC_SECTIONS[3:],
+        ]
+    core: list[tuple[str, str]] = []
+    for num, raw_title in matches:
+        sub_title = raw_title.strip().strip("*")
+        title = f"四、模型的建立与求解 — 子问题{num}"
+        req = (
+            f"### 子问题{num}：{sub_title}\n"
+            "严格按此结构：①原理与方法 ②模型与求解（$$公式块$$、关键表格）"
+            "③求解结果（材料中每个 /api/images/ 链接至少引用一次并配图注）④结果检验。"
+            "**必须输出完整小节，不要截断。**"
+        )
+        core.append((title, req))
+    return [*_GENERIC_SECTIONS[:3], *core, *_GENERIC_SECTIONS[3:]]
 
 
 def writing_agent_node(state: AgentState) -> dict:
@@ -1232,6 +1248,9 @@ def writing_agent_node(state: AgentState) -> dict:
         "verification": state.get("verification_output", "无"),
     }
 
+    # 核心章按求解报告的子问题动态拆分（替代旧的硬编码 PAPER_SECTIONS）
+    paper_sections = build_paper_sections(state.get("solving_output", ""))
+
     # 1) 大纲
     _pub_event(task_id, "node_progress", "writing_agent", {"stage": "outline"})
     _outline_resp = invoke_with_retry(
@@ -1276,13 +1295,13 @@ def writing_agent_node(state: AgentState) -> dict:
 
     from concurrent.futures import ThreadPoolExecutor
 
-    parallelism = max(1, min(get_settings().writing_parallelism, len(PAPER_SECTIONS)))
+    parallelism = max(1, min(get_settings().writing_parallelism, len(paper_sections)))
     with ThreadPoolExecutor(max_workers=parallelism) as _pool:
-        _futures = [_pool.submit(_gen_section, i, t, r) for i, (t, r) in enumerate(PAPER_SECTIONS)]
+        _futures = [_pool.submit(_gen_section, i, t, r) for i, (t, r) in enumerate(paper_sections)]
         _results = [f.result() for f in _futures]  # 任一章节失败 → 整体失败，保证论文完整
     _results.sort(key=lambda x: x[0])
     section_texts = [sec for _, sec in _results]
-    for i, (title, _req) in enumerate(PAPER_SECTIONS):
+    for i, (title, _req) in enumerate(paper_sections):
         _pub_event(
             task_id,
             "node_progress",

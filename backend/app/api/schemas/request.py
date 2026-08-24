@@ -50,7 +50,7 @@ class ApiKeyCreate(BaseModel):
     name: str
     key: str
     provider: str = "deepseek"
-    model_name: str = "deepseek-chat"
+    model_name: str = "deepseek-v4-flash"
     base_url: str = ""  # 留空则按 provider 预设推断
     purpose: str = "chat"  # chat=对话/流水线 | embedding=知识库向量
 

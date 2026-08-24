@@ -32,12 +32,12 @@ export const useLearningStore = defineStore("learning", () => {
       units: phase.units.map((u: LearningUnit) => ({
         id: u.unit_id,
         name: u.title,
+        // pending（未学）显示为可学态而非锁定——审查 P0-3：假锁会让 61 个单元
+        // 永远带锁图标、进度恒 0。真正的解锁顺序约束由路径阶段划分体现。
         status:
           u.status === "completed"
             ? ("completed" as const)
-            : u.status === "in_progress"
-              ? ("active" as const)
-              : ("locked" as const),
+            : ("active" as const),
         difficulty: u.difficulty,
       })),
     }));

@@ -52,7 +52,7 @@ class ApiKeyResponse(BaseModel):
     id: str
     name: str
     provider: str
-    model_name: str = "deepseek-chat"
+    model_name: str = "deepseek-v4-flash"
     masked_key: str
     is_default: bool = False
     base_url: str = ""

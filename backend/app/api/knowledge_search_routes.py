@@ -407,7 +407,7 @@ async def upload_knowledge(
                     raw_images.append(f"data:image/{mime};base64,{img_b64}")
                     text_parts.append(f"[图片附件] {f.filename}: 内容见视觉分析")
                 else:
-                    # 未配置视觉模型(默认 deepseek-chat 不支持 image_url),跳过图片
+                    # 未配置视觉模型(默认模型不支持 image_url),跳过图片
                     text_parts.append(
                         f"[图片附件] {f.filename}: 已跳过(未配置 KB_VISION_MODEL,模型不支持读图)"
                     )
@@ -798,7 +798,7 @@ async def _run_extraction(
 
         # 1. LLM extraction
         # 配置了 KB_VISION_MODEL 时用独立视觉模型(只用 .env key,不受活动 API Key 覆盖,
-        # 避免被 DeepSeek key 覆盖回纯文本模型);否则走 analysis 角色(默认 deepseek-chat)
+        # 避免被 DeepSeek key 覆盖回纯文本模型);否则走 analysis 角色(默认 deepseek-v4-flash)
         vision_model = settings.kb_vision_model.strip()
         vision_provider = ""
         if vision_model and raw_images:

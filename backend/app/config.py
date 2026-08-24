@@ -10,7 +10,7 @@ class LLMConfig(BaseSettings):
     """Configuration for a single LLM instance."""
 
     provider: Literal["anthropic", "openai"] = "openai"
-    model: str = "deepseek-chat"
+    model: str = "deepseek-v4-flash"
     api_key: str = ""
     base_url: str | None = None
     temperature: float = 0.3
@@ -43,15 +43,15 @@ class Settings(BaseSettings):
     kb_embedding_api_key: str = ""
 
     # ---- LLM Models (per agent role) ----
-    classifier_model: str = "deepseek-chat"
-    planner_model: str = "deepseek-chat"
-    analysis_model: str = "deepseek-chat"
-    modeling_model: str = "deepseek-chat"
-    solving_model: str = "deepseek-chat"
-    verification_model: str = "deepseek-chat"
-    writing_model: str = "deepseek-chat"
+    classifier_model: str = "deepseek-v4-flash"
+    planner_model: str = "deepseek-v4-flash"
+    analysis_model: str = "deepseek-v4-flash"
+    modeling_model: str = "deepseek-v4-flash"
+    solving_model: str = "deepseek-v4-flash"
+    verification_model: str = "deepseek-v4-flash"
+    writing_model: str = "deepseek-v4-flash"
     # 自由问答（纯对话，不走 LangGraph 流水线）
-    chat_model: str = "deepseek-chat"
+    chat_model: str = "deepseek-v4-flash"
 
     # ---- LLM Defaults ----
     default_temperature: float = 0.3
