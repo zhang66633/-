@@ -13,6 +13,16 @@ ROOT = Path(__file__).parent
 BACKEND_DIR = ROOT / "backend"
 FRONTEND_DIR = ROOT / "frontend"
 BACKEND_PORT = "8002"
+# uvicorn 装在项目 .venv 里,不在系统 PATH 上;必须用 .venv 的 python -m 方式启动
+VENV_PY = ROOT / ".venv" / "Scripts" / "python.exe"
+
+
+def press_any_key(msg: str) -> None:
+    """等待按键;stdin 被重定向(如 start.bat > log)时避免 EOFError 崩溃"""
+    try:
+        input(msg)
+    except EOFError:
+        pass
 
 
 def check_env() -> bool:
@@ -70,7 +80,7 @@ def main():
 
     # 1. Check .env
     if not check_env():
-        input("\n按任意键退出...")
+        press_any_key("\n按任意键退出...")
         return
 
     # 2. Check backend port
@@ -81,7 +91,7 @@ def main():
         start_process(
             "backend",
             BACKEND_DIR,
-            f"uvicorn app.main:app --host 127.0.0.1 --port {BACKEND_PORT} --workers 1 --limit-concurrency 64 --timeout-keep-alive 30",
+            f'"{VENV_PY}" -m uvicorn app.main:app --host 127.0.0.1 --port {BACKEND_PORT} --workers 1 --limit-concurrency 64 --timeout-keep-alive 30',
         )
         print("  等待后端就绪...")
         for _ in range(10):
@@ -106,7 +116,7 @@ def main():
     print("=" * 50)
     print()
     print("[tip] Docker 服务: docker compose up -d chromadb redis")
-    input("按任意键关闭此窗口...")
+    press_any_key("按任意键关闭此窗口...")
 
 
 if __name__ == "__main__":
