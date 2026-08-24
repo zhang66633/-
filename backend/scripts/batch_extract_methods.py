@@ -94,23 +94,27 @@ def split_chapters(text: str) -> list[tuple[str, str]]:
         # 跳过附录和目录
         if any(skip in chap_title for skip in ("附录", "参考", "目录")):
             continue
+        # 跳过目录页假章节：标题带 ……… 页码引导线或以纯数字结尾（如 "线性规划………1"）
+        if re.search(r"[…·]{3,}", chap_title) or re.search(r"\s\d{1,4}$", chap_title):
+            continue
         chapters.append((chap_title, content))
 
     return chapters
 
 
-def main(dry_run: bool = False, skip_embed: bool = False):
+def main(dry_run: bool = False, skip_embed: bool = False, pdf_path: Path | None = None):
+    pdf_path = pdf_path or PDF_PATH
     existing = existing_card_names()
     extractor = KBExtractor()
 
     print(f"已有方法卡片: {len(existing)} 张")
-    print(f"读取 PDF: {PDF_PATH}")
+    print(f"读取 PDF: {pdf_path}")
 
-    if not PDF_PATH.exists():
-        print(f"[FAIL] PDF 不存在: {PDF_PATH}")
+    if not pdf_path.exists():
+        print(f"[FAIL] PDF 不存在: {pdf_path}")
         return
 
-    pdf_data = PDF_PATH.read_bytes()
+    pdf_data = pdf_path.read_bytes()
     print(f"PDF 大小: {len(pdf_data)/1024:.0f} KB")
 
     text = extractor.extract_pdf_text(pdf_data, max_chars=999999)
@@ -199,5 +203,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--skip-embed", action="store_true")
+    parser.add_argument("--pdf", default=None, help="指定书籍 PDF 路径（默认：算法全收录800页）")
     args = parser.parse_args()
-    main(dry_run=args.dry_run, skip_embed=args.skip_embed)
+    main(
+        dry_run=args.dry_run,
+        skip_embed=args.skip_embed,
+        pdf_path=Path(args.pdf) if args.pdf else None,
+    )
