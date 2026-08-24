@@ -93,17 +93,27 @@ async def complete_unit(unit_id: str, req: UnitCompleteRequest):
         score=1.0,  # 标记完成视为满分
         created_at=datetime.utcnow(),
     )
-    tracker.update_from_event(req.user_id, event)
 
-    # 记录到成就系统 + 持久化(学习事件唯一事实源)
-    achievement_service = get_achievement_service()
-    achievement_service.add_event(event)
-    get_learning_store().add_event(
+    # 持久化（学习事件唯一事实源）→ 拿行 id 登记重放守卫 → 再入账实时掌握度。
+    # 原顺序是先入账后落库且无守卫，进度页重放时会双计（审查 P1）
+    row_id = get_learning_store().add_event(
         unit_id=unit_id,
         event_type="learn",
         score=1.0,
         user_id=req.user_id,
     )
+    guard = getattr(tracker, "_replayed_ids", None)
+    if guard is None:
+        guard = set()
+        tracker._replayed_ids = guard
+    if row_id is not None:
+        guard.add(row_id)
+
+    tracker.update_from_event(req.user_id, event)
+
+    # 记录到成就系统
+    achievement_service = get_achievement_service()
+    achievement_service.add_event(event)
 
     # 更新单元状态
     unit.status = UnitStatus.COMPLETED

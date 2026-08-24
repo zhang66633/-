@@ -28,8 +28,11 @@ RUN pip install --no-cache-dir \
     scipy \
     pandas \
     matplotlib \
+    seaborn \
     sympy \
     cvxpy \
+    openpyxl \
+    xlsxwriter \
     pytesseract \
     pdf2image \
     pillow \

@@ -174,6 +174,7 @@ const unitContext = computed(() => {
   const u = unit.value;
   if (!u) return undefined;
   return {
+    unit_id: u.unit_id,
     title: u.title,
     unit_type: u.type === "knowledge" ? "知识讲解" : "练习",
     difficulty: u.difficulty,

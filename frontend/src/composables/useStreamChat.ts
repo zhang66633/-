@@ -53,17 +53,40 @@ export function useStreamChat(
   onUnmounted(abortAllStreams);
   onDeactivated(abortAllStreams);
 
-  /** 当前会话消息 → 后端历史格式（仅 user/assistant，跳过流式中的空消息）。 */
+  /** 当前会话消息 → 后端历史格式（仅 user/assistant/clarify，跳过流式中的空消息）。 */
   function buildHistory(): ChatHistoryMessage[] {
-    return chatSession
-      .getActiveMessages(sessionMode)
-      .value.filter(
-        (m) => (m.msg_type === "user" || m.msg_type === "agent") && m.content,
-      )
-      .map((m) => ({
+    const out: ChatHistoryMessage[] = [];
+    for (const m of chatSession.getActiveMessages(sessionMode).value) {
+      if (!(m.msg_type === "user" || m.msg_type === "agent" || m.msg_type === "clarify")) continue;
+      if (!m.content) continue;
+      // 出错气泡不入历史：否则错误文案会污染后续轮次的语境
+      if (m.msg_type === "agent" && (m as { error?: boolean }).error === true) continue;
+      if (m.msg_type === "clarify") {
+        // 澄清卡转写为 assistant 历史——否则下一轮 LLM 不知道自己问过什么，
+        // 用户点选的孤立选项会变成无源头的答案（审查 P1）
+        let qs: Array<{ question?: string; options?: Array<{ label?: string }> }> = [];
+        try {
+          qs = JSON.parse(m.content as string);
+        } catch {
+          /* 解析失败按空处理 */
+        }
+        const text = qs
+          .map((q, i) => {
+            const opts = (q.options ?? [])
+              .map((o, j) => `   ${String.fromCharCode(65 + j)}. ${o.label ?? ""}`)
+              .join("\n");
+            return `${i + 1}. ${q.question ?? ""}${opts ? `\n${opts}` : ""}`;
+          })
+          .join("\n");
+        out.push({ role: "assistant", content: `[向用户提出澄清问题]\n${text}` });
+        continue;
+      }
+      out.push({
         role: m.msg_type === "user" ? "user" : "assistant",
         content: m.content as string,
-      }));
+      });
+    }
+    return out;
   }
 
   // 最近一次发送的载荷（供「重试」幂等复用：不追加用户气泡，只重跑流）
@@ -148,6 +171,16 @@ export function useStreamChat(
       files,
       unitContext,
       signal: controller.signal,
+      onCancelled() {
+        // 取消终态：气泡退出"生成中"；空内容给占位文案（审查 P1）
+        if (agentMsgId) {
+          chatSession.updateMessage(sessionMode, sessionId, agentMsgId, {
+            streaming: false,
+            content: acc || "（已取消）",
+          });
+        }
+        chatSession.setRunning(null);
+      },
       onDelta(delta) {
         acc += delta;
         const id = ensureAgentMsg();

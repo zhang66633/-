@@ -223,8 +223,9 @@ def _persist_task_files(
     temp_root = Path(tempfile.gettempdir()) / "mathmodel_outputs"
     session_mgr = get_session_manager()
 
-    def _persist(urls: list[str], file_type: str) -> list[str]:
+    def _persist(urls: list[str], file_type: str) -> tuple[list[str], dict[str, str]]:
         durable: list[str] = []
+        url_map: dict[str, str] = {}
         for url in urls:
             try:
                 parts = url.rstrip("/").split("/")
@@ -250,15 +251,23 @@ def _persist_task_files(
                     },
                 )
                 durable.append(durable_url)
+                # 旧临时 URL（/api/images/{run_id}/... 或 /api/task_files/{run_id}/...）
+                # → 持久 URL 映射，供最终报告整体改写（审查 P1：图片链接生命周期）
+                url_map[url] = durable_url
             except Exception:  # noqa: BLE001
                 continue
-        return durable
+        return durable, url_map
 
+    images, map_i = _persist(image_urls, "figure")
+    xlsx, map_x = _persist(xlsx_urls, "xlsx")
+    csv, map_c = _persist(csv_urls, "csv")
+    html, map_h = _persist(html_urls, "html")
     return {
-        "images": _persist(image_urls, "figure"),
-        "xlsx": _persist(xlsx_urls, "xlsx"),
-        "csv": _persist(csv_urls, "csv"),
-        "html": _persist(html_urls, "html"),
+        "images": images,
+        "xlsx": xlsx,
+        "csv": csv,
+        "html": html,
+        "url_map": {**map_i, **map_x, **map_c, **map_h},
     }
 
 

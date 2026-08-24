@@ -75,12 +75,14 @@ class LearningStore:
     ) -> None:
         with self._lock:
             with self._get_conn() as conn:
-                conn.execute(
+                cur = conn.execute(
                     "INSERT INTO learning_events(user_id, unit_id, event_type, score, created_at)"
                     " VALUES (?, ?, ?, ?, ?)",
                     (user_id, unit_id, event_type, score, created_at or _utcnow()),
                 )
                 conn.commit()
+                # 返回行 id：调用方据此登记掌握度重放守卫，防双计（审查 P1）
+                return cur.lastrowid
 
     def list_events(self, user_id: str = "default") -> list[dict]:
         with self._get_conn() as conn:

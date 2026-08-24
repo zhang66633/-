@@ -22,6 +22,20 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 
+def _smart_truncate(text: str, limit: int = 2000) -> str:
+    """截断保头+保尾。
+
+    stderr 的异常类型/行号在 traceback 末尾、stdout 的求解结果在打印末尾——
+    单纯保头会把最关键的信息切掉，LLM 自修复循环拿到的是文件头不是错误本体
+    （审查 P1）。头部保留少量上下文，尾部完整保留。
+    """
+    if len(text) <= limit:
+        return text
+    head_len = min(400, limit // 5)
+    tail_len = limit - head_len - 30
+    return f"{text[:head_len]}\n...(中间省略 {len(text) - head_len - tail_len} 字符)...\n{text[-tail_len:]}"
+
+
 def _dedupe_image_paths(paths: list[Path]) -> list[Path]:
     """按图片内容 MD5 去重。
 
@@ -428,8 +442,8 @@ class SandboxExecutor:
             html_files = sorted(output_subdir.glob("*.html"))
             return {
                 "success": proc.returncode == 0,
-                "stdout": stdout[:5000],
-                "stderr": stderr[:2000],
+                "stdout": _smart_truncate(stdout, 5000),
+                "stderr": _smart_truncate(stderr, 2000),
                 "returncode": proc.returncode,
                 "images": [str(img) for img in images],
                 "xlsx_files": [str(f) for f in xlsx_files],
@@ -589,8 +603,8 @@ class SandboxExecutor:
 
             return {
                 "success": proc.returncode == 0,
-                "stdout": stdout[:5000],
-                "stderr": stderr[:2000],
+                "stdout": _smart_truncate(stdout, 5000),
+                "stderr": _smart_truncate(stderr, 2000),
                 "returncode": proc.returncode,
                 "images": [str(img) for img in images],
                 "xlsx_files": [str(f) for f in xlsx_files],

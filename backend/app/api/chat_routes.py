@@ -45,23 +45,16 @@ MAX_HISTORY_MESSAGES = 20
 # 不会"戛然而止"——LLM 每轮只调一个工具时（如读 PDF 的渐进探索）仍有足够余量。
 MAX_TOOL_ITERATIONS = 5
 
-# ── Retriever 缓存（避免每请求重建 BM25 索引）──────────────────────
-_cached_retriever = None
-
 
 def _get_retriever():
-    """懒加载 + 缓存 HybridRetriever 实例（BM25 索引只建一次）。"""
-    global _cached_retriever
-    if _cached_retriever is None:
-        from ..config import get_settings
-        from ..knowledge.retriever import HybridRetriever
+    """懒加载 HybridRetriever。
 
-        settings = get_settings()
-        _cached_retriever = HybridRetriever(
-            kb_root=settings.kb_root,
-            persist_dir=settings.chroma_dir,
-        )
-    return _cached_retriever
+    复用 kb_tools 的全局单例——此前本处自建时漏传 embedding_provider，
+    与工具侧配置漂移（审查 P1），统一后单一真源。
+    """
+    from ..tools.kb_tools import get_retriever
+
+    return get_retriever()
 
 
 CHAT_SYSTEM_PROMPT = f"""# 数学建模助手
@@ -158,8 +151,73 @@ LEARNING_UNIT_CTX_TEMPLATE = """## 当前学习单元
 - 关联智能体: {primary_agent}
 - 预计学习时长: {estimated_minutes} 分钟
 
-请围绕以上单元内容展开教学。如果单元类型是"练习"，请主动出题并批改学生的答案。
+## 单元正文摘要（学生正在读的内容，讲解必须与此对齐）
+{content_digest}
+
+## 知识库关联卡片
+{kb_refs}
+
+{mastery_line}请围绕以上单元内容展开教学。如果单元类型是"练习"，请主动出题并批改学生的答案。
 如果单元类型是"知识讲解"，请系统性地讲解该知识点，并适时提问检验理解程度。"""
+
+
+# 前端角色名 → persona agent_id 映射（审查 P1：persona 此前从未进过 system message）
+_LEARN_AGENT_MAP = {"modeler": "modeling", "programmer": "solving", "writer": "writing"}
+
+
+def _build_learning_context(unit_context: dict) -> str:
+    """补全学习单元上下文：persona 前缀 + 单元正文 + 知识库引用 + 掌握度分层。"""
+    ctx = dict(unit_context)
+
+    # persona 接线：按单元主讲智能体取对应人设前缀
+    pid = _LEARN_AGENT_MAP.get(str(ctx.get("primary_agent", "")), "orchestrator")
+    try:
+        from .prompts.agent_personas import build_persona_prompt
+
+        persona_prefix = build_persona_prompt(pid, mode="teach") + "\n\n"
+    except Exception:
+        persona_prefix = ""
+
+    ctx.setdefault("content_digest", "（本单元暂无正文文档）")
+    ctx.setdefault("kb_refs", "（无）")
+    ctx.setdefault("mastery_line", "")
+
+    uid = str(ctx.get("unit_id") or "")
+    if uid:
+        try:
+            from ..learning.mastery_tracker import get_mastery_tracker
+            from ..learning.path_generator import get_unit_detail
+
+            u = get_unit_detail(uid)
+            if u is not None:
+                digest = (u.content_md or "").strip()
+                ctx["content_digest"] = (
+                    digest[:1800] + ("…（正文过长已截断）" if len(digest) > 1800 else "")
+                ) or "（本单元暂无正文文档）"
+                refs = [f"- {k}: {v}" for k, v in (u.kb_refs or {}).items() if v]
+                if refs:
+                    ctx["kb_refs"] = "\n".join(refs)
+                # 因材施教：按掌握度分层调整引导深度（审查 P1：level 参数曾全部悬空）
+                try:
+                    mastery = get_mastery_tracker().get_role_overall(
+                        "default", u.tags or [uid]
+                    )
+                except Exception:
+                    mastery = None
+                if mastery is not None and mastery >= 0.6:
+                    ctx["mastery_line"] = (
+                        f"学生对本单元掌握度较高（{mastery:.0%}）：减少铺垫，直接用挑战性"
+                        "问题推进，允许更快节奏和更深延伸。\n"
+                    )
+                elif mastery is not None and mastery <= 0.3:
+                    ctx["mastery_line"] = (
+                        f"学生对本单元掌握度较低（{mastery:.0%}）：多用类比和分步铺垫，"
+                        "每个概念先给直观解释再给形式化表述，多鼓励少纠错。\n"
+                    )
+        except Exception:
+            pass
+
+    return persona_prefix + LEARNING_UNIT_CTX_TEMPLATE.format(**ctx)
 
 
 def _system_prompt(mode: str, unit_context: dict | None = None) -> str:
@@ -168,7 +226,7 @@ def _system_prompt(mode: str, unit_context: dict | None = None) -> str:
     if mode == "learning":
         prompt = LEARNING_SYSTEM_PROMPT
         if unit_context:
-            prompt += "\n\n" + LEARNING_UNIT_CTX_TEMPLATE.format(**unit_context)
+            prompt += "\n\n" + _build_learning_context(unit_context)
         return prompt
     return CHAT_SYSTEM_PROMPT
 

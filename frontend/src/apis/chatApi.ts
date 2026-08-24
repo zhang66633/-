@@ -75,6 +75,8 @@ export interface StreamChatOptions {
   onDone?: (taskId?: string) => void;
   /** 出错回调（网络错误或服务端 error 帧） */
   onError?: (message: string) => void;
+  /** 用户取消（AbortError）时回调——必须给气泡一个终态，否则永久卡"生成中"（审查 P1） */
+  onCancelled?: () => void;
   /** 可选：外部中止 */
   signal?: AbortSignal;
   useRag?: boolean;
@@ -129,6 +131,7 @@ export async function streamChat(
     onThinking,
     onDone,
     onError,
+    onCancelled,
     signal,
     useRag = false,
     mode = "chat",
@@ -161,7 +164,10 @@ export async function streamChat(
       signal,
     });
   } catch (e: unknown) {
-    if (e instanceof DOMException && e.name === "AbortError") return;
+    if (e instanceof DOMException && e.name === "AbortError") {
+      onCancelled?.();
+      return;
+    }
     const msg = e instanceof Error ? e.message : String(e);
     onError?.(`网络错误，无法连接后端：${msg}`);
     return;
@@ -241,9 +247,11 @@ export async function streamChat(
     }
     onDone?.(finalTaskId);
   } catch (e: unknown) {
-    if (!(e instanceof DOMException && e.name === "AbortError")) {
-      const msg = e instanceof Error ? e.message : String(e);
-      onError?.(`流读取中断：${msg}`);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      onCancelled?.();
+      return;
     }
+    const msg = e instanceof Error ? e.message : String(e);
+    onError?.(`流读取中断：${msg}`);
   }
 }

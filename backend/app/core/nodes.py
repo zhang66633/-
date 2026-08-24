@@ -101,6 +101,28 @@ def classify_problem(state: AgentState) -> dict:
     # 解析 JSON 输出
     result = _extract_json(str(response.content))
 
+    # 枚举白名单校验（审查 P1）：解析失败返回 {} 或 LLM 给出中文等非法值时，
+    # 原实现静默放行 → 标签检索整体跳过、planner 拿到空类型。
+    # 非法值降级为安全默认；不重试（分类成本低、下游有兜底）。
+    _VALID_TYPES = {
+        "optimization", "prediction", "evaluation", "classification", "fitting",
+        "graph_theory", "game_theory", "queueing", "differential_equation", "composite",
+    }
+    _VALID_COMPLEXITY = {"simple", "composite", "innovative"}
+    _VALID_DEP = {"theoretical", "given_data", "self_collect"}
+    _ptype = str(result.get("problem_type", "")).strip().lower()
+    if _ptype not in _VALID_TYPES:
+        _ptype = "composite"  # 综合类最安全：检索与规划都不会走进死胡同
+    _cx = str(result.get("problem_complexity", "")).strip().lower()
+    if _cx not in _VALID_COMPLEXITY:
+        _cx = "simple"
+    _dep = str(result.get("data_dependency", "")).strip().lower()
+    if _dep not in _VALID_DEP:
+        _dep = "theoretical"
+    result["problem_type"] = _ptype
+    result["problem_complexity"] = _cx
+    result["data_dependency"] = _dep
+
     _pub_event(
         task_id,
         "node_end",
@@ -160,6 +182,8 @@ def retrieve_knowledge(state: AgentState) -> dict:
     problems: list[dict] = []
 
     problem_type = state["problem_type"]
+    # 审查 P1：真题附件挂载门槛——仅当分类器判定本题依赖给定数据时才允许
+    data_dependency = str(state.get("data_dependency") or "theoretical")
 
     if problem_type:
         # 标签过滤 — 精确匹配
@@ -200,6 +224,9 @@ def retrieve_knowledge(state: AgentState) -> dict:
             )
 
         for prob in loader.get_problems_by_type(problem_type):
+            # 审查 P1：只有用户题本身依赖给定数据时，历史真题的附件才有被
+            # 挂载的意义；其余情况仅作参考信息，剥离附件防误挂
+            prob_data_files = prob.data_files if data_dependency == "given_data" else []
             pc = f"{prob.title} [{prob.year} {prob.competition} {prob.problem_id}] {prob.background[:300]}"
             problems.append(
                 {
@@ -211,7 +238,7 @@ def retrieve_knowledge(state: AgentState) -> dict:
                     "background": prob.background[:300],
                     "objectives": prob.objectives,
                     "data_description": prob.data_description,
-                    "data_files": prob.data_files,
+                    "data_files": prob_data_files,
                     "page_content": pc[:500],
                 }
             )
@@ -265,6 +292,9 @@ def retrieve_knowledge(state: AgentState) -> dict:
                     }
                 )
             elif meta.get("type") == "problem":
+                # 审查 P1：语义近邻≠题目相关。语义路径命中的历史真题一律
+                # 不携带 data_files——否则自定义题会误挂别人的数据集进沙箱。
+                # （data_files 仅保留在下方 tag 精确匹配且 data_dependency==given_data 的路径）
                 problems.append(
                     {
                         "id": meta.get("id"),
@@ -275,7 +305,7 @@ def retrieve_knowledge(state: AgentState) -> dict:
                         "background": "",
                         "objectives": [],
                         "data_description": meta.get("data_description", ""),
-                        "data_files": meta.get("data_files", []),
+                        "data_files": [],
                         "page_content": doc.page_content[:500],
                     }
                 )
@@ -419,9 +449,23 @@ def plan_execution(state: AgentState) -> dict:
 
     plan = _extract_json(str(response.content))
 
-    # 确保返回的是字符串列表
+    # 白名单过滤：planner 幻觉出非法步骤名时，路由会 get(step, "format_response")
+    # 静默跳到收尾、丢弃其后全部步骤——含写作（审查 P1）。
+    # 未知步骤剔除；剔空则回退默认计划。
+    _VALID_STEPS = {
+        "analysis", "modeling", "data_preprocessing", "solving",
+        "verification", "export_results", "writing",
+    }
     if isinstance(plan, list) and all(isinstance(x, str) for x in plan):
-        execution_plan: list[str] = plan
+        cleaned = [x.strip() for x in plan if x.strip() in _VALID_STEPS]
+        if not cleaned:
+            cleaned = ["analysis", "modeling", "solving", "verification", "writing"]
+        # 程序化修正：首步必须 analysis（下游依赖其输出），末步必须 writing
+        if cleaned[0] != "analysis":
+            cleaned.insert(0, "analysis")
+        if cleaned[-1] != "writing":
+            cleaned.append("writing")
+        execution_plan = cleaned
     else:
         # 默认计划
         execution_plan = ["analysis", "modeling", "solving", "verification", "writing"]
@@ -708,9 +752,13 @@ def solving_agent_node(state: AgentState) -> dict:
     system_prompt = SOLVING_TOOL_SYSTEM_PROMPT.format(
         model_info=model_text, data_files_section=data_files_section
     )
+    # EDA 结论注入求解侧（审查 P1：preprocessed_data 曾是悬空字段，EDA 结论被丢弃）
+    _eda = (state.get("preprocessed_data") or "").strip()
+    eda_block = f"\n## 数据预处理结论（EDA）\n{_eda[:3000]}\n" if _eda else ""
     user_prompt = SOLVING_TOOL_USER_TEMPLATE.format(
         problem=state["problem_raw"],
         model=model_text,
+        eda_block=eda_block,
     )
     messages = [
         SystemMessage(content=system_prompt),
@@ -733,7 +781,12 @@ def solving_agent_node(state: AgentState) -> dict:
     MAX_TOOL_RESULT_CHARS = 12000
 
     def _truncate_tool_result(result_text: str, tool_name: str) -> str:
-        """截断超长工具结果，完整内容写入磁盘（借鉴 cc-haha）。"""
+        """截断超长工具结果，完整内容写入磁盘（借鉴 cc-haha）。
+
+        错误段保护：interaction_tools 把「错误：…」拼在结果末尾，
+        头部截断会把错误整体切掉——LLM 看到失败却看不到原因（审查 P1）。
+        截断后无条件回追错误段。
+        """
         if len(result_text) <= MAX_TOOL_RESULT_CHARS:
             return result_text
         import uuid as _uuid
@@ -743,11 +796,20 @@ def solving_agent_node(state: AgentState) -> dict:
             persist_path.write_text(result_text, encoding="utf-8")
         except Exception:
             pass
-        return (
-            result_text[:MAX_TOOL_RESULT_CHARS]
-            + f"\n\n…（结果已截断，共 {len(result_text)} 字符。"
-            + f"完整结果已保存至 {persist_path}）"
+        kept = result_text[:MAX_TOOL_RESULT_CHARS]
+        note = (
+            f"\n\n…（结果已截断，共 {len(result_text)} 字符。完整结果已保存至 {persist_path}）"
         )
+        # 回追错误段（截断点之后的所有以「错误」开头的行及其后续缩进行）
+        err_lines: list[str] = []
+        for ln in result_text[MAX_TOOL_RESULT_CHARS:].splitlines():
+            if ln.lstrip().startswith(("错误", "error", "Error", "ERROR")) or (
+                err_lines and (ln.startswith((" ", "\t")) )
+            ):
+                err_lines.append(ln)
+        if err_lines:
+            kept = kept.rstrip() + "\n\n" + "\n".join(err_lines[-30:])
+        return kept + note
 
     for _ in range(max_rounds):
         _check_cancelled(task_id)
@@ -847,7 +909,11 @@ def solving_agent_node(state: AgentState) -> dict:
         # 其余工具并行（每工具独立超时；超时仅放弃等待，不杀线程——与 chat 一致）
         others = [tc for tc in tool_calls if tc.get("name") != "run_code"]
         if others:
-            with ThreadPoolExecutor(max_workers=min(4, len(others))) as _pool:
+            # 不用 with：__exit__ 的 shutdown(wait=True) 会无限 join 已超时放弃的
+            # 卡死线程，把整个编排器拖住（审查 P1「超时是假象」）。
+            # wait=False 立即返回；cancel_futures 取消队列里尚未开跑的任务。
+            _pool = ThreadPoolExecutor(max_workers=min(4, len(others)))
+            try:
                 _futs: dict[str, tuple] = {
                     tool_call_id(tc, tc.get("name")): (_pool.submit(_run_one, tc), tc.get("name"))
                     for tc in others
@@ -864,6 +930,8 @@ def solving_agent_node(state: AgentState) -> dict:
                             "duration_ms": int(tool_timeout(tool_name) * 1000),
                         }
                     results[tc_id] = (text, meta)
+            finally:
+                _pool.shutdown(wait=False, cancel_futures=True)
 
         # ── 结果事件回灌（按 LLM 原始顺序，id 回声）──
         for tc in tool_calls:
@@ -939,13 +1007,19 @@ def solving_agent_node(state: AgentState) -> dict:
         final_output = str(fallback.content)
 
     # 图表和文件持久化到任务文件区（临时目录可能被系统清理）
-    _persist_task_files(
+    persisted = _persist_task_files(
         task_id,
         image_urls=all_images,
         xlsx_urls=all_xlsx,
         csv_urls=all_csv,
         html_urls=all_html,
     )
+    # 临时 run_id URL → 持久 task_id URL 整体改写：
+    # 论文/写作素材只保留永久链接，否则 24h 清理后论文图必裂（审查 P1）
+    url_map: dict = persisted.get("url_map") or {}
+    if url_map and final_output:
+        for _old, _new in url_map.items():
+            final_output = final_output.replace(_old, _new)
 
     _pub_event(
         task_id,
@@ -1243,6 +1317,9 @@ def writing_agent_node(state: AgentState) -> dict:
     materials = {
         "problem": state["problem_raw"],
         "analysis": state.get("analysis_output", "无"),
+        # EDA 结论注入大纲与分章模板（审查 P1：preprocessed_data 曾是悬空字段）
+        "preprocessed": (state.get("preprocessed_data") or "").strip()[:3000]
+        or "（本题无数据预处理环节）",
         "model": state.get("model_output", "无"),
         "solving": state.get("solving_output", "无"),
         "verification": state.get("verification_output", "无"),
@@ -1562,7 +1639,11 @@ def data_preprocessing_agent_node(state: AgentState) -> dict:
 
         others = [tc for tc in tool_calls if tc.get("name") != "run_code"]
         if others:
-            with ThreadPoolExecutor(max_workers=min(4, len(others))) as _pool:
+            # 不用 with：__exit__ 的 shutdown(wait=True) 会无限 join 已超时放弃的
+            # 卡死线程，把整个编排器拖住（审查 P1「超时是假象」）。
+            # wait=False 立即返回；cancel_futures 取消队列里尚未开跑的任务。
+            _pool = ThreadPoolExecutor(max_workers=min(4, len(others)))
+            try:
                 _futs: dict[str, tuple] = {
                     tool_call_id(tc, tc.get("name")): (_pool.submit(_run_one, tc), tc.get("name"))
                     for tc in others
@@ -1579,6 +1660,8 @@ def data_preprocessing_agent_node(state: AgentState) -> dict:
                             "duration_ms": int(tool_timeout(tool_name) * 1000),
                         }
                     results[tc_id] = (text, meta)
+            finally:
+                _pool.shutdown(wait=False, cancel_futures=True)
 
         for tc in tool_calls:
             tc_id = tool_call_id(tc, tc.get("name"))
@@ -1629,8 +1712,10 @@ def data_preprocessing_agent_node(state: AgentState) -> dict:
         _log_usage(task_id, "preprocessing_fallback", fallback)
         final_output = str(fallback.content)
 
-    # 持久化 EDA 图表
-    _persist_task_images(task_id, all_images)
+    # 持久化 EDA 图表，并把报告里的临时 run_id URL 改写为持久链接
+    _persisted = _persist_task_files(task_id, image_urls=all_images)
+    for _old, _new in (_persisted.get("url_map") or {}).items():
+        final_output = final_output.replace(_old, _new)
 
     _pub_event(
         task_id,

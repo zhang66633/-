@@ -467,7 +467,8 @@ export const useChatSessionStore = defineStore(
         if (p[key] !== null && p[key] !== undefined) msg[key] = p[key];
       }
       if (p.answered) msg.answered = true;
-      if (p.streaming) msg.streaming = true;
+      // 不恢复 streaming 标记：能从持久化里读出来的流必然已死，
+      // 恢复它会让旧气泡刷新后永久卡在"生成中"（审查 P1）
       return msg as unknown as Message;
     }
 
