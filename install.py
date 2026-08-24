@@ -146,13 +146,16 @@ def main() -> None:
     log("  也可以编辑 backend\\.env 填 OPENAI_API_KEY。")
     log("=" * 46)
 
-    try:
-        import msvcrt
-        log("")
-        log("按任意键退出...")
-        msvcrt.getch()
-    except (ImportError, OSError, EOFError):
-        pass
+    # 仅控制台(双击运行)时等待按键；stdout 被重定向时 msvcrt.getch 会
+    # 阻塞整个安装流程(无控制台可读),必须跳过
+    if sys.stdout.isatty():
+        try:
+            import msvcrt
+            log("")
+            log("按任意键退出...")
+            msvcrt.getch()
+        except (ImportError, OSError, EOFError):
+            pass
 
 
 if __name__ == "__main__":
