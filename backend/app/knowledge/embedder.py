@@ -89,6 +89,12 @@ class KBEmbedder:
                     model=emb_model,
                     api_key=emb_key,
                     base_url=emb_url,
+                    # 默认 True 时 langchain 会先用 tiktoken 把文本切成 token-ID
+                    # 数组再发请求（OpenAI 专属行为），非 OpenAI 网关会报
+                    # 「input must be an array of strings」。False = 直接发原文字符串。
+                    check_embedding_ctx_length=False,
+                    # 百炼工作空间网关限制单批 ≤20 条输入，langchain 默认批量远超
+                    chunk_size=16,
                 )
             else:
                 # 延迟失败：构造不报错，检索时自动回退关键词；reindex 时才提示
