@@ -169,7 +169,7 @@ async function handleGithubLogin() {
     // 如果是网络错误，给更明确的提示
     if (!err?.response) {
       setupError.value =
-        "无法连接后端，请确认后端已启动 (http://localhost:8000)";
+        "无法连接后端，请确认后端已启动 (http://localhost:8002)";
     } else {
       setupError.value = msg;
     }

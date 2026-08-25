@@ -4,7 +4,10 @@ import { resolve } from "path";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "VITE_");
-  const backendPort = env.VITE_BACKEND_PORT || "8000";
+  // 默认 8002 对齐 start.py/后端 .env 的 PORT=8002:
+  // 新克隆无本地 frontend/.env(被 gitignore)时,回落 8000 会让所有 /api 请求 500,
+  // 前端表现为「后端没启动」——评委双击 start.bat 必踩
+  const backendPort = env.VITE_BACKEND_PORT || "8002";
 
   return {
     plugins: [vue()],

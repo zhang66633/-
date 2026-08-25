@@ -404,7 +404,7 @@ data: {"error": "错误信息"}\n\n
 | marked + katex | Markdown 渲染 + 数学公式 |
 | axios | 非流式 API 请求 |
 
-包管理: pnpm。dev server 端口 5174，代理 `/api` → `localhost:8000`。
+包管理: pnpm。dev server 端口 5174，代理 `/api` → `localhost:8002`。
 
 ### 8.4 API 端点清单
 
