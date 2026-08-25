@@ -57,14 +57,25 @@ export function useStreamChat(
   function buildHistory(): ChatHistoryMessage[] {
     const out: ChatHistoryMessage[] = [];
     for (const m of chatSession.getActiveMessages(sessionMode).value) {
-      if (!(m.msg_type === "user" || m.msg_type === "agent" || m.msg_type === "clarify")) continue;
+      if (
+        !(
+          m.msg_type === "user" ||
+          m.msg_type === "agent" ||
+          m.msg_type === "clarify"
+        )
+      )
+        continue;
       if (!m.content) continue;
       // 出错气泡不入历史：否则错误文案会污染后续轮次的语境
-      if (m.msg_type === "agent" && (m as { error?: boolean }).error === true) continue;
+      if (m.msg_type === "agent" && (m as { error?: boolean }).error === true)
+        continue;
       if (m.msg_type === "clarify") {
         // 澄清卡转写为 assistant 历史——否则下一轮 LLM 不知道自己问过什么，
         // 用户点选的孤立选项会变成无源头的答案（审查 P1）
-        let qs: Array<{ question?: string; options?: Array<{ label?: string }> }> = [];
+        let qs: Array<{
+          question?: string;
+          options?: Array<{ label?: string }>;
+        }> = [];
         try {
           qs = JSON.parse(m.content as string);
         } catch {
@@ -73,12 +84,17 @@ export function useStreamChat(
         const text = qs
           .map((q, i) => {
             const opts = (q.options ?? [])
-              .map((o, j) => `   ${String.fromCharCode(65 + j)}. ${o.label ?? ""}`)
+              .map(
+                (o, j) => `   ${String.fromCharCode(65 + j)}. ${o.label ?? ""}`,
+              )
               .join("\n");
             return `${i + 1}. ${q.question ?? ""}${opts ? `\n${opts}` : ""}`;
           })
           .join("\n");
-        out.push({ role: "assistant", content: `[向用户提出澄清问题]\n${text}` });
+        out.push({
+          role: "assistant",
+          content: `[向用户提出澄清问题]\n${text}`,
+        });
         continue;
       }
       out.push({
