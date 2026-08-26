@@ -22,11 +22,11 @@ async def task_websocket(websocket: WebSocket, task_id: str, token: str = Query(
     Subscribes to Redis Pub/Sub channel ``task:{task_id}`` and forwards
     every published event to the connected frontend client.
     """
-    # ── 鉴权：校验 token ──
-    user = decode_jwt(token) if token else None
-    if user is None:
-        await websocket.close(code=4001, reason="未认证：请提供有效 token")
-        return
+    # ── 鉴权（访客放行）──
+    # 原实现强制 JWT：未登录访客连 WS 都建立不了，可经 REST /messages 看结果
+    # 却看不到任何实时过程——方案页全程空白（本轮实测复现的断点）。
+    # REST 侧本就无认证，故这里对缺失/非法 token 一律按访客放行。
+    _ = decode_jwt(token) if token else None
 
     await websocket.accept()
     settings = get_settings()

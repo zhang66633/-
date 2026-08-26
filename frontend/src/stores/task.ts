@@ -605,17 +605,14 @@ export const useTaskStore = defineStore("task", () => {
     completed.value = false;
     currentStep.value = "";
 
-    // 未登录（无 token）：不发起无认证连接，避免 401 握手失败 + 重连刷屏。
-    // 登录后由下方 watch(auth.token) 自动恢复连接。
+    // 访客也连接：后端 /api/ws 已放行无 token 订阅（此前访客被静默跳过，
+    // 方案页看不到任何实时过程——实测复现）。有 token 才附加；无 token 裸连。
     const token = localStorage.getItem("mma:token") || "";
-    if (!token) {
-      wsStatus.value = "disconnected";
-      return;
-    }
-
     const baseUrl =
       import.meta.env.VITE_WS_URL || `ws://${window.location.host}/api/ws`;
-    const wsUrl = `${baseUrl}/task/${taskId}?token=${encodeURIComponent(token)}`;
+    const wsUrl = token
+      ? `${baseUrl}/task/${taskId}?token=${encodeURIComponent(token)}`
+      : `${baseUrl}/task/${taskId}`;
 
     ws = new TaskWebSocket(
       wsUrl,
@@ -625,6 +622,21 @@ export const useTaskStore = defineStore("task", () => {
       },
     );
     ws.connect();
+
+    // REST 回放：pub/sub 无回放缓冲，晚订阅会丢连接前已发布的事件——
+    // 拉取持久化事件流按序重建，让访客/晚到者也能看到完整过程
+    void (async () => {
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/events?limit=500`);
+        if (!res.ok) return;
+        const data = await res.json();
+        for (const ev of data.events ?? []) {
+          handleProgressEvent(taskId, ev as WsEvent);
+        }
+      } catch {
+        // 回放失败不阻断实时连接
+      }
+    })();
   }
 
   // 登录后自动恢复当前任务的 WS 连接（无 token 时被跳过的场景）
