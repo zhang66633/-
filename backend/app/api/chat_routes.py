@@ -272,73 +272,16 @@ def _sse(d: dict) -> str:
     return f"data: {json.dumps(d, ensure_ascii=False)}\n\n"
 
 
-async def _stream_solution(req: ChatRequest, api_key_config: dict | None = None):
-    """方案模式 — 走全流程 LangGraph 管道，SSE 推送进度 + 最终输出。"""
-    user_msgs = [m.content for m in req.messages if m.role == "user"]
-    problem = user_msgs[-1] if user_msgs else ""
-    if not problem:
-        yield _sse({"error": "请输入问题描述"})
-        yield "data: [DONE]\n\n"
-        return
-
-    import uuid
-
-    task_id = str(uuid.uuid4())[:8]
-
-    from ..core.state import create_initial_state
-    from ..core.workflow import get_orchestrator
-
-    state = create_initial_state(problem_raw=problem, mode="execute", session_id=task_id)
-    if api_key_config:
-        state["api_key_config"] = api_key_config
-
-    orchestrator = get_orchestrator()
-
-    yield _sse({"event": "node_start", "node": "pipeline", "data": {"task_id": task_id}})
-
-    try:
-        result = await asyncio.to_thread(orchestrator.invoke, state, {"recursion_limit": 50})
-    except Exception as e:
-        yield _sse({"error": f"编排器运行失败: {str(e)}"})
-        yield "data: [DONE]\n\n"
-        return
-
-    final = (
-        result.get("final_response", "")
-        or result.get("writing_output", "")
-        or "（未生成内容，请重试）"
-    )
-    writing = result.get("writing_output", "")
-    model_output = result.get("model_output", "")
-
-    # 拆分各部分供前端展示
-    yield _sse(
-        {
-            "event": "pipeline_done",
-            "task_id": task_id,
-            "has_paper": bool(writing),
-            "summary": f"分析: {len(result.get('analysis_output', ''))}字 / 建模: {len(model_output)}字 / 求解: {len(result.get('solving_output', ''))}字 / 论文: {len(writing)}字",
-        }
-    )
-
-    # Stream final output as delta chunks
-    chunk_size = 150
-    for i in range(0, len(final), chunk_size):
-        yield _sse({"delta": final[i : i + chunk_size]})
-        await asyncio.sleep(0.03)
-
-    yield _sse({"done": True, "task_id": task_id, "mode": "solution"})
-    yield "data: [DONE]\n\n"
+# 注：不再保留 _stream_solution —— ChatRequest.mode 只允许
+#   Literal["chat","teach","learning"]（见 schemas/request.py），frontend 也从不向
+#   /chat 发 mode="solution"（方案页走 tasks API 的 createTask(_run_orchestrator)）。
+#   旧的 solution 分支不可达：Pydantic 在校验阶段就以 422 拒绝 mode="solution"，
+#   而 `orchestrator.invoke` 这条路径无进度事件、无取消、task_id 也不入 session，
+#   属于无保障的第二入口，保留只会误导后续开发。
 
 
 async def _event_stream(req: ChatRequest, api_key_config: dict | None = None):
     """SSE 生成器：流式输出 LLM 增量，并在 LLM 调用工具时通知前端。"""
-    # ── solution 模式走 LangGraph 管道 ──
-    if req.mode == "solution":
-        async for frame in _stream_solution(req, api_key_config):
-            yield frame
-        return
-
     try:
         llm = LLMFactory.create("chat", api_key_config=api_key_config)
         # 合并所有工具: KB 检索 + 数学计算 + 交互（ask_user / run_code）+ Web 搜索
