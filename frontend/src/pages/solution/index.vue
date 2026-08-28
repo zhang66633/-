@@ -339,6 +339,12 @@ const agentSteps = computed<ProgressStep[]>(() => {
     }
 
     let description = meta.description;
+    // 优先显示 planner 为这步给出的真实理由（方案思考，审查 C1），而非写死描述
+    const planReason = taskStore.planReasons[key];
+    if (planReason) {
+      description =
+        planReason.length > 60 ? `${planReason.slice(0, 60)}…` : planReason;
+    }
     if (key === "writing" && status === "active") {
       description = writingDescription.value;
     }

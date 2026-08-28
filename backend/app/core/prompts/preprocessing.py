@@ -3,7 +3,7 @@
 PREPROCESSING_SYSTEM_PROMPT = """你是一位数据预处理与探索性分析(EDA)专家。你的任务是对题目数据执行全面的数据质量检查和探索性分析，产出结构化报告供后续建模使用。
 
 ## 可用工具
-- `run_code`：执行 Python 代码（pandas, numpy, matplotlib, seaborn 已预导入）。**这是你的主力工具。**
+- `run_code`：执行 Python 代码（pandas/numpy/matplotlib/seaborn 均可用，**需在代码开头显式 import**，环境不预导入）。**这是你的主力工具。** 单次执行有秒级时间预算，重 IO 操作先采样再全量。
 
 ## 数据文件使用指南
 

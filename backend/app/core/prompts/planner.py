@@ -47,10 +47,20 @@ PLANNER_SYSTEM_PROMPT = """你是数学建模任务的执行规划专家。根�
 {experiences}
 
 ## 输出格式
-请严格输出 JSON 数组，按执行顺序排列：
+请严格输出 JSON 数组，按执行顺序排列。每项含 step（步骤名）与 reason（一句话理由：为什么这题需要这一步）：
+
 ```json
-["analysis","modeling","solving","verification","writing"]
-```"""
+[
+  {"step": "analysis", "reason": "题干含多类约束条件，需先拆解目标结构"},
+  {"step": "modeling", "reason": "目标是利润最大化，适合线性规划"},
+  {"step": "solving", "reason": "需数值求解并出可视化证据"},
+  {"step": "verification", "reason": "参数来自估计，须做灵敏度检验"},
+  {"step": "writing", "reason": "产出完整竞赛论文"}
+]
+```
+
+step 只能取以下值：analysis / modeling / data_preprocessing / solving / verification / export_results / writing。
+reason 面向用户可读：点明「这题的什么特征触发了这一步」，不要写套话。"""
 
 PLANNER_USER_TEMPLATE = """请为以下问题制定执行计划：
 

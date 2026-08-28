@@ -109,7 +109,11 @@ def _make_preexec_fn(max_memory_mb: int, timeout: int):
         # 真实内存上限由 _run_subprocess 的 psutil 进程树 RSS 监控守护
         va_bytes = max_memory_mb * 4 * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_AS, (va_bytes, va_bytes))
-        resource.setrlimit(resource.RLIMIT_CPU, (timeout, timeout))
+        # RLIMIT_CPU 按 CPU 时间计：BLAS 双线程下约 30s 墙钟就能烧掉 60s CPU
+        # 预算，进程被 SIGXCPU 杀掉且 stderr 可能为空——上游误判成功（审查 A）。
+        # 墙钟主限由 communicate(timeout=...) 把关，这里只做慷慨兜底。
+        cpu_budget = timeout * 2 + 30
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_budget, cpu_budget))
         file_limit = 50 * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_FSIZE, (file_limit, file_limit))
         # 必须允许线程：OpenBLAS/matplotlib 要起工作线程；硬进程隔离靠 docker 模式
@@ -389,11 +393,25 @@ class SandboxExecutor:
                 stdout, stderr = proc.communicate(timeout=self.timeout)
             except subprocess.TimeoutExpired:
                 _kill_tree()
-                proc.communicate()
+                # 回传超时前的部分输出（审查 A3）：旧实现丢弃 communicate()
+                # 的返回值，LLM 自修复循环拿不到任何中间结果，只能盲猜。
+                try:
+                    stdout, stderr = proc.communicate(timeout=5)
+                except Exception:
+                    stdout, stderr = "", ""
+                partial = _smart_truncate(stdout or "", 3000)
                 return {
                     "success": False,
-                    "stdout": "",
-                    "stderr": f"执行超时 ({self.timeout}秒)",
+                    "stdout": partial,
+                    "stderr": (
+                        f"执行超时 ({self.timeout}秒)，进程已被终止。"
+                        + (
+                            "以下是超时前已产生的部分输出，请据此拆分任务规模/迭代次数后重试：\n"
+                            + _smart_truncate(stderr or "", 1000)
+                            if stderr
+                            else "请把计算拆小（降低规模/迭代上限/采样）后重试，原样重跑只会再次超时。"
+                        )
+                    ),
                     "returncode": -1,
                     "images": [],
                     "xlsx_files": [],
@@ -542,10 +560,11 @@ class SandboxExecutor:
                 except Exception:
                     pass
 
-            # 轮询等待：超时 / 取消 → 中断容器（Docker 启动需额外时间，预算 +10s）
+            # 轮询等待：超时 / 取消 → 中断容器。Docker Desktop 冷启动/镜像层
+            # 加载常超 10s，宽限给足（审查 A2），否则「启动慢」也被记成代码超时
             import time as _time
 
-            deadline = _time.monotonic() + self.timeout + 10
+            deadline = _time.monotonic() + self.timeout + 25
             cancelled = False
             while proc.poll() is None:
                 if cancel_event is not None and cancel_event.is_set():
@@ -592,12 +611,29 @@ class SandboxExecutor:
                 return {
                     "success": False,
                     "stdout": "",
-                    "stderr": f"执行超时 ({self.timeout}秒)",
+                    "stderr": (
+                        f"执行超时 ({self.timeout}秒)，容器已被终止。"
+                        "请把计算拆小（降低规模/迭代上限/采样）后重试，原样重跑只会再次超时。"
+                    ),
                     "returncode": -1,
                     "images": [],
                     "xlsx_files": [],
                     "csv_files": [],
                     "html_files": [],
+                    "run_id": run_id,
+                }
+
+            if proc.returncode != 0 and "执行超时" in (stderr or ""):
+                # wrapper 侧报告的代码超时：透传部分 stdout 供自修复参考（审查 A3）
+                return {
+                    "success": False,
+                    "stdout": _smart_truncate(stdout or "", 3000),
+                    "stderr": _smart_truncate(stderr, 2000),
+                    "returncode": proc.returncode,
+                    "images": [str(img) for img in images],
+                    "xlsx_files": [str(f) for f in xlsx_files],
+                    "csv_files": [str(f) for f in csv_files],
+                    "html_files": [str(f) for f in html_files],
                     "run_id": run_id,
                 }
 

@@ -88,24 +88,28 @@ class ProgressEvent:
         node: str,
         task_id: str,
         data: dict | None = None,
+        seq: int | None = None,
     ):
         self.event = event
         self.node = node
         self.task_id = task_id
         self.timestamp = datetime.now(UTC).isoformat()
         self.data = data or {}
+        # 事件序号（每任务单调递增，与 JSONL 行号对齐）：前端据此对
+        # WS 实时事件 vs REST 回放做幂等去重与断线增量补拉（协议 v2.2）
+        self.seq = seq
 
     def to_json(self) -> str:
-        return json.dumps(
-            {
-                "event": self.event,
-                "node": self.node,
-                "task_id": self.task_id,
-                "timestamp": self.timestamp,
-                "data": self.data,
-            },
-            ensure_ascii=False,
-        )
+        payload: dict = {
+            "event": self.event,
+            "node": self.node,
+            "task_id": self.task_id,
+            "timestamp": self.timestamp,
+            "data": self.data,
+        }
+        if self.seq is not None:
+            payload["seq"] = self.seq
+        return json.dumps(payload, ensure_ascii=False)
 
     @staticmethod
     def channel_for(task_id: str) -> str:
@@ -132,12 +136,21 @@ class RedisPublisher:
             self._client = _create_sync_client(self.redis_url)
         return self._client
 
-    def publish(self, task_id: str, event: str, node: str, data: dict | None = None) -> int:
+    def publish(
+        self,
+        task_id: str,
+        event: str,
+        node: str,
+        data: dict | None = None,
+        seq: int | None = None,
+    ) -> int:
         """Publish an event to the task's channel.
+
+        seq: 事件序号（可选），透传进事件信封供前端幂等去重。
 
         Returns the number of subscribers that received the message.
         """
-        msg = ProgressEvent(event=event, node=node, task_id=task_id, data=data)
+        msg = ProgressEvent(event=event, node=node, task_id=task_id, data=data, seq=seq)
         channel = ProgressEvent.channel_for(task_id)
         try:
             return self.client.publish(channel, msg.to_json())

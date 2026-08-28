@@ -83,7 +83,9 @@ class Settings(BaseSettings):
     kb_vision_model: str = ""
 
     # ---- Sandbox ----
-    sandbox_timeout: int = 60
+    # 180s：元启发式/蒙特卡洛/参数扫描等真实建模计算单次常超 60s；
+    # 60s 旧默认导致求解轮次大量耗在「超时→原样重试→再超时」空转（审查 A1）
+    sandbox_timeout: int = 180
     sandbox_max_memory_mb: int = 512
     # 默认 docker（硬隔离）；docker 不可用时自动回退 subprocess 并告警（见 sandbox/executor.py）
     sandbox_backend: str = "docker"  # "docker" | "subprocess"

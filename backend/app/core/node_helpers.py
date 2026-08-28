@@ -33,29 +33,65 @@ def _pub_event(task_id: str, event: str, node: str, data: dict | None = None):
     """发布进度事件：实时推 Redis（WS 通道）+ 追加 JSONL（持久回放，dsh 式）。
 
     事件日志是前端"刷新不丢进度"的真相源：GET /api/tasks/{id}/events 回放。
+    每个事件分配单调递增 seq（与 JSONL 行号对齐），Redis 信封与 JSONL 同值——
+    前端据此对「WS 实时事件 vs REST 回放」幂等去重、断线后增量补拉（v2.2）。
     """
+    seq = _next_event_seq(task_id)
     try:
-        get_publisher().publish(task_id, event, node, data)
+        get_publisher().publish(task_id, event, node, data, seq=seq)
     except Exception:
         pass  # best-effort; never block the workflow on publish failures
-    _log_event(task_id, event, node, data)
+    _log_event(task_id, event, node, data, seq=seq)
 
 
 # ── helper: durable event log（session-as-source-of-truth，参考 dsh）──
 
 _event_log_lock = threading.Lock()
 
+# 每任务事件序号缓存（task_id → 已分配的最大 seq）
+_event_seq: dict[str, int] = {}
+
 
 def _event_log_path(task_id: str) -> Path:
     return get_settings().project_root / "data" / "task_events" / f"{task_id}.jsonl"
 
 
-def _log_event(task_id: str, event: str, node: str, data: dict | None = None) -> None:
+def _next_event_seq(task_id: str) -> int:
+    """分配任务内单调递增的事件序号；首用按 JSONL 既有行数初始化。
+
+    seq == 行号（第 n 条事件 seq=n），因此 GET /events?after=seq 即增量回放。
+    仅正常追加场景保证严格对齐；损坏行被跳过时以返回值里的 seq 为准。
+    """
+    with _event_log_lock:
+        last = _event_seq.get(task_id)
+        if last is None:
+            last = 0
+            try:
+                path = _event_log_path(task_id)
+                if path.exists():
+                    with open(path, encoding="utf-8") as f:
+                        last = sum(1 for line in f if line.strip())
+            except Exception:
+                last = 0
+        last += 1
+        _event_seq[task_id] = last
+        return last
+
+
+def _log_event(
+    task_id: str,
+    event: str,
+    node: str,
+    data: dict | None = None,
+    seq: int | None = None,
+) -> None:
     """把进度事件追加到磁盘 JSONL（原子小写，best-effort 不阻塞工作流）。"""
     try:
         from app.services.redis_pubsub import ProgressEvent
 
-        msg = ProgressEvent(event=event, node=node, task_id=task_id, data=data)
+        if seq is None:
+            seq = _next_event_seq(task_id)
+        msg = ProgressEvent(event=event, node=node, task_id=task_id, data=data, seq=seq)
         path = _event_log_path(task_id)
         with _event_log_lock:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -90,8 +126,22 @@ def read_task_events(task_id: str, after: int = 0, limit: int = 500) -> tuple[li
 
 
 def tool_timeout(name: str) -> float:
-    """每工具超时秒数：web_search 30s，其余 60s。"""
-    return 30.0 if name == "web_search" else 60.0
+    """每工具超时秒数。
+
+    - web_search: 30s
+    - run_code: 跟随沙箱执行预算（settings.sandbox_timeout）+ 20s 启动宽限。
+      旧实现固定 60s，与沙箱自身预算同时到点：外层先报「工具执行超时」、
+      沙箱线程继续后台跑完，两端口径不一致（审查 A5）。
+    - 其余工具: 60s
+    """
+    if name == "web_search":
+        return 30.0
+    if name == "run_code":
+        try:
+            return float(get_settings().sandbox_timeout) + 20.0
+        except Exception:
+            return 200.0
+    return 60.0
 
 
 def parse_code_result(result_text: str) -> dict:
@@ -237,15 +287,28 @@ def _persist_task_files(
                 if not src.exists():
                     continue
                 task_dir.mkdir(parents=True, exist_ok=True)
-                dst = task_dir / filename
+                # 内容 hash 命名（审查 B4）：多轮重跑常产出同名 figure_1.png
+                # 但内容不同；旧实现 dst.exists() 即跳过 + url_map 仍映射到
+                # 同一持久 URL → 报告两处引用同一 URL（重复渲染）且内容是
+                # 第一轮旧图。hash 后同名不同内容天然分文件，同内容天然去重。
+                import hashlib as _hashlib
+
+                try:
+                    digest = _hashlib.md5(src.read_bytes()).hexdigest()[:8]
+                except Exception:
+                    digest = "nohash"
+                stem = Path(filename).stem[:40]
+                suffix = Path(filename).suffix
+                durable_name = f"{stem}--{digest}{suffix}" if digest != "nohash" else filename
+                dst = task_dir / durable_name
                 if not dst.exists():
                     shutil.copy2(src, dst)
-                durable_url = f"/api/task_files/{task_id}/{filename}"
+                durable_url = f"/api/task_files/{task_id}/{durable_name}"
                 session_mgr.add_artifact(
                     task_id,
                     {
                         "type": file_type,
-                        "name": filename,
+                        "name": durable_name,
                         "url": durable_url,
                         "size": dst.stat().st_size,
                     },
@@ -450,6 +513,94 @@ def invoke_streaming_with_retry(
             )
             _time.sleep(delay)
     raise last_exc  # type: ignore[misc]
+
+
+# ── helper: 执行计划解析（planner 输出 → 步骤 + 理由）────────────────
+
+_VALID_PLAN_STEPS = {
+    "analysis",
+    "modeling",
+    "data_preprocessing",
+    "solving",
+    "verification",
+    "export_results",
+    "writing",
+}
+_DEFAULT_PLAN = ["analysis", "modeling", "solving", "verification", "writing"]
+
+
+def parse_execution_plan(plan_json) -> tuple[list[str], dict[str, str]]:
+    """解析 planner 输出为 (步骤列表, 步骤→理由)。
+
+    兼容两种格式：
+      - 新格式：``[{"step": "analysis", "reason": "..."}, ...]``（v2.2，带理由）
+      - 旧格式：``["analysis", "modeling", ...]``（reason 缺省为空）
+
+    白名单过滤（幻觉步骤名会让路由静默跳到收尾）+ 去重保序 +
+    程序化修正：首步必须 analysis、末步必须 writing；剔空回退默认计划。
+    """
+    steps: list[str] = []
+    reasons: dict[str, str] = {}
+    if isinstance(plan_json, list):
+        for item in plan_json:
+            if isinstance(item, str):
+                s = item.strip()
+                if s:
+                    steps.append(s)
+            elif isinstance(item, dict):
+                s = str(item.get("step", "")).strip()
+                if s:
+                    steps.append(s)
+                    r = str(item.get("reason", "")).strip()
+                    if r:
+                        reasons[s] = r
+    cleaned = [s for s in dict.fromkeys(steps) if s in _VALID_PLAN_STEPS]
+    if not cleaned:
+        cleaned = list(_DEFAULT_PLAN)
+    if cleaned[0] != "analysis":
+        cleaned.insert(0, "analysis")
+    if cleaned[-1] != "writing":
+        cleaned.append("writing")
+    return cleaned, reasons
+
+
+def _clip_head_tail(text: str, limit: int) -> str:
+    """头尾保留截断：LLM 输出的结论/判定块通常在文末，纯保头会切掉关键信息。
+
+    头 60% + 尾 40%，中间用省略标记衔接。
+    """
+    text = str(text or "").strip()
+    if len(text) <= limit:
+        return text
+    head = int(limit * 0.6)
+    tail = limit - head
+    return f"{text[:head]}\n…（中间省略 {len(text) - limit} 字符）…\n{text[-tail:]}"
+
+
+def build_verification_feedback(full_text: str, ver_json: dict) -> str:
+    """构造回退时给建模/求解节点的修正反馈（审查 C3）。
+
+    旧实现取 full_text[:500]——而验证 prompt 要求 JSON 判定块在**末尾**，
+    关键问题清单（critical_issues）恰好被切掉，回退修正只能拿到开头套话。
+    改为：判定块字段优先（verdict/rollback_target/critical_issues），
+    判定块无问题清单时退回正文头尾摘录。
+    """
+    lines: list[str] = []
+    verdict = str(ver_json.get("verdict", "")).strip().upper()
+    if verdict:
+        lines.append(f"判定: {verdict}")
+    if ver_json.get("rollback_target"):
+        lines.append(f"回退目标: {ver_json['rollback_target']}")
+    issues = ver_json.get("critical_issues") or ver_json.get("issues") or []
+    if isinstance(issues, str):
+        issues = [issues]
+    if issues:
+        for i, iss in enumerate(issues, 1):
+            lines.append(f"{i}. {str(iss).strip()}")
+    else:
+        lines.append("（验证未给出具体问题清单，以下为验证正文头尾摘录）")
+        lines.append(_clip_head_tail(full_text, 800))
+    return "\n".join(lines)[:1500]
 
 
 def _extract_verdict_json(text: str) -> dict:

@@ -9,6 +9,7 @@ import { computed, ref, watch } from "vue";
 interface WsEventData {
   plan?: string[];
   step_count?: number;
+  reasons?: Record<string, string>;
   stage?: string;
   title?: string;
   summary?: string;
@@ -46,6 +47,8 @@ interface WsEvent {
   task_id?: string;
   timestamp?: string;
   id?: string;
+  /** 事件序号（协议 v2.2）：每任务单调递增，幂等去重与断线增量补拉的依据 */
+  seq?: number;
   data?: WsEventData;
 }
 
@@ -81,6 +84,11 @@ export const useTaskStore = defineStore("task", () => {
   const sectionsDone = ref(0);
   // 动态执行计划（plan 事件；波次 2 用真实计划渲染时间线，替换写死步骤）
   const planSteps = ref<string[]>([]);
+  // 计划步骤 → 理由（v2.2：planner 输出 [{step, reason}]，时间线按真实理由展示"方案思考"）
+  const planReasons = ref<Record<string, string>>({});
+  // 每任务已处理的最大事件序号（协议 v2.2）：WS 实时事件 vs REST 回放竞态
+  // 双apply 的幂等依据；重连后按 after=lastSeq 增量补拉断线期间丢失的事件
+  const lastSeqByTask: Record<string, number> = {};
   // 节点状态（node_start/node_end 驱动）：node 名 → active/done/skipped + 描述
   const nodeStates = ref<
     Record<string, { status: "active" | "done" | "skipped"; detail?: string }>
@@ -108,7 +116,16 @@ export const useTaskStore = defineStore("task", () => {
 
   function appendMessage(taskId: string, message: Message) {
     ensureTaskBucket(taskId);
-    messagesByTask.value[taskId] = [...messagesByTask.value[taskId], message];
+    const bucket = messagesByTask.value[taskId];
+    // 幂等：同 id 已存在则合并更新，而不是再追加（确定性 id + 回放/重连
+    // 会重复触发同一事件，旧实现无限追加 → 重复气泡；审查 B2）
+    const idx = bucket.findIndex((m) => m.id === message.id);
+    if (idx >= 0) {
+      bucket[idx] = { ...bucket[idx], ...message } as Message;
+      messagesByTask.value = { ...messagesByTask.value, [taskId]: [...bucket] };
+      return;
+    }
+    messagesByTask.value[taskId] = [...bucket, message];
   }
 
   /** 更新 task 内已存在的消息（同 id 覆盖，供工具结果/代码执行回填） */
@@ -192,6 +209,7 @@ export const useTaskStore = defineStore("task", () => {
         ? data.data.plan
         : [];
       if (plan.length) planSteps.value = plan;
+      planReasons.value = (data.data?.reasons as Record<string, string>) ?? {};
       // plan 事件即"计划制定"步骤完成（该节点不发 node_end）
       nodeStates.value = {
         ...nodeStates.value,
@@ -247,6 +265,7 @@ export const useTaskStore = defineStore("task", () => {
       const data = res.data?.data ?? res.data;
       const events: WsEvent[] = data?.events ?? [];
       planSteps.value = [];
+      planReasons.value = {};
       nodeStates.value = {};
       rollbackInfo.value = null;
       let sawTaskEnd = false;
@@ -271,6 +290,16 @@ export const useTaskStore = defineStore("task", () => {
   function handleProgressEvent(taskId: string, data: WsEvent) {
     const event = data?.event;
 
+    // ── 幂等去重（协议 v2.2）：带 seq 的事件只应用一次 ──
+    // 连接后 REST 回放与实时 WS 存在重叠窗口，逐事件重放会让 node_delta
+    // 文本翻倍、tool_call 重复建卡（图表重复出现；审查 B2）。
+    // 同一个事件（同 seq）只更新 lastSeq 之后的首次应用。
+    const seq = data?.seq;
+    if (typeof seq === "number") {
+      if (seq <= (lastSeqByTask[taskId] ?? 0)) return;
+      lastSeqByTask[taskId] = seq;
+    }
+
     // 动态时间线状态（plan/node_start/node_end/task_end）——与消息卡片无关，
     // 抽成 applyEventState 供 WS 实时事件与 events 回放共用
     applyEventState(data);
@@ -289,22 +318,34 @@ export const useTaskStore = defineStore("task", () => {
       return;
     }
 
-    // 流式节点开始：创建 agent 消息占位（node_delta 逐字累积，体验对齐 chat 模式）
+    // 流式节点开始：创建 agent 消息占位（node_delta 逐字累积，体验对齐 chat 模式）。
+    // id 用确定性 node-{node}：回放/重连重复触发同一 node_start 时幂等合并，
+    // 而不是再建占位；节点重跑（回退到 modeling/solving）时重置内容防旧流叠加。
     if (event === "node_start") {
       const node = data?.node;
-      if (node && STREAMING_NODES.has(node) && !streamingNodeMsg.value[node]) {
-        const msgId = genId();
+      if (node && STREAMING_NODES.has(node)) {
+        const msgId = `node-${node}`;
+        const existing = messagesByTask.value[taskId]?.find(
+          (m) => m.id === msgId,
+        );
+        if (existing) {
+          updateMessage(taskId, msgId, {
+            content: "",
+            streaming: true,
+          } as Partial<Message>);
+        } else {
+          appendMessage(taskId, {
+            id: msgId,
+            msg_type: "agent",
+            content: "",
+            streaming: true,
+            created_at: now(),
+          } as Message);
+        }
         streamingNodeMsg.value = {
           ...streamingNodeMsg.value,
           [node]: msgId,
         };
-        appendMessage(taskId, {
-          id: msgId,
-          msg_type: "agent",
-          content: "",
-          streaming: true,
-          created_at: now(),
-        } as Message);
       }
       return;
     }
@@ -332,26 +373,35 @@ export const useTaskStore = defineStore("task", () => {
     // 工具调用：挂到当前流式节点消息（内联进 agent 回复，与 chat 模式一致）
     if (event === "tool_call") {
       const hostId = Object.values(streamingNodeMsg.value).pop() ?? null;
+      const toolCallId = data.data?.tool_call_id;
+      // 确定性 id：tool-{tool_call_id} —— tool_result 按 tool_call_id 回填；
+      // 回放/重连重复触发同一 tool_call 时幂等合并，不重复建卡（图表重复 B2）
+      const toolMsgId = `tool-${toolCallId ?? genId()}`;
       const toolMsg: Message = {
-        id: genId(),
+        id: toolMsgId,
         msg_type: "tool",
         tool_name: data.data?.tool_name ?? "run_code",
         input: data.data?.input ?? null,
         output: null,
         status: "running",
-        tool_call_id: data.data?.tool_call_id,
+        tool_call_id: toolCallId,
         created_at: now(),
       };
       if (hostId) {
         // 内联：挂到宿主 agent 消息的附件/片段流（Bubble 渲染层复用 chat 机制）
-        chatSession.attachTool(hostId, toolMsg);
-        chatSession.appendSegment(hostId, {
-          kind: "tool",
-          toolId: toolMsg.id,
-        });
+        const existing = chatSession
+          .getToolAttachments(hostId)
+          .find((m) => m.id === toolMsgId);
+        if (!existing) {
+          chatSession.attachTool(hostId, toolMsg);
+          chatSession.appendSegment(hostId, {
+            kind: "tool",
+            toolId: toolMsgId,
+          });
+        }
         // 键必须与读取端（findToolHost 按 tool_call_id 查）一致：
         // 优先后端 tool_call_id，缺失时回退前端消息 id
-        const toolKey = data.data?.tool_call_id ?? toolMsg.id;
+        const toolKey = toolCallId ?? toolMsgId;
         toolHostMap.value = { ...toolHostMap.value, [toolKey]: hostId };
       } else {
         appendMessage(taskId, toolMsg);
@@ -495,7 +545,9 @@ export const useTaskStore = defineStore("task", () => {
       }
 
       appendMessage(taskId, {
-        id: data.id ?? genId(),
+        // 确定性 id：nodeend-{node}——回放/重连重复触发同一 node_end 时
+        // 合并更新（appendMessage 幂等），而不是再造一条气泡（审查 B1/B2）
+        id: data.id ?? `nodeend-${node}`,
         msg_type: "agent",
         content,
         agent_type: undefined,
@@ -604,6 +656,13 @@ export const useTaskStore = defineStore("task", () => {
     isRunning.value = true;
     completed.value = false;
     currentStep.value = "";
+    // 重建本次连接的事件基准（审查 B2）：重置 bucket 后做全量回放，
+    // 否则切换任务/断线重连会对未清空的 bucket 重复叠加旧消息。
+    // chatSession 已持久化副本，displayMessages 按 id 去重，此处重建不丢历史。
+    messagesByTask.value[taskId] = [];
+    delete lastSeqByTask[taskId];
+    streamingNodeMsg.value = {};
+    toolHostMap.value = {};
 
     // 访客也连接：后端 /api/ws 已放行无 token 订阅（此前访客被静默跳过，
     // 方案页看不到任何实时过程——实测复现）。有 token 才附加；无 token 裸连。
@@ -614,29 +673,41 @@ export const useTaskStore = defineStore("task", () => {
       ? `${baseUrl}/task/${taskId}?token=${encodeURIComponent(token)}`
       : `${baseUrl}/task/${taskId}`;
 
+    // 事件回放：初始连接从 after=0 全量重建（bucket 已重置）；断线重连
+    // 从最后已处理 seq 增量补拉断连期间丢失的事件。handleProgressEvent 内部
+    // 按 seq 幂等去重，重复喂同一事件（实时窗口重叠）也不会二次应用。
+    const replay = (after: number) => {
+      void (async () => {
+        try {
+          const res = await fetch(
+            `/api/tasks/${taskId}/events?after=${after}&limit=500`,
+          );
+          if (!res.ok) return;
+          const data = await res.json();
+          for (const ev of data.events ?? []) {
+            handleProgressEvent(taskId, ev as WsEvent);
+          }
+        } catch {
+          // 回放失败不阻断实时连接
+        }
+      })();
+    };
+
     ws = new TaskWebSocket(
       wsUrl,
       (data) => handleProgressEvent(taskId, data as WsEvent),
       (status) => {
         wsStatus.value = status;
       },
+      (isReconnect) => {
+        if (isReconnect) replay(lastSeqByTask[taskId] ?? 0);
+      },
     );
     ws.connect();
 
     // REST 回放：pub/sub 无回放缓冲，晚订阅会丢连接前已发布的事件——
     // 拉取持久化事件流按序重建，让访客/晚到者也能看到完整过程
-    void (async () => {
-      try {
-        const res = await fetch(`/api/tasks/${taskId}/events?limit=500`);
-        if (!res.ok) return;
-        const data = await res.json();
-        for (const ev of data.events ?? []) {
-          handleProgressEvent(taskId, ev as WsEvent);
-        }
-      } catch {
-        // 回放失败不阻断实时连接
-      }
-    })();
+    replay(0);
   }
 
   // 登录后自动恢复当前任务的 WS 连接（无 token 时被跳过的场景）
@@ -664,6 +735,7 @@ export const useTaskStore = defineStore("task", () => {
     writingStage,
     sectionsDone,
     planSteps,
+    planReasons,
     nodeStates,
     rollbackInfo,
     currentTaskId,

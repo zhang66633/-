@@ -178,8 +178,17 @@ class RunCodeTool(BaseTool):
         parts = []
         if result["stdout"]:
             parts.append(f"输出:\n{result['stdout']}")
-        if result["stderr"] and not result["success"]:
-            parts.append(f"错误:\n{result['stderr']}")
+        # 失败必须无条件输出错误段（审查 A）：RLIMIT_CPU 杀进程等场景 stderr
+        # 为空，旧实现静默吞掉失败 → LLM 把部分输出当成功结果写进报告
+        if not result["success"]:
+            err = result.get("stderr") or (
+                f"进程异常退出 (returncode={result.get('returncode')})，无 stderr 输出"
+            )
+            parts.append(f"错误:\n{err}")
+            if result["stdout"]:
+                parts.append(
+                    "注意：以上输出产生于失败/超时之前，不是完整结果，禁止直接当作最终数值。"
+                )
         if result["images"]:
             img_urls = []
             for img_path in result["images"]:

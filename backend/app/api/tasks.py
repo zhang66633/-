@@ -237,7 +237,7 @@ async def get_task_events(
     plan / tool_call / tool_result / code_exec / task_end）。前端进会话时调用本端点
     恢复进度视图（dsh 式 session-projection 回放），配合 WS 实时事件使用。
     """
-    from app.core.node_helpers import read_task_events
+    from app.core.node_helpers import _pub_event, read_task_events
 
     events, total = read_task_events(task_id, after=after, limit=limit)
     return {
@@ -305,24 +305,19 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
         )
 
         # 流式运行 — 每个节点完成后立即写入进度消息
+        # （进度事件的 Redis 发布 + JSONL 落盘统一由节点侧 _pub_event 负责，
+        #   编排循环不再二次发布——见下方注释）
         session_mgr = get_session_manager()
-        publisher = None
-        try:
-            from app.services.redis_pubsub import get_publisher
-
-            publisher = get_publisher()
-        except Exception:
-            publisher = None
 
         node_meta = {
-            "classify_problem": ("问题分析", "识别问题类型"),
+            "classify_problem": ("问题分类", "识别问题类型与复杂度"),
             "retrieve_knowledge": ("知识检索", "检索建模知识库"),
             "plan_execution": ("计划制定", "规划执行步骤"),
             "analysis_agent": ("问题分析", "深入剖析题意"),
             "modeling_agent": ("模型构建", "建立数学模型"),
             "solving_agent": ("求解计算", "编写并执行求解代码"),
             "verification_agent": ("验证分析", "检验模型鲁棒性"),
-            "writing_agent": ("论文写作", "生成 LaTeX 论文"),
+            "writing_agent": ("论文写作", "生成竞赛论文"),
             "format_response": ("整合输出", "汇总最终结果"),
         }
 
@@ -337,17 +332,20 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
         }
 
         def _make_summary(node_name: str, node_output: dict) -> str:
-            """从 node_output 中抽取该 Agent 的实际产出摘要（首 800 字）。"""
+            """从 node_output 中抽取该 Agent 的实际产出摘要（首 800 字）。
+
+            保留换行（列表/表格在 thinking 块里能按 Markdown 渲染），
+            只去掉前导标题井号；旧实现把 \\s+ 压成空格，思考块格式尽毁。
+            """
             field = node_output_fields.get(node_name)
             if not field:
                 return ""
-            text = node_output.get(field) or ""
-            text = str(text).strip()
+            text = str(node_output.get(field) or "").strip()
             if not text:
                 return ""
-            # 去掉前导 markdown 标题与多余空白
             text = re.sub(r"^#+\s+", "", text, flags=re.MULTILINE)
-            text = re.sub(r"\s+", " ", text)
+            # 压掉 3+ 连续换行为两行（保留列表结构），不触碰行内空白
+            text = re.sub(r"\n{3,}", "\n\n", text)
             return text[:800].strip()
 
         messages = []
@@ -382,20 +380,12 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
                 }
                 messages.append(progress_msg)
                 session_mgr.update(task_id, messages=messages)
-                # 实时推送到 WebSocket（fakeredis 或真实 Redis）
-                # 前端拿 summary 渲染更具体的卡片，避免与顶部时间线信息重复
-                if publisher:
-                    publisher.node_end(
-                        task_id,
-                        node_name,
-                        {
-                            "stage": stage,
-                            "title": stage,
-                            "desc": desc,
-                            "summary": summary,
-                            "status": "completed",
-                        },
-                    )
+                # 注意：这里**不再**向 Redis 二次发布 node_end —— 节点本体
+                # （nodes.py）已发布带完整 data（summary/images_count 等）的
+                # node_end 事件并落盘回放日志；编排循环再发一份会导致前端
+                # 每个节点出现两个完成气泡，solving 的重复气泡 thinking 里
+                # 带 /api/images/ 链接被 Markdown 渲染 → 图表重复出现
+                # （审查 P0-1）。本循环只负责 REST messages 持久化。
                 # messages 字段是各节点的增量列表，单独累积；
                 # 其余字段直接 update（后写覆盖先写，各节点字段互不重叠）
                 if node_output:
@@ -450,22 +440,31 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
         # final_response 可能很长（论文含 LaTeX 全章），不在 WS payload 里塞全文：
         # WS 只推一个轻量级完成信号 + 前 800 字预览；前端再 GET /api/tasks/{id}
         # 拿到 writing_output / final_response 完整内容（已存到 session_mgr）。
-        if publisher:
-            publisher.task_end(
-                task_id,
-                "format_response",
-                "completed",
-                {
-                    "final_response_preview": (result.get("final_response", "") or "")[:800],
-                    "final_response_length": len(result.get("final_response", "") or ""),
-                    "writing_output_length": len(result.get("writing_output", "") or ""),
-                },
-            )
+        # task_end 也走 _pub_event：落盘 JSONL 后刷新页面回放才能看到
+        # 「任务已完成」终态（旧实现只进 Redis，回放侧 task_end 永远缺失）。
+        _pub_event(
+            task_id,
+            "task_end",
+            "format_response",
+            {
+                "status": "completed",
+                "final_response_preview": (result.get("final_response", "") or "")[:800],
+                "final_response_length": len(result.get("final_response", "") or ""),
+                "writing_output_length": len(result.get("writing_output", "") or ""),
+            },
+        )
 
     except TaskCancelledError:
         # 用户主动取消：标记任务为 cancelled（cancel 会置 status 并发出取消信号）
         logger.info("任务已被取消: %s", task_id)
         get_session_manager().cancel(task_id)
+        # 取消同样落盘 task_end（带 status=cancelled），回放侧终态正确
+        _pub_event(
+            task_id,
+            "task_end",
+            "orchestrator",
+            {"status": "cancelled", "message": "任务已被用户取消"},
+        )
     except Exception as e:
         import traceback
 
@@ -483,12 +482,12 @@ async def _run_orchestrator(task_id: str, problem: str, mode: str, user_id: str 
                 }
             ],
         )
-        try:
-            from app.services.redis_pubsub import get_publisher
-
-            get_publisher().task_end(task_id, "orchestrator", "error", {"message": str(e)})
-        except Exception:
-            pass
+        _pub_event(
+            task_id,
+            "task_end",
+            "orchestrator",
+            {"status": "error", "message": str(e)},
+        )
     finally:
         # 清理取消事件
         get_session_manager().cleanup_cancel_event(task_id)

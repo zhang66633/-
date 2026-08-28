@@ -19,6 +19,7 @@ export class TaskWebSocket {
   private url: string;
   private onMessage: MessageHandler;
   private onStatus: StatusHandler | null = null;
+  private onReconnect: ((isReconnect: boolean) => void) | null = null;
   private reconnectConfig: ReconnectConfig;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -28,10 +29,12 @@ export class TaskWebSocket {
     url: string,
     onMessage: MessageHandler,
     onStatus?: StatusHandler,
+    onReconnect?: (isReconnect: boolean) => void,
   ) {
     this.url = url;
     this.onMessage = onMessage;
     this.onStatus = onStatus ?? null;
+    this.onReconnect = onReconnect ?? null;
     this.reconnectConfig = {
       maxRetries: 10,
       initialDelay: 1000,
@@ -47,8 +50,12 @@ export class TaskWebSocket {
     this.socket = new WebSocket(this.url);
     this.socket.onopen = () => {
       console.log("WebSocket 连接已建立");
+      const isReconnect = this.reconnectAttempts > 0;
       this.reconnectAttempts = 0;
       this.notifyStatus("connected");
+      // 断线重连成功后通知宿主：需从最后已处理 seq 增量补拉丢失事件
+      // （协议 v2.2；isReconnect 为 true 表示自动重连而非首次连接）
+      this.onReconnect?.(isReconnect);
     };
     this.socket.onmessage = (event) => {
       try {

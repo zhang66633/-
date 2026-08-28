@@ -20,6 +20,7 @@ from .node_helpers import (  # noqa: F401  (god-files 拆分 #31：辅助函数�
     TaskCancelledError,
     _check_cancelled,
     _clean_md,
+    _clip_head_tail,
     _collect_file_urls,
     _collect_image_urls,
     _extract_code_block,
@@ -32,11 +33,13 @@ from .node_helpers import (  # noqa: F401  (god-files 拆分 #31：辅助函数�
     _persist_task_images,
     _pub_event,
     _save_working_memory,
+    build_verification_feedback,
     get_cancel_event,
     invoke_streaming_with_retry,
     invoke_with_retry,
     logger,
     parse_code_result,
+    parse_execution_plan,
     tool_call_id,
     tool_timeout,
 )
@@ -449,28 +452,12 @@ def plan_execution(state: AgentState) -> dict:
 
     plan = _extract_json(str(response.content))
 
-    # 白名单过滤：planner 幻觉出非法步骤名时，路由会 get(step, "format_response")
-    # 静默跳到收尾、丢弃其后全部步骤——含写作（审查 P1）。
-    # 未知步骤剔除；剔空则回退默认计划。
-    _VALID_STEPS = {
-        "analysis", "modeling", "data_preprocessing", "solving",
-        "verification", "export_results", "writing",
-    }
-    if isinstance(plan, list) and all(isinstance(x, str) for x in plan):
-        cleaned = [x.strip() for x in plan if x.strip() in _VALID_STEPS]
-        if not cleaned:
-            cleaned = ["analysis", "modeling", "solving", "verification", "writing"]
-        # 程序化修正：首步必须 analysis（下游依赖其输出），末步必须 writing
-        if cleaned[0] != "analysis":
-            cleaned.insert(0, "analysis")
-        if cleaned[-1] != "writing":
-            cleaned.append("writing")
-        execution_plan = cleaned
-    else:
-        # 默认计划
-        execution_plan = ["analysis", "modeling", "solving", "verification", "writing"]
+    # 白名单过滤 + 理由提取（v2.2：planner 输出 [{step, reason}]，
+    # 时间线按真实理由展示"方案思考"，而非写死的通用描述——审查 C1）
+    execution_plan, plan_reasons = parse_execution_plan(plan)
 
-    # 协议 v2.1：推送动态执行计划（前端按真实计划渲染时间线，而非写死步骤）
+    # 协议 v2.1：推送动态执行计划（前端按真实计划渲染时间线，而非写死步骤）；
+    # v2.2 附 reasons：每个步骤为什么出现在这道题的计划里
     _pub_event(
         task_id,
         "plan",
@@ -478,13 +465,28 @@ def plan_execution(state: AgentState) -> dict:
         {
             "plan": execution_plan,
             "step_count": len(execution_plan),
+            "reasons": plan_reasons,
         },
     )
 
     return {
         "execution_plan": execution_plan,
         "current_step_index": -1,
-        "messages": [SystemMessage(content=f"执行计划: {' → '.join(execution_plan)}")],
+        "messages": [
+            SystemMessage(
+                content=(
+                    f"执行计划: {' → '.join(execution_plan)}"
+                    + (
+                        "\n计划理由: "
+                        + "；".join(
+                            f"{k}（{v}）" for k, v in plan_reasons.items() if k in execution_plan
+                        )
+                        if plan_reasons
+                        else ""
+                    )
+                )
+            )
+        ],
     }
 
 
@@ -750,7 +752,16 @@ def solving_agent_node(state: AgentState) -> dict:
         )
 
     system_prompt = SOLVING_TOOL_SYSTEM_PROMPT.format(
-        model_info=model_text, data_files_section=data_files_section
+        model_info=model_text,
+        data_files_section=data_files_section,
+        # 时间预算如实告知（审查 P0-3）：模型按真实预算规划拆分，
+        # 而不是撞了超时才盲目重试同样的大计算
+        time_budget_section=(
+            f"- 单次 run_code 执行预算约 {get_settings().sandbox_timeout} 秒，"
+            "超时会被强制终止（只能拿到终止前的部分输出）。\n"
+            "- 预计超过预算的计算必须拆分：先小规模/小迭代跑通验证正确性，"
+            "再分步放大规模；严禁单次调用塞入全量重计算。"
+        ),
     )
     # EDA 结论注入求解侧（审查 P1：preprocessed_data 曾是悬空字段，EDA 结论被丢弃）
     _eda = (state.get("preprocessed_data") or "").strip()
@@ -1007,6 +1018,12 @@ def solving_agent_node(state: AgentState) -> dict:
         final_output = str(fallback.content)
 
     # 图表和文件持久化到任务文件区（临时目录可能被系统清理）
+    # 先按 URL 去重（审查 B5）：多轮重试/多子问题常引用同一 run 的同一张图，
+    # 不去重会虚报 images_count，也会诱导下游写作阶段多处引用同一图
+    all_images = list(dict.fromkeys(all_images))
+    all_xlsx = list(dict.fromkeys(all_xlsx))
+    all_csv = list(dict.fromkeys(all_csv))
+    all_html = list(dict.fromkeys(all_html))
     persisted = _persist_task_files(
         task_id,
         image_urls=all_images,
@@ -1070,17 +1087,19 @@ def verification_agent_node(state: AgentState) -> dict:
         system_prompt = VERIFICATION_TEACH_SYSTEM_PROMPT
         user_prompt = VERIFICATION_TEACH_USER_TEMPLATE.format(
             problem=state["problem_raw"],
-            analysis=state.get("analysis_output", "无")[:2000],
-            model=state.get("model_output", "无")[:2000],
-            solving=state.get("solving_output", "无")[:2000],
+            analysis=_clip_head_tail(state.get("analysis_output", "无"), 2000),
+            model=_clip_head_tail(state.get("model_output", "无"), 2000),
+            solving=_clip_head_tail(state.get("solving_output", "无"), 2000),
         )
     else:
         system_prompt = VERIFICATION_SYSTEM_PROMPT
+        # 头尾截断而非只砍头（审查 C4）：求解报告的数值结论与检验段
+        # 大多在文末，旧实现 [:2000] 让验证官只看残卷就下 PASS/FAIL 判定
         user_prompt = VERIFICATION_USER_TEMPLATE.format(
             problem=state["problem_raw"],
-            analysis=state.get("analysis_output", "无")[:2000],
-            model=state.get("model_output", "无")[:2000],
-            solving=state.get("solving_output", "无")[:2000],
+            analysis=_clip_head_tail(state.get("analysis_output", "无"), 2500),
+            model=_clip_head_tail(state.get("model_output", "无"), 3500),
+            solving=_clip_head_tail(state.get("solving_output", "无"), 4500),
         )
 
     # 流式输出：逐 chunk 推 node_delta 事件（前端像 chat 一样逐字渲染）
@@ -1169,7 +1188,11 @@ def verification_agent_node(state: AgentState) -> dict:
     return {
         "verification_passed": passed,
         "verification_output": full_text,
-        "verification_feedback": full_text[:500] if not passed else None,
+        # 修正反馈取判定 JSON 的问题清单而非正文前 500 字（审查 C3：
+        # JSON 判定块在末尾，砍头正好切掉 critical_issues）
+        "verification_feedback": (
+            build_verification_feedback(full_text, ver_json) if not passed else None
+        ),
         "rollback_target": rollback_target,
         "retry_count": new_retry_count,
         "current_step_index": next_step_index,
@@ -1241,7 +1264,8 @@ def build_paper_sections(solving_output: str) -> list[tuple[str, str]]:
             (
                 "四、模型的建立与求解",
                 "严格按大纲完成：①建模思路 ②模型与算法（$$公式块$$、关键表格）"
-                "③求解结果（材料中每个 /api/images/ 链接至少引用一次并配图注）④结果检验。"
+                "③求解结果（引用材料中与本节直接相关的 /api/images/ 图片链接并配图注，"
+                "每张图全文只引用一次，禁止跨节重复引用同一张图）④结果检验。"
                 "**必须完整写完，不要截断。**",
             ),
             *_GENERIC_SECTIONS[3:],
@@ -1253,7 +1277,9 @@ def build_paper_sections(solving_output: str) -> list[tuple[str, str]]:
         req = (
             f"### 子问题{num}：{sub_title}\n"
             "严格按此结构：①原理与方法 ②模型与求解（$$公式块$$、关键表格）"
-            "③求解结果（材料中每个 /api/images/ 链接至少引用一次并配图注）④结果检验。"
+            f"③求解结果（只引用求解材料中「子问题{num}」小节内出现的图片链接，"
+            "配图注；**其他子问题的图留给各自小节，严禁跨节引用**——每张图全文只引用一次）"
+            "④结果检验。"
             "**必须输出完整小节，不要截断。**"
         )
         core.append((title, req))
