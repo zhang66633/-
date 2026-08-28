@@ -3,7 +3,20 @@ import type { LanguageFn } from "highlight.js";
 import { type Token, type Tokens, marked } from "marked";
 import markedKatex from "marked-katex-extension";
 
-marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+// ── Markdown → 安全 HTML 管线的**唯一真源** ────────────────────────
+// 本文件集中定义 marked + KaTeX + DOMPurify 三者的全部配置。
+//   论文阅读器（PaperViewer）、聊天气泡（renderMarkdown）、导出/打印
+//   （exportPaper → renderMarkdownAsync）**都必须**经由本管线渲染，
+//   禁止在任何其他地方再写一份 USE_PROFILES / ADD_TAGS / markedKatex 配置，
+//   否则 KaTeX 的 MathML/样式属性会因清洗白名单漂移而损坏公式。
+//
+// 已验证：KATEX_OPTIONS 使 $...$/$$...$$（含标题/表格内）渲染为 .katex 静态 HTML；
+// MARKDOWN_SANITIZE_CONFIG 保留 KaTeX 的 style 属性与 MathML 序列化（见下方注释）。
+
+/** KaTeX 渲染配置：throwOnError=false 使坏公式不崩溃而是出错占位；nonStandard=true 支持单个 $。 */
+export const KATEX_OPTIONS = { throwOnError: false, nonStandard: true };
+
+marked.use(markedKatex(KATEX_OPTIONS));
 
 /**
  * highlight.js 懒加载 — 首次代码块渲染时加载，之后缓存。
@@ -203,8 +216,10 @@ const paperRenderer = createHighlightedRenderer();
  *
  * ADD_ATTR xmlns 必须保留：KaTeX 的 MathML 层带 xmlns 命名空间声明，
  * 被清洗后 Firefox 等优先用 MathML 渲染的浏览器公式会损坏（练习/学习页公式渲染错误）。
+ *
+ * 导出（exportPaper）与论文阅读器共用本配置 —— 是全文唯一的清洗白名单。
  */
-const SANITIZE_CONFIG = {
+export const MARKDOWN_SANITIZE_CONFIG = {
   USE_PROFILES: { html: true, svg: true, svgFilters: true, mathMl: true },
   ADD_TAGS: ["semantics", "annotation", "annotation-xml"],
   ADD_ATTR: ["xmlns"],
@@ -223,7 +238,7 @@ export async function renderMarkdownAsync(text: string): Promise<string> {
 
   // 先用 marked 解析（此时代码块还是纯文本）
   const raw = marked.parse(text, { renderer: paperRenderer }) as string;
-  const sanitized = DOMPurify.sanitize(raw, SANITIZE_CONFIG);
+  const sanitized = DOMPurify.sanitize(raw, MARKDOWN_SANITIZE_CONFIG);
 
   cacheSet(key, sanitized);
   return sanitized;
@@ -240,7 +255,7 @@ export function renderMarkdown(text: string): string {
   if (cached !== undefined) return cached;
 
   const raw = marked.parse(text) as string;
-  const sanitized = DOMPurify.sanitize(raw, SANITIZE_CONFIG);
+  const sanitized = DOMPurify.sanitize(raw, MARKDOWN_SANITIZE_CONFIG);
 
   cacheSet(key, sanitized);
   return sanitized;
